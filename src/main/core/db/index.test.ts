@@ -18,18 +18,26 @@ describe("openProjectDatabase", () => {
   })
 
   it("creates the file, applies migrations and round-trips a setting", () => {
-    const db = openProjectDatabase(join(dir, "project.db"), migrationsFolder)
+    const { db, close } = openProjectDatabase(join(dir, "project.db"), migrationsFolder)
     db.insert(schema.projectSettings)
       .values({ key: "targetModel", value: "h3", updatedAt: new Date() })
       .run()
     const rows = db.select().from(schema.projectSettings).all()
     expect(rows.map((r) => [r.key, r.value])).toEqual([["targetModel", "h3"]])
+    close()
   })
 
   it("is idempotent on an existing database", () => {
     const path = join(dir, "project.db")
-    openProjectDatabase(path, migrationsFolder)
-    const db = openProjectDatabase(path, migrationsFolder)
+    openProjectDatabase(path, migrationsFolder).close()
+    const { db, close } = openProjectDatabase(path, migrationsFolder)
     expect(db.select().from(schema.projectSettings).all()).toEqual([])
+    close()
+  })
+
+  it("releases the file handle on close", () => {
+    const { db, close } = openProjectDatabase(join(dir, "project.db"), migrationsFolder)
+    close()
+    expect(() => db.select().from(schema.projectSettings).all()).toThrow()
   })
 })
