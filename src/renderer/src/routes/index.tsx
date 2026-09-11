@@ -1,11 +1,14 @@
+import { createFileRoute } from "@tanstack/react-router"
 import { Button } from "@renderer/design-system"
 
-function App(): React.JSX.Element {
+export const Route = createFileRoute("/")({
+  component: WelcomePage,
+})
+
+function WelcomePage(): React.JSX.Element {
   return (
     <main className="flex h-screen items-center justify-center">
       <Button>preshoot</Button>
     </main>
   )
 }
-
-export default App
