@@ -4,6 +4,7 @@
     "src/renderer/src/env.d.ts",
     "src/renderer/src/**/*",
     "src/renderer/src/**/*.tsx",
+    "src/renderer/vitest.setup.ts",
     "src/preload/*.d.ts"
   ],
   "compilerOptions": {
@@ -14,6 +15,10 @@
       "@renderer/*": [
         "src/renderer/src/*"
       ]
-    }
+    },
+    "types": [
+      "vite/client",
+      "@testing-library/jest-dom"
+    ]
   }
 }

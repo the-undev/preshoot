@@ -4,12 +4,14 @@ import eslintConfigPrettier from "@electron-toolkit/eslint-config-prettier"
 import eslintPluginReact from "eslint-plugin-react"
 import eslintPluginReactHooks from "eslint-plugin-react-hooks"
 import eslintPluginReactRefresh from "eslint-plugin-react-refresh"
+import eslintPluginQuery from "@tanstack/eslint-plugin-query"
 
 export default defineConfig(
   { ignores: ["**/node_modules", "**/dist", "**/out", "**/routeTree.gen.ts"] },
   tseslint.configs.recommended,
   eslintPluginReact.configs.flat.recommended,
   eslintPluginReact.configs.flat["jsx-runtime"],
+  ...eslintPluginQuery.configs["flat/recommended"],
   {
     settings: {
       react: {
@@ -26,6 +28,16 @@ export default defineConfig(
     rules: {
       ...eslintPluginReactHooks.configs.recommended.rules,
       ...eslintPluginReactRefresh.configs.vite.rules,
+    },
+  },
+  {
+    // Domain code stays free of Electron so it can be tested under plain Node and moved later.
+    files: ["src/main/core/**/*.ts"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        { paths: ["electron"], patterns: ["electron/*", "@electron-toolkit/*"] },
+      ],
     },
   },
   {

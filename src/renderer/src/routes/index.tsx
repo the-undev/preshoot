@@ -14,7 +14,7 @@ function WelcomePage(): React.JSX.Element {
   return (
     <main className="flex h-screen flex-col items-center justify-center gap-4">
       <Button>preshoot</Button>
-      <p className="text-muted-foreground text-sm">
+      <p className="text-sm text-muted-foreground">
         {info.isPending && "Connecting to main process"}
         {info.isError && `Main process unreachable: ${info.error.message}`}
         {info.isSuccess &&
