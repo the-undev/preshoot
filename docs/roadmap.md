@@ -46,9 +46,13 @@ at Q2 or Q3 with the Lightning LoRA.
   over SSH plus ComfyUI HTTP for queueing jobs and pulling outputs. Then
   pod start and stop through the Runpod API.
 
+## Done
+
+1. Welcome screen, project create and open, recent projects, and an empty
+   project workspace.
+
 ## Milestones
 
-1. Welcome screen, project create and open, recent projects.
 2. Asset library: people, places, objects, plus picklists for camera
    angle, movement, transition, lighting and style. Reference images and
    RefMod files attached to assets. Description drafted from images by the
@@ -79,3 +83,13 @@ at Q2 or Q3 with the Lightning LoRA.
 - The Electron postinstall silently skipped extracting the binary in this
   environment; the zip was cached and extracted by hand. Check whether a
   clean `pnpm install` on this machine reproduces it.
+- The recent projects list drops an entry whose folder is missing when the
+  list is read, so a project on an unmounted drive is forgotten rather than
+  hidden.
+- Whether the New Project picker can create a folder on Linux. Electron
+  documents `createDirectory` as a macOS property; the GTK folder chooser
+  may offer it regardless.
+- Only one project is open at a time, for the app rather than per window. A
+  second window would need a session per window.
+- Testing Library cleanup is registered by hand in the renderer test setup
+  because Vitest globals are off. Turning globals on would remove it.
