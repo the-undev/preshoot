@@ -5,17 +5,26 @@ import * as schema from "./schema"
 
 export type ProjectDatabase = ReturnType<typeof drizzle<typeof schema>>
 
+/** An open project database together with the call that releases its file handle. */
+export interface ProjectDatabaseHandle {
+  db: ProjectDatabase
+  close(): void
+}
+
 /** Opens or creates a project database at `databasePath` and brings it up to the current schema. */
 export function openProjectDatabase(
   databasePath: string,
   migrationsFolder: string
-): ProjectDatabase {
+): ProjectDatabaseHandle {
   const sqlite = new Database(databasePath)
   sqlite.pragma("journal_mode = WAL")
   sqlite.pragma("foreign_keys = ON")
   const db = drizzle(sqlite, { schema })
   migrate(db, { migrationsFolder })
-  return db
+  return {
+    db,
+    close: () => sqlite.close(),
+  }
 }
 
 export { schema }

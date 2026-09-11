@@ -36,6 +36,14 @@ at Q2 or Q3 with the Lightning LoRA.
   marker file, a SQLite database (better-sqlite3 with Drizzle), and
   subfolders for assets, outputs and exports. App settings and the recent
   projects list live under `~/.config/preshoot`.
+- New Project takes the chosen folder as the project, or as the parent of a
+  folder named after the project when asked. A folder that already holds
+  something else is refused until the user confirms, so a folder of footage
+  can still become a project.
+- The app is dark only. The `dark` class is fixed on `<html>` and
+  `nativeTheme.themeSource` is dark, so native dialogs match. The light
+  tokens stay in the stylesheet, so a theme switch is the class and that
+  setting.
 - Domain code lives in `src/main/core` and never imports Electron. A lint
   rule enforces it. Tests run under Vitest with a `main` project (Node) and a
   `renderer` project (jsdom).
@@ -46,9 +54,13 @@ at Q2 or Q3 with the Lightning LoRA.
   over SSH plus ComfyUI HTTP for queueing jobs and pulling outputs. Then
   pod start and stop through the Runpod API.
 
+## Done
+
+1. Welcome screen, project create and open, recent projects, and an empty
+   project workspace.
+
 ## Milestones
 
-1. Welcome screen, project create and open, recent projects.
 2. Asset library: people, places, objects, plus picklists for camera
    angle, movement, transition, lighting and style. Reference images and
    RefMod files attached to assets. Description drafted from images by the
@@ -70,7 +82,6 @@ at Q2 or Q3 with the Lightning LoRA.
 - Whether Qwen Image at Q4 is usable with RAM offload on this machine.
 - Whether RefMod creation fits on 8GB. Import RefMods regardless.
 - Image editing (Qwen Image Edit) as a shot type that edits a library image.
-- Dark theme default. The shadcn CSS supports it through the `dark` class.
 - `app.getVersion()` reports the Electron version when run from `out/`
   unpackaged; correct once packaged.
 - TypeScript 7, Vite 8 and ESLint 10 are out. The template pins TS 5.9,
@@ -79,3 +90,10 @@ at Q2 or Q3 with the Lightning LoRA.
 - The Electron postinstall silently skipped extracting the binary in this
   environment; the zip was cached and extracted by hand. Check whether a
   clean `pnpm install` on this machine reproduces it.
+- The recent projects list drops an entry whose folder is missing when the
+  list is read, so a project on an unmounted drive is forgotten rather than
+  hidden.
+- Only one project is open at a time, for the app rather than per window. A
+  second window would need a session per window.
+- Testing Library cleanup is registered by hand in the renderer test setup
+  because Vitest globals are off. Turning globals on would remove it.
