@@ -1,4 +1,4 @@
-import { app, shell, BrowserWindow } from "electron"
+import { app, shell, BrowserWindow, nativeTheme } from "electron"
 import { join } from "path"
 import { electronApp, optimizer, is } from "@electron-toolkit/utils"
 import icon from "../../resources/icon.png?asset"
@@ -41,6 +41,8 @@ function createWindow(): BrowserWindow {
     width: 1400,
     height: 900,
     show: false,
+    // Matches the dark --background token, so the window does not flash white before first paint.
+    backgroundColor: "#0a0a0a",
     autoHideMenuBar: true,
     ...(process.platform === "linux" ? { icon } : {}),
     webPreferences: {
@@ -72,6 +74,9 @@ function loadRenderer(window: BrowserWindow): void {
 
 app.whenReady().then(() => {
   electronApp.setAppUserModelId("dev.theundev.preshoot")
+
+  // The app is dark whatever the desktop is set to, native dialogs included.
+  nativeTheme.themeSource = "dark"
 
   app.on("browser-window-created", (_, window) => {
     optimizer.watchWindowShortcuts(window)

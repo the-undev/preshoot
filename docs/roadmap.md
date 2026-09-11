@@ -36,6 +36,10 @@ at Q2 or Q3 with the Lightning LoRA.
   marker file, a SQLite database (better-sqlite3 with Drizzle), and
   subfolders for assets, outputs and exports. App settings and the recent
   projects list live under `~/.config/preshoot`.
+- The app is dark only. The `dark` class is fixed on `<html>` and
+  `nativeTheme.themeSource` is dark, so native dialogs match. The light
+  tokens stay in the stylesheet, so a theme switch is the class and that
+  setting.
 - Domain code lives in `src/main/core` and never imports Electron. A lint
   rule enforces it. Tests run under Vitest with a `main` project (Node) and a
   `renderer` project (jsdom).
@@ -74,7 +78,6 @@ at Q2 or Q3 with the Lightning LoRA.
 - Whether Qwen Image at Q4 is usable with RAM offload on this machine.
 - Whether RefMod creation fits on 8GB. Import RefMods regardless.
 - Image editing (Qwen Image Edit) as a shot type that edits a library image.
-- Dark theme default. The shadcn CSS supports it through the `dark` class.
 - `app.getVersion()` reports the Electron version when run from `out/`
   unpackaged; correct once packaged.
 - TypeScript 7, Vite 8 and ESLint 10 are out. The template pins TS 5.9,
