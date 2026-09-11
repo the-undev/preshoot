@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
@@ -47,7 +47,12 @@ describe("projects router", () => {
   it("creates a project, opens it and records it", async () => {
     const directory = projectFolder("new-film")
 
-    const created = await caller.projects.create({ directory, name: "New film" })
+    const created = await caller.projects.create({
+      directory,
+      name: "New film",
+      createDirectory: false,
+      allowNonEmpty: false,
+    })
 
     expect(created.name).toBe("New film")
     expect(await caller.projects.current()).toEqual(created)
@@ -58,18 +63,38 @@ describe("projects router", () => {
 
   it("refuses to create a project where one already exists", async () => {
     const directory = projectFolder("twice")
-    await caller.projects.create({ directory, name: "First" })
+    await caller.projects.create({
+      directory,
+      name: "First",
+      createDirectory: false,
+      allowNonEmpty: false,
+    })
 
-    await expect(caller.projects.create({ directory, name: "Second" })).rejects.toThrow(
-      expect.objectContaining({ code: "BAD_REQUEST" })
-    )
+    await expect(
+      caller.projects.create({
+        directory,
+        name: "Second",
+        createDirectory: false,
+        allowNonEmpty: false,
+      })
+    ).rejects.toThrow(expect.objectContaining({ code: "BAD_REQUEST" }))
   })
 
   it("opens an existing project and moves it to the front of the recent list", async () => {
     const first = projectFolder("first")
     const second = projectFolder("second")
-    await caller.projects.create({ directory: first, name: "First" })
-    await caller.projects.create({ directory: second, name: "Second" })
+    await caller.projects.create({
+      directory: first,
+      name: "First",
+      createDirectory: false,
+      allowNonEmpty: false,
+    })
+    await caller.projects.create({
+      directory: second,
+      name: "Second",
+      createDirectory: false,
+      allowNonEmpty: false,
+    })
 
     const opened = await caller.projects.open({ directory: first })
 
@@ -100,8 +125,70 @@ describe("projects router", () => {
     )
   })
 
+  it("puts the project in a new folder named after it when asked", async () => {
+    const parent = projectFolder("films")
+    mkdirSync(parent, { recursive: true })
+
+    const created = await caller.projects.create({
+      directory: parent,
+      name: "My film",
+      createDirectory: true,
+      allowNonEmpty: false,
+    })
+
+    expect(created.directory).toBe(join(parent, "My film"))
+    expect(existsSync(join(parent, "My film", PROJECT_MARKER_FILENAME))).toBe(true)
+  })
+
+  it("refuses a folder that holds something else", async () => {
+    const directory = projectFolder("footage")
+    mkdirSync(directory, { recursive: true })
+    writeFileSync(join(directory, "clip.mp4"), "", "utf8")
+
+    await expect(
+      caller.projects.create({
+        directory,
+        name: "Footage",
+        createDirectory: false,
+        allowNonEmpty: false,
+      })
+    ).rejects.toThrow(expect.objectContaining({ code: "CONFLICT" }))
+  })
+
+  it("creates in a folder that holds something else once it is confirmed", async () => {
+    const directory = projectFolder("footage")
+    mkdirSync(directory, { recursive: true })
+    writeFileSync(join(directory, "clip.mp4"), "", "utf8")
+
+    const created = await caller.projects.create({
+      directory,
+      name: "Footage",
+      createDirectory: false,
+      allowNonEmpty: true,
+    })
+
+    expect(created.directory).toBe(directory)
+    expect(await caller.projects.current()).toEqual(created)
+  })
+
+  it("rejects a name that holds a path separator", async () => {
+    await expect(
+      caller.projects.create({
+        directory: projectFolder("parent"),
+        name: "films/my film",
+        createDirectory: true,
+        allowNonEmpty: false,
+      })
+    ).rejects.toThrow(expect.objectContaining({ code: "BAD_REQUEST" }))
+  })
+
   it("closes the open project", async () => {
-    await caller.projects.create({ directory: projectFolder("closing"), name: "Closing" })
+    await caller.projects.create({
+      directory: projectFolder("closing"),
+      name: "Closing",
+      createDirectory: false,
+      allowNonEmpty: false,
+    })
 
     await caller.projects.close()
 

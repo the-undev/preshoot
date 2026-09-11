@@ -1,8 +1,10 @@
+import { join } from "node:path"
 import { TRPCError } from "@trpc/server"
 import { z } from "zod"
 import { ProjectError } from "../../core/projects/errors"
 import {
   createProject,
+  isUsableFolderName,
   openProject,
   type OpenProject,
   type ProjectSummary,
@@ -23,10 +25,17 @@ function enter(ctx: Context, project: OpenProject): ProjectSummary {
   return summary
 }
 
-/** Rethrows a project folder failure as a message the renderer can show. */
+/**
+ * Rethrows a project folder failure as a message the renderer can show. A folder that merely
+ * holds something else is a conflict the renderer offers to override, not a bad request.
+ */
 function asClientError(error: unknown): never {
   if (error instanceof ProjectError) {
-    throw new TRPCError({ code: "BAD_REQUEST", message: error.message, cause: error })
+    throw new TRPCError({
+      code: error.code === "not-empty" ? "CONFLICT" : "BAD_REQUEST",
+      message: error.message,
+      cause: error,
+    })
   }
   throw error
 }
@@ -46,19 +55,34 @@ export const projectsRouter = router({
     .input(z.object({ purpose: z.enum(["create", "open"]) }))
     .mutation(({ ctx, input }) =>
       input.purpose === "create"
-        ? ctx.dialogs.pickDirectory({ title: "Folder for the new project", allowCreate: true })
+        ? ctx.dialogs.pickDirectory({ title: "Choose a folder", allowCreate: true })
         : ctx.dialogs.pickDirectory({ title: "Open project", allowCreate: false })
     ),
 
-  /** Turns a folder into a project and opens it. */
+  /**
+   * Turns a folder into a project and opens it. With `createDirectory` the project goes in a new
+   * folder named after it inside the chosen one; otherwise the chosen folder becomes the project.
+   */
   create: publicProcedure
-    .input(z.object({ directory: z.string().min(1), name: z.string().trim().min(1) }))
+    .input(
+      z.object({
+        directory: z.string().min(1),
+        name: z
+          .string()
+          .trim()
+          .min(1)
+          .refine(isUsableFolderName, "A project name cannot hold a path separator"),
+        createDirectory: z.boolean(),
+        allowNonEmpty: z.boolean(),
+      })
+    )
     .mutation(({ ctx, input }) => {
       try {
         const project = createProject({
-          directory: input.directory,
+          directory: input.createDirectory ? join(input.directory, input.name) : input.directory,
           name: input.name,
           migrationsFolder: ctx.migrationsFolder,
+          allowNonEmpty: input.allowNonEmpty,
         })
         return enter(ctx, project)
       } catch (error) {
