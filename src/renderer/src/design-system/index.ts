@@ -10,6 +10,7 @@ export {
   CardHeader,
   CardTitle,
 } from "./ui/card"
+export { Checkbox } from "./ui/checkbox"
 export {
   Dialog,
   DialogClose,

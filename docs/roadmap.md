@@ -36,6 +36,10 @@ at Q2 or Q3 with the Lightning LoRA.
   marker file, a SQLite database (better-sqlite3 with Drizzle), and
   subfolders for assets, outputs and exports. App settings and the recent
   projects list live under `~/.config/preshoot`.
+- New Project takes the chosen folder as the project, or as the parent of a
+  folder named after the project when asked. A folder that already holds
+  something else is refused until the user confirms, so a folder of footage
+  can still become a project.
 - The app is dark only. The `dark` class is fixed on `<html>` and
   `nativeTheme.themeSource` is dark, so native dialogs match. The light
   tokens stay in the stylesheet, so a theme switch is the class and that
@@ -89,9 +93,6 @@ at Q2 or Q3 with the Lightning LoRA.
 - The recent projects list drops an entry whose folder is missing when the
   list is read, so a project on an unmounted drive is forgotten rather than
   hidden.
-- Whether the New Project picker can create a folder on Linux. Electron
-  documents `createDirectory` as a macOS property; the GTK folder chooser
-  may offer it regardless.
 - Only one project is open at a time, for the app rather than per window. A
   second window would need a session per window.
 - Testing Library cleanup is registered by hand in the renderer test setup
