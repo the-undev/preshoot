@@ -239,9 +239,8 @@ describe("prompts router", () => {
     expect(generated.promptVariantId).toBe(variant.id)
   })
 
-  it("lists the prompts that can write for the clip's target", async () => {
+  it("lists the prompts that can write for a target", async () => {
     await openProject()
-    const { clipId } = await clipOfTwo()
     await caller.prompts.saveVariant({
       id: null,
       targetId: "minimax-h3",
@@ -250,7 +249,7 @@ describe("prompts router", () => {
       systemPrompt: "Write it shorter.",
     })
 
-    const variants = await caller.prompts.variants({ clipId })
+    const variants = await caller.prompts.variants({ targetId: "minimax-h3" })
 
     expect(variants.map((variant) => variant.name)).toEqual([
       "Built-in, prose per shot",

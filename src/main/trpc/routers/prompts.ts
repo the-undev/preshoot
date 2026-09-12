@@ -15,7 +15,7 @@ import {
   type GenerationRecord,
 } from "../../core/prompting/generation-store"
 import type { ComposeScope } from "../../core/prompting/target"
-import { targetById } from "../../core/prompting/targets"
+import { DEFAULT_TARGET_ID, TARGETS, targetById } from "../../core/prompting/targets"
 import { builtinVariantId, type PromptStrategy } from "../../core/prompting/variant"
 import {
   deleteVariant,
@@ -122,15 +122,23 @@ export const promptsRouter = router({
     defaultId: DEFAULT_COMPOSER_ID,
   })),
 
-  /** The system prompts that can write for this clip's target. */
-  variants: publicProcedure.input(z.object({ clipId })).query(({ ctx, input }) => {
-    const db = requireProject(ctx)
-    try {
-      return listVariants(db, targetById(readClip(db, input.clipId).target))
-    } catch (error) {
-      asClientError(error)
-    }
-  }),
+  /** The targets the app can write for, for the prompts screen and the clip's own picker. */
+  targets: publicProcedure.query(() => ({
+    targets: Object.values(TARGETS).map(({ id, name }) => ({ id, name })),
+    defaultId: DEFAULT_TARGET_ID,
+  })),
+
+  /** The system prompts that can write for a target. */
+  variants: publicProcedure
+    .input(z.object({ targetId: z.string().min(1) }))
+    .query(({ ctx, input }) => {
+      const db = requireProject(ctx)
+      try {
+        return listVariants(db, targetById(input.targetId))
+      } catch (error) {
+        asClientError(error)
+      }
+    }),
 
   /** Writes a new system prompt, or rewrites one written here. */
   saveVariant: publicProcedure

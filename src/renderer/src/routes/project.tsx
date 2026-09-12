@@ -64,6 +64,9 @@ function ProjectWorkspace(): React.JSX.Element {
             <Link to="/project/library" className={tabClass} activeProps={activeTab}>
               Library
             </Link>
+            <Link to="/project/prompts" className={tabClass} activeProps={activeTab}>
+              Prompts
+            </Link>
           </nav>
         </div>
         <div className="flex items-center gap-2">

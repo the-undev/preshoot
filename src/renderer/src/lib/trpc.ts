@@ -39,6 +39,9 @@ export type RecentProject = RouterOutputs["projects"]["recent"][number]
 /** One prompt generated in the open project. */
 export type GenerationRecord = RouterOutputs["prompts"]["list"][number]
 
+/** One system prompt a clip can be written with. */
+export type PromptVariant = RouterOutputs["prompts"]["variants"][number]
+
 /** One model the llama-server can serve. */
 export type ServerModel = RouterOutputs["settings"]["checkLlamaServer"]["models"][number]
 
