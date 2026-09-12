@@ -34,3 +34,6 @@ export type TrpcError = TRPCClientErrorLike<AppRouter>
 
 /** One entry in the recent projects list. */
 export type RecentProject = RouterOutputs["projects"]["recent"][number]
+
+/** One prompt generated in the open project. */
+export type GenerationRecord = RouterOutputs["prompts"]["list"][number]

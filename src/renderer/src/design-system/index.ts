@@ -23,4 +23,7 @@ export {
 } from "./ui/dialog"
 export { Input } from "./ui/input"
 export { Label } from "./ui/label"
+export { ScrollArea, ScrollBar } from "./ui/scroll-area"
 export { Separator } from "./ui/separator"
+export { Textarea } from "./ui/textarea"
+export { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip"
