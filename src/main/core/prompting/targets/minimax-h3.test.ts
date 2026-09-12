@@ -164,6 +164,47 @@ describe("the prose instruction", () => {
   })
 })
 
+describe("a line of dialogue with nothing typed in it yet", () => {
+  const typing: ClipComposition = {
+    ...composition,
+    shots: [
+      { ...composition.shots[0], dialogue: [{ speakerId: 7, language: "English", text: "" }] },
+      composition.shots[1],
+    ],
+  }
+
+  it("is left out of the instruction", () => {
+    const instruction = minimaxH3.prose.instruction(typing, { kind: "all" })
+
+    expect(instruction).not.toContain("reproduce exactly")
+  })
+
+  it("is not required back from the model", () => {
+    const answer = {
+      shots: [
+        { shot: 1, prose: "The keeper climbs." },
+        { shot: 2, prose: "The lamp turns." },
+      ],
+      overall_soundscape: "Wind.",
+      non_diegetic_music: "N/A",
+    }
+
+    expect(() =>
+      minimaxH3.prose.readProse(JSON.stringify(answer), typing, { kind: "all" })
+    ).not.toThrow()
+  })
+})
+
+describe("a clip whose style has been emptied", () => {
+  it("opens on shot one without it", () => {
+    const assembled = minimaxH3.prose.assemble({ ...composition, style: "" }, prose)
+
+    expect(
+      assembled.integrated_multimodal_description.startsWith("[Shot 1] The keeper climbs.")
+    ).toBe(true)
+  })
+})
+
 describe("reading prose back", () => {
   const answer = {
     shots: [

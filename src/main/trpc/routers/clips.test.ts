@@ -116,6 +116,63 @@ describe("clips router", () => {
     expect(composition.speakers[0].label).toBe("S1")
   })
 
+  it("keeps a dialogue line that has not been typed into yet", async () => {
+    const { clipId, shotId } = await clipWithShot()
+    const withSpeaker = await caller.clips.addSpeaker({ clipId, description: "The keeper" })
+
+    const composition = await caller.clips.updateShot({
+      shotId,
+      durationMs: 4000,
+      cameraMotion: null,
+      amplitude: null,
+      speed: null,
+      transition: null,
+      lighting: null,
+      action: "climbs",
+      soundNote: "",
+      things: [],
+      dialogue: [{ speakerId: withSpeaker.speakers[0].id, language: "English", text: "" }],
+    })
+
+    expect(composition.shots[0].dialogue).toEqual([
+      { speakerId: withSpeaker.speakers[0].id, language: "English", text: "" },
+    ])
+  })
+
+  it("keeps a clip whose name is being retyped", async () => {
+    const clip = await caller.clips.create({ name: "Lighthouse" })
+
+    const emptied = await caller.clips.update({
+      id: clip.id,
+      name: "",
+      style: "",
+      note: "",
+      musicNote: "",
+    })
+
+    expect(emptied.name).toBe("")
+  })
+
+  it("says which field a bad input was, rather than answering with the schema", async () => {
+    const { shotId } = await clipWithShot()
+
+    await expect(
+      caller.clips.updateShot({
+        shotId,
+        durationMs: 0,
+        cameraMotion: null,
+        amplitude: null,
+        speed: null,
+        transition: null,
+        lighting: null,
+        action: "climbs",
+        soundNote: "",
+        things: [],
+        dialogue: [],
+      })
+    ).rejects.toThrow(expect.objectContaining({ message: expect.stringContaining("durationMs") }))
+  })
+
   it("refuses a camera motion the target does not know", async () => {
     const { shotId } = await clipWithShot()
 

@@ -164,9 +164,14 @@ function shotNumber(composition: ClipComposition, shotId: number): number {
   return composition.shots.findIndex((shot) => shot.id === shotId) + 1
 }
 
+/** The lines of `shot` that have words in them. A line being typed has none yet. */
+function spokenLines(shot: ShotComposition): ShotComposition["dialogue"] {
+  return shot.dialogue.filter((line) => line.text.trim().length > 0)
+}
+
 /** Every dialogue line of `shot` as the exact string that has to come back. */
 function dialogueTags(shot: ShotComposition): string[] {
-  return shot.dialogue.map((line) => dialogueTag(line.language, line.text))
+  return spokenLines(shot).map((line) => dialogueTag(line.language, line.text))
 }
 
 /** One shot as the instruction describes it to the model. */
@@ -189,7 +194,7 @@ function shotBlock(composition: ClipComposition, shot: ShotComposition, index: n
   if (shot.soundNote.trim().length > 0) {
     lines.push(`  Sound: ${sentence(shot.soundNote)}`)
   }
-  for (const line of shot.dialogue) {
+  for (const line of spokenLines(shot)) {
     const speaker = composition.speakers.find((entry) => entry.id === line.speakerId)
     const label = speaker ? `(${speaker.label})` : "(S1)"
     lines.push(`  Says ${label}, reproduce exactly: ${dialogueTag(line.language, line.text)}`)
@@ -326,7 +331,8 @@ function assemble(composition: ClipComposition, prose: ClipProse): TargetFields 
     }
     const text = stripLeadIn(written.prose)
     if (index === 0) {
-      return `[Shot 1] ${sentence(composition.style)} ${text}`
+      // A clip whose style has been emptied still opens on shot one, just without it.
+      return [`[Shot 1]`, sentence(composition.style), text].filter(Boolean).join(" ")
     }
     const start = formatCutTime(shotStartMs(composition, shot.id))
     const transition = shot.transition ?? DEFAULT_TRANSITION
@@ -359,7 +365,7 @@ function describeShot(composition: ClipComposition, shotId: number): string {
     // The vocabulary mixes verb phrases with nouns, so this way states the move rather than conjugating it.
     sentences.push(sentence(`Camera: ${cameraPhrase(shot)}`))
   }
-  for (const line of shot.dialogue) {
+  for (const line of spokenLines(shot)) {
     const speaker = composition.speakers.find((entry) => entry.id === line.speakerId)
     const who = speaker ? `${speaker.description} (${speaker.label})` : "The speaker (S1)"
     sentences.push(`${who} says: ${dialogueTag(line.language, line.text)}`)

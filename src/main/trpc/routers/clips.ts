@@ -47,8 +47,8 @@ const shotInput = z.object({
   dialogue: z.array(
     z.object({
       speakerId: z.number().int(),
-      language: z.string().trim().min(1),
-      text: z.string().trim().min(1),
+      language: z.string().trim(),
+      text: z.string().trim(),
     })
   ),
 })
@@ -93,8 +93,8 @@ export const clipsRouter = router({
     .input(
       z.object({
         id: clipId,
-        name: z.string().trim().min(1),
-        style: z.string().trim().min(1),
+        name: z.string().trim(),
+        style: z.string().trim(),
         note: z.string().trim(),
         musicNote: z.string().trim(),
       })
@@ -213,9 +213,9 @@ export const clipsRouter = router({
       }
     }),
 
-  /** Rewrites how a voice is described. */
+  /** Rewrites how a voice is described. It may be emptied while it is being retyped. */
   updateSpeaker: publicProcedure
-    .input(z.object({ speakerId: z.number().int(), description }))
+    .input(z.object({ speakerId: z.number().int(), description: z.string().trim() }))
     .mutation(({ ctx, input }) => {
       const db = requireProject(ctx)
       try {
