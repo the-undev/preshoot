@@ -69,6 +69,14 @@ been written from memory of the guide rather than from the guide.
 
 ## Improvements
 
+- A keyframe condition takes a frame index, which needs a frame rate.
+  Nothing holds one, so a picture says which end of the clip it anchors
+  rather than which frame.
+- Nothing turns the fields into a request body. That wants a real endpoint
+  to build against, which arrives with Runpod or ComfyUI.
+- Results written before the request was kept show their prompt alone, since
+  there is nothing else stored against them.
+
 - A shot is reordered by dragging its handle. From the keyboard that means
   focusing the handle, pressing space to lift it, moving with the arrows and
   pressing space again, which nothing on screen says.

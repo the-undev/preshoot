@@ -84,6 +84,12 @@ at Q2 or Q3 with the Lightning LoRA.
 - An exported prompt is a text file holding the prompt and nothing else, so
   it pastes straight into the model's own form, with the clip, the way, the
   variant, the model and any edit instruction in a json beside it.
+- A prompt is one field of a generation request, and the app holds the rest:
+  the task, the duration, the shape, the short edge, the seed and the
+  pictures. They are shown as fields to copy rather than sent anywhere,
+  because nothing the app can reach accepts them. The adaptor that would
+  turn them into a request belongs with the Runpod or ComfyUI work, built
+  against a real endpoint rather than guessed at from a sample.
 - Runpod: manual copy of prompts first. Then rsync of the project bundle
   over SSH plus ComfyUI HTTP for queueing jobs and pulling outputs. Then
   pod start and stop through the Runpod API.
@@ -111,21 +117,24 @@ at Q2 or Q3 with the Lightning LoRA.
 8. The keyframe forms: a clip says which form it is written for, the image
    forms anchor to pictures from the library, and the prompt opens with the
    line the guide gives for that form.
+9. The complete output: a clip holds the shape, the short edge and the seed
+   it is generated at, and a result shows every field a generation needs,
+   each copyable on its own.
 
 ## Milestones
 
-9. Full reference mode: pictures and audio labelled as `<Picture N>` and
-   `<Audio N>`, subjects built from them, retention markers chosen rather
-   than invented, and a second target whose answer is six sections rather
-   than three. `docs/h3-mapping.md` says what is missing before it can be
-   built.
-10. Storyboard editor: clips in order across a film, chained by last frame
+10. Full reference mode: pictures and audio labelled as `<Picture N>` and
+    `<Audio N>`, subjects built from them, retention markers chosen rather
+    than invented, and a second target whose answer is six sections rather
+    than three. `docs/h3-mapping.md` says what is missing before it can be
+    built.
+11. Storyboard editor: clips in order across a film, chained by last frame
     to first frame, with prompts versioned per clip.
-11. Runpod link: connect to a pod, pull outputs into the project, show each
+12. Runpod link: connect to a pod, pull outputs into the project, show each
     take next to its shot, mark good or bad with notes, export chosen takes.
-12. ComfyUI templates: API-format workflow JSON per target with named slots,
+13. ComfyUI templates: API-format workflow JSON per target with named slots,
     filled and submitted by the app.
-13. Local ComfyUI management: model downloads, start and stop, RefMod
+14. Local ComfyUI management: model downloads, start and stop, RefMod
     creation if the H3 VAE fits in 8GB with offload (TBD).
 
 ## Open questions
