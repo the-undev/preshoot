@@ -55,6 +55,7 @@ describe("asset store", () => {
 
     const changed = updateAsset(handle.db, {
       id: stored.id,
+      kind: "person",
       name: "Lighthouse keeper",
       description: "weathered, in oilskins",
     })
@@ -64,9 +65,9 @@ describe("asset store", () => {
   })
 
   it("refuses to rewrite a thing that is not there", () => {
-    expect(() => updateAsset(handle.db, { id: 99, name: "x", description: "y" })).toThrow(
-      expect.objectContaining({ code: "not-found" })
-    )
+    expect(() =>
+      updateAsset(handle.db, { id: 99, kind: "person", name: "x", description: "y" })
+    ).toThrow(expect.objectContaining({ code: "not-found" }))
   })
 
   it("removes a thing no shot shows", () => {

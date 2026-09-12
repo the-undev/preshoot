@@ -24,7 +24,7 @@ export const assetsRouter = router({
 
   /** Renames a thing or rewrites its description. */
   update: publicProcedure
-    .input(z.object({ id: z.number().int(), name, description }))
+    .input(z.object({ id: z.number().int(), kind: z.enum(ASSET_KINDS), name, description }))
     .mutation(({ ctx, input }) => {
       try {
         return updateAsset(requireProject(ctx), input)

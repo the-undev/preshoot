@@ -41,14 +41,14 @@ export function insertAsset(
   return toRecord(row)
 }
 
-/** Renames a thing or rewrites its description. Its kind does not change. */
+/** Rewrites a thing. */
 export function updateAsset(
   db: ProjectDatabase,
-  input: { id: number; name: string; description: string }
+  input: { id: number; kind: string; name: string; description: string }
 ): AssetRecord {
   const [row] = db
     .update(schema.assets)
-    .set({ name: input.name, description: input.description })
+    .set({ kind: input.kind, name: input.name, description: input.description })
     .where(eq(schema.assets.id, input.id))
     .returning()
     .all()

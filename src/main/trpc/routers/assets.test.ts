@@ -85,6 +85,7 @@ describe("assets router", () => {
 
     const changed = await caller.assets.update({
       id: created.id,
+      kind: "object",
       name: "Lamp",
       description: "brass and glass",
     })
