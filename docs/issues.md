@@ -43,6 +43,24 @@ says so.
 - Streaming tokens to the renderer as they arrive needs a subscription link
   over the `trpc://` scheme, which nothing implements yet.
 
+## What the distilled prompt gets wrong
+
+Found by reading `docs/minimax-h3/VIDEO_PROMPT_WRITING_GUIDE_base_en.md`
+against the system prompt in `targets/minimax-h3.ts`, which until now had
+been written from memory of the guide rather than from the guide.
+
+- Dialogue that crosses a cut needs `<scenetrans>` at both connecting points
+  and a statement that the audio continues. Speech cut off by the end of the
+  video needs `<cutoff>`. Neither is mentioned.
+- Several speakers talking together take a compound ID such as `(S1,S2)`.
+  The app gives a line exactly one speaker, so it cannot say this.
+- Cross-dissolve, fade and wipe are allowed when the user asks for them. The
+  app offers only the five cut phrases.
+- Unintelligible speech in reference audio is written `[unclear]` rather than
+  guessed at.
+- A generation-task body runs 350 to 500 words. Nothing says so, and nothing
+  checks it.
+
 ## Improvements
 
 - A shot is reordered by dragging its handle. From the keyboard that means
