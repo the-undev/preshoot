@@ -210,29 +210,6 @@ export function ShotRow({
           </div>
 
           <div className="flex flex-col gap-2">
-            <Label htmlFor={id("action")}>What happens</Label>
-            <Textarea
-              id={id("action")}
-              rows={2}
-              value={action}
-              placeholder="climbs the last steps of the tower and reaches for the lamp"
-              onChange={(event) => setAction(event.target.value)}
-              onBlur={() => commit({ action })}
-            />
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <Label htmlFor={id("sound")}>Sound</Label>
-            <Input
-              id={id("sound")}
-              value={soundNote}
-              placeholder="wind battering the glass"
-              onChange={(event) => setSoundNote(event.target.value)}
-              onBlur={() => commit({ soundNote })}
-            />
-          </div>
-
-          <div className="flex flex-col gap-2">
             <span className="text-sm font-medium">Subjects</span>
             {library.length === 0 ? (
               <div className="flex flex-wrap items-center gap-2">
@@ -267,6 +244,29 @@ export function ShotRow({
                 })}
               </div>
             )}
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <Label htmlFor={id("action")}>What happens</Label>
+            <Textarea
+              id={id("action")}
+              rows={2}
+              value={action}
+              placeholder="climbs the last steps of the tower and reaches for the lamp"
+              onChange={(event) => setAction(event.target.value)}
+              onBlur={() => commit({ action })}
+            />
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <Label htmlFor={id("sound")}>Sound</Label>
+            <Input
+              id={id("sound")}
+              value={soundNote}
+              placeholder="wind battering the glass"
+              onChange={(event) => setSoundNote(event.target.value)}
+              onBlur={() => commit({ soundNote })}
+            />
           </div>
 
           <div className="flex flex-col gap-2">

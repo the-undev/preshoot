@@ -72,6 +72,31 @@ describe("ShotDialogue", () => {
     expect(onChange).toHaveBeenCalledWith([expect.objectContaining({ speakerIds: [7, 8] })])
   })
 
+  it("keeps the last speaker on a line, since a line nobody says is not a line", () => {
+    const onChange = vi.fn()
+    render(<ShotDialogue shotId={11} lines={lines} speakers={speakers} onChange={onChange} />)
+
+    fireEvent.click(screen.getByRole("button", { name: "S1 speaks line 1" }))
+
+    expect(onChange).not.toHaveBeenCalled()
+  })
+
+  it("takes a speaker off a line that two of them share", () => {
+    const onChange = vi.fn()
+    render(
+      <ShotDialogue
+        shotId={11}
+        lines={[{ ...lines[0], speakerIds: [7, 8] }]}
+        speakers={speakers}
+        onChange={onChange}
+      />
+    )
+
+    fireEvent.click(screen.getByRole("button", { name: "S1 speaks line 1" }))
+
+    expect(onChange).toHaveBeenCalledWith([expect.objectContaining({ speakerIds: [8] })])
+  })
+
   it("marks a line as carried across the cut", () => {
     const onChange = vi.fn()
     render(<ShotDialogue shotId={11} lines={lines} speakers={speakers} onChange={onChange} />)

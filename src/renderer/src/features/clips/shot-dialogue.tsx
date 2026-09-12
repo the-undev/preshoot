@@ -67,14 +67,16 @@ export function ShotDialogue({
                     key={speaker.id}
                     chosen={speaking}
                     label={`${speaker.label} speaks line ${index + 1}`}
-                    onToggle={() =>
+                    onToggle={() => {
+                      // A line nobody says is not a line, so the last speaker stays on it.
+                      if (speaking && line.speakerIds.length === 1) return
                       write(index, {
                         ...line,
                         speakerIds: speaking
                           ? line.speakerIds.filter((id) => id !== speaker.id)
                           : [...line.speakerIds, speaker.id],
                       })
-                    }
+                    }}
                   >
                     {speaker.label}
                   </Chip>
