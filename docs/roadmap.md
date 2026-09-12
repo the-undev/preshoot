@@ -163,5 +163,10 @@ at Q2 or Q3 with the Lightning LoRA.
 - An edit is made from the prompt as it was, not from the clip as it is now,
   so editing an old prompt after changing its clip keeps the old wording.
   That is what makes an edit chain readable, but it will surprise someone.
+- An edit can rewrite dialogue. Asked to make a character happier as a bus
+  arrived, the model changed "It is late again." to "It's here!", which left
+  the clip holding a line the prompt no longer says. Arguably the better
+  prompt, but the two now disagree. Tightening the built-in edit prompt is a
+  copy and an edit away, since it is a variant.
 - The save dialog offers no file type filter, and appends nothing when a
   name is typed without an extension.
