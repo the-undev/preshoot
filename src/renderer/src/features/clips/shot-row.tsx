@@ -23,6 +23,7 @@ import type {
   SpeakerComposition,
   Vocabularies,
 } from "@renderer/lib/trpc"
+import { Chip } from "./chip"
 import { ShotDialogue } from "./shot-dialogue"
 import type { ShotFields } from "./use-clip"
 
@@ -248,12 +249,11 @@ export function ShotRow({
                 {library.map((asset) => {
                   const shown = shot.things.some((thing) => thing.id === asset.id)
                   return (
-                    <Button
+                    <Chip
                       key={asset.id}
-                      variant={shown ? "secondary" : "outline"}
-                      size="sm"
-                      aria-pressed={shown}
-                      onClick={() =>
+                      chosen={shown}
+                      label={asset.name}
+                      onToggle={() =>
                         commit({
                           things: shown
                             ? shot.things.filter((thing) => thing.id !== asset.id).map((t) => t.id)
@@ -262,7 +262,7 @@ export function ShotRow({
                       }
                     >
                       {asset.name}
-                    </Button>
+                    </Chip>
                   )
                 })}
               </div>

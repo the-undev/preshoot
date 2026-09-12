@@ -1,6 +1,7 @@
 import { useState } from "react"
 import { Button, Checkbox, Input, Label } from "@renderer/design-system"
 import type { DialogueLine, SpeakerComposition } from "@renderer/lib/trpc"
+import { Chip } from "./chip"
 
 /** What can be said about a line beyond who says it and what it says. */
 const FLAGS = [
@@ -62,19 +63,11 @@ export function ShotDialogue({
               {speakers.map((speaker) => {
                 const speaking = line.speakerIds.includes(speaker.id)
                 return (
-                  <Button
+                  <Chip
                     key={speaker.id}
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    aria-pressed={speaking}
-                    className={
-                      speaking
-                        ? "border-chosen bg-chosen text-chosen-foreground hover:bg-chosen"
-                        : ""
-                    }
-                    aria-label={`${speaker.label} speaks line ${index + 1}`}
-                    onClick={() =>
+                    chosen={speaking}
+                    label={`${speaker.label} speaks line ${index + 1}`}
+                    onToggle={() =>
                       write(index, {
                         ...line,
                         speakerIds: speaking
@@ -84,7 +77,7 @@ export function ShotDialogue({
                     }
                   >
                     {speaker.label}
-                  </Button>
+                  </Chip>
                 )
               })}
             </div>
