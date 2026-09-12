@@ -29,7 +29,9 @@ export function PromptResult({ generation }: PromptResultProps): React.JSX.Eleme
         <div className="flex min-w-0 flex-col gap-1">
           <p className="text-sm font-medium">{generation.brief}</p>
           <p className="text-xs text-muted-foreground">
-            {new Date(generation.createdAt).toLocaleString()} · {generation.model}
+            {[new Date(generation.createdAt).toLocaleString(), generation.model]
+              .filter(Boolean)
+              .join(" · ")}
           </p>
         </div>
         <Button variant="outline" size="sm" onClick={() => void copy()}>

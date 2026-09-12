@@ -30,15 +30,18 @@ describe("generation store", () => {
   function store(brief: string): ReturnType<typeof insertGeneration> {
     return insertGeneration(handle.db, {
       target: "minimax-h3",
+      composer: "brief",
+      clipId: null,
       brief,
       fields,
+      composition: null,
       rendered: "integrated_multimodal_description: ...",
       model: "Qwen3.5-9B",
     })
   }
 
   it("lists nothing in a fresh project", () => {
-    expect(listGenerations(handle.db)).toEqual([])
+    expect(listGenerations(handle.db, null)).toEqual([])
   })
 
   it("returns the stored generation with an id and a time", () => {
@@ -54,7 +57,7 @@ describe("generation store", () => {
     store("First brief.")
     store("Second brief.")
 
-    expect(listGenerations(handle.db).map((entry) => entry.brief)).toEqual([
+    expect(listGenerations(handle.db, null).map((entry) => entry.brief)).toEqual([
       "Second brief.",
       "First brief.",
     ])
@@ -63,7 +66,7 @@ describe("generation store", () => {
   it("reads the fields back as an object", () => {
     store("A baker opens the shutters.")
 
-    const [listed] = listGenerations(handle.db)
+    const [listed] = listGenerations(handle.db, null)
     expect(listed.fields.overall_soundscape).toBe(fields.overall_soundscape)
   })
 })

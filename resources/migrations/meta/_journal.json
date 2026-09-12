@@ -15,6 +15,20 @@
       "when": 1789199897787,
       "tag": "0001_cultured_silhouette",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1789210619741,
+      "tag": "0002_nice_ezekiel",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1789210623993,
+      "tag": "0003_closed_princess_powerful",
+      "breakpoints": true
     }
   ]
 }

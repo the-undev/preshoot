@@ -1,14 +1,18 @@
-import { desc } from "drizzle-orm"
+import { desc, eq, isNull } from "drizzle-orm"
+import type { ClipComposition } from "../composition/clip"
 import { schema, type ProjectDatabase } from "../db"
 
 /** One stored generation. `createdAt` is an ISO string because the record crosses to the renderer. */
 export interface GenerationRecord {
   id: number
   target: string
+  composer: string
+  clipId: number | null
   brief: string
   fields: Record<string, string>
+  composition: ClipComposition | null
   rendered: string
-  model: string
+  model: string | null
   createdAt: string
 }
 
@@ -25,14 +29,23 @@ export function insertGeneration(
   return toRecord(row)
 }
 
-/** Every generation in the project, newest first. */
-export function listGenerations(db: ProjectDatabase): GenerationRecord[] {
+/** What has been generated for one clip, newest first. A null clip means the rows milestone 2 wrote. */
+export function listGenerations(db: ProjectDatabase, clipId: number | null): GenerationRecord[] {
   return db
     .select()
     .from(schema.generations)
+    .where(
+      clipId === null ? isNull(schema.generations.clipId) : eq(schema.generations.clipId, clipId)
+    )
     .orderBy(desc(schema.generations.createdAt), desc(schema.generations.id))
     .all()
     .map(toRecord)
+}
+
+/** One stored generation, or nothing when it has gone. */
+export function readGeneration(db: ProjectDatabase, id: number): GenerationRecord | null {
+  const row = db.select().from(schema.generations).where(eq(schema.generations.id, id)).get()
+  return row ? toRecord(row) : null
 }
 
 type GenerationRow = typeof schema.generations.$inferSelect

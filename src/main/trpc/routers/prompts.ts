@@ -59,10 +59,13 @@ export const promptsRouter = router({
         })
         return insertGeneration(db, {
           target: TARGET,
+          composer: briefComposer.id,
+          clipId: null,
           brief: input.brief,
           fields: composed.fields,
+          composition: null,
           rendered: composed.rendered,
-          model: composed.model ?? "",
+          model: composed.model,
         })
       } catch (error) {
         asClientError(error)
@@ -70,5 +73,5 @@ export const promptsRouter = router({
     }),
 
   /** Every prompt generated in the open project, newest first. */
-  list: publicProcedure.query(({ ctx }) => listGenerations(requireProject(ctx))),
+  list: publicProcedure.query(({ ctx }) => listGenerations(requireProject(ctx), null)),
 })

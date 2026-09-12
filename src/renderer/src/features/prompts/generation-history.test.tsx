@@ -13,6 +13,9 @@ const generations: GenerationRecord[] = [
   {
     id: 2,
     target: "minimax-h3",
+    composer: "brief",
+    clipId: null,
+    composition: null,
     brief: "Second brief.",
     fields,
     rendered: "integrated_multimodal_description: second",
@@ -22,6 +25,9 @@ const generations: GenerationRecord[] = [
   {
     id: 1,
     target: "minimax-h3",
+    composer: "brief",
+    clipId: null,
+    composition: null,
     brief: "First brief.",
     fields,
     rendered: "integrated_multimodal_description: first",

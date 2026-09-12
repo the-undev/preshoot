@@ -1,0 +1,350 @@
+import { asc, desc, eq } from "drizzle-orm"
+import { schema, type ProjectDatabase, type ProjectDb } from "../db"
+import type { ClipComposition, ShotComposition } from "./clip"
+import { CompositionError } from "./errors"
+
+/** How long a new shot runs until the user says otherwise. */
+const DEFAULT_SHOT_MS = 4000
+
+/** A clip without its shots, for the list beside the editor. */
+export interface ClipSummary {
+  id: number
+  name: string
+  target: string
+  style: string
+  note: string
+  musicNote: string
+  createdAt: string
+}
+
+/** Everything a shot holds, as the editor sends it back. */
+export interface ShotInput {
+  id: number
+  durationMs: number
+  cameraMotion: string | null
+  amplitude: string | null
+  speed: string | null
+  transition: string | null
+  lighting: string | null
+  action: string
+  soundNote: string
+}
+
+/** One line as the editor sends it back. */
+export interface DialogueInput {
+  speakerId: number
+  language: string
+  text: string
+}
+
+type ClipRow = typeof schema.clips.$inferSelect
+
+/** Every clip in the project, newest first. */
+export function listClips(db: ProjectDatabase): ClipSummary[] {
+  return db
+    .select()
+    .from(schema.clips)
+    .orderBy(desc(schema.clips.createdAt), desc(schema.clips.id))
+    .all()
+    .map(toSummary)
+}
+
+/** Starts a clip with no shots. */
+export function insertClip(
+  db: ProjectDatabase,
+  input: { name: string; target: string; style: string }
+): ClipSummary {
+  const [row] = db
+    .insert(schema.clips)
+    .values({ ...input, note: "", musicNote: "", createdAt: new Date() })
+    .returning()
+    .all()
+  return toSummary(row)
+}
+
+/** Rewrites the clip's own fields, leaving its shots and speakers alone. */
+export function updateClip(
+  db: ProjectDatabase,
+  input: { id: number; name: string; style: string; note: string; musicNote: string }
+): ClipSummary {
+  const [row] = db
+    .update(schema.clips)
+    .set({ name: input.name, style: input.style, note: input.note, musicNote: input.musicNote })
+    .where(eq(schema.clips.id, input.id))
+    .returning()
+    .all()
+  if (!row) {
+    throw CompositionError.notFound(`Clip ${input.id}`)
+  }
+  return toSummary(row)
+}
+
+/** Removes a clip and everything under it. */
+export function deleteClip(db: ProjectDatabase, clipId: number): void {
+  const removed = db.delete(schema.clips).where(eq(schema.clips.id, clipId)).returning().all()
+  if (removed.length === 0) {
+    throw CompositionError.notFound(`Clip ${clipId}`)
+  }
+}
+
+/** The whole clip, with its speakers, shots, the things they show and what is said. */
+export function readComposition(db: ProjectDatabase, clipId: number): ClipComposition {
+  const clip = db.select().from(schema.clips).where(eq(schema.clips.id, clipId)).get()
+  if (!clip) {
+    throw CompositionError.notFound(`Clip ${clipId}`)
+  }
+
+  const speakerRows = db
+    .select()
+    .from(schema.speakers)
+    .where(eq(schema.speakers.clipId, clipId))
+    .orderBy(asc(schema.speakers.position))
+    .all()
+
+  const shotRows = db
+    .select()
+    .from(schema.shots)
+    .where(eq(schema.shots.clipId, clipId))
+    .orderBy(asc(schema.shots.position))
+    .all()
+
+  const thingRows = db
+    .select({
+      shotId: schema.shotAssets.shotId,
+      kind: schema.assets.kind,
+      name: schema.assets.name,
+      description: schema.assets.description,
+    })
+    .from(schema.shotAssets)
+    .innerJoin(schema.shots, eq(schema.shots.id, schema.shotAssets.shotId))
+    .innerJoin(schema.assets, eq(schema.assets.id, schema.shotAssets.assetId))
+    .where(eq(schema.shots.clipId, clipId))
+    .orderBy(asc(schema.shotAssets.position))
+    .all()
+
+  const dialogueRows = db
+    .select({
+      shotId: schema.dialogueLines.shotId,
+      speakerId: schema.dialogueLines.speakerId,
+      language: schema.dialogueLines.language,
+      text: schema.dialogueLines.text,
+    })
+    .from(schema.dialogueLines)
+    .innerJoin(schema.shots, eq(schema.shots.id, schema.dialogueLines.shotId))
+    .where(eq(schema.shots.clipId, clipId))
+    .orderBy(asc(schema.dialogueLines.position))
+    .all()
+
+  const shots: ShotComposition[] = shotRows.map((shot) => ({
+    id: shot.id,
+    durationMs: shot.durationMs,
+    cameraMotion: shot.cameraMotion,
+    amplitude: shot.amplitude,
+    speed: shot.speed,
+    transition: shot.transition,
+    lighting: shot.lighting,
+    things: thingRows
+      .filter((thing) => thing.shotId === shot.id)
+      .map(({ kind, name, description }) => ({ kind, name, description })),
+    action: shot.action,
+    dialogue: dialogueRows
+      .filter((line) => line.shotId === shot.id)
+      .map(({ speakerId, language, text }) => ({ speakerId, language, text })),
+    soundNote: shot.soundNote,
+  }))
+
+  return {
+    id: clip.id,
+    name: clip.name,
+    style: clip.style,
+    note: clip.note,
+    musicNote: clip.musicNote,
+    speakers: speakerRows.map((speaker) => ({
+      id: speaker.id,
+      label: speakerLabel(speaker.position),
+      description: speaker.description,
+    })),
+    shots,
+  }
+}
+
+/** Adds an empty shot at the end of the clip. */
+export function insertShot(db: ProjectDatabase, clipId: number): number {
+  const clip = db.select().from(schema.clips).where(eq(schema.clips.id, clipId)).get()
+  if (!clip) {
+    throw CompositionError.notFound(`Clip ${clipId}`)
+  }
+
+  const [row] = db
+    .insert(schema.shots)
+    .values({
+      clipId,
+      position: shotIdsInOrder(db, clipId).length,
+      durationMs: DEFAULT_SHOT_MS,
+      cameraMotion: null,
+      amplitude: null,
+      speed: null,
+      transition: null,
+      lighting: null,
+      action: "",
+      soundNote: "",
+    })
+    .returning()
+    .all()
+  return row.id
+}
+
+/** Rewrites one shot's own fields. */
+export function updateShot(db: ProjectDatabase, input: ShotInput): void {
+  const changed = db
+    .update(schema.shots)
+    .set({
+      durationMs: input.durationMs,
+      cameraMotion: input.cameraMotion,
+      amplitude: input.amplitude,
+      speed: input.speed,
+      transition: input.transition,
+      lighting: input.lighting,
+      action: input.action,
+      soundNote: input.soundNote,
+    })
+    .where(eq(schema.shots.id, input.id))
+    .returning()
+    .all()
+  if (changed.length === 0) {
+    throw CompositionError.notFound(`Shot ${input.id}`)
+  }
+}
+
+/** Removes a shot and closes the gap it leaves. */
+export function deleteShot(db: ProjectDatabase, shotId: number): void {
+  const clipId = clipOfShot(db, shotId)
+  db.transaction((tx) => {
+    tx.delete(schema.shots).where(eq(schema.shots.id, shotId)).run()
+    renumberShots(tx, clipId)
+  })
+}
+
+/** Puts a shot at `toPosition`, sliding the others around it. */
+export function moveShot(db: ProjectDatabase, shotId: number, toPosition: number): void {
+  const clipId = clipOfShot(db, shotId)
+  const ids = shotIdsInOrder(db, clipId).filter((id) => id !== shotId)
+  const target = Math.min(Math.max(toPosition, 0), ids.length)
+  ids.splice(target, 0, shotId)
+
+  db.transaction((tx) => {
+    ids.forEach((id, position) => {
+      tx.update(schema.shots).set({ position }).where(eq(schema.shots.id, id)).run()
+    })
+  })
+}
+
+/** Replaces the library things a shot shows, in the order given. */
+export function setShotThings(db: ProjectDatabase, shotId: number, assetIds: number[]): void {
+  clipOfShot(db, shotId)
+  db.transaction((tx) => {
+    tx.delete(schema.shotAssets).where(eq(schema.shotAssets.shotId, shotId)).run()
+    assetIds.forEach((assetId, position) => {
+      tx.insert(schema.shotAssets).values({ shotId, assetId, position }).run()
+    })
+  })
+}
+
+/** Replaces what is said in a shot, in the order given. */
+export function setShotDialogue(db: ProjectDatabase, shotId: number, lines: DialogueInput[]): void {
+  clipOfShot(db, shotId)
+  db.transaction((tx) => {
+    tx.delete(schema.dialogueLines).where(eq(schema.dialogueLines.shotId, shotId)).run()
+    lines.forEach((line, position) => {
+      tx.insert(schema.dialogueLines)
+        .values({ shotId, position, ...line })
+        .run()
+    })
+  })
+}
+
+/** Adds a voice to the clip. Its label follows from its place in the list. */
+export function insertSpeaker(db: ProjectDatabase, clipId: number, description: string): number {
+  const clip = db.select().from(schema.clips).where(eq(schema.clips.id, clipId)).get()
+  if (!clip) {
+    throw CompositionError.notFound(`Clip ${clipId}`)
+  }
+
+  const [row] = db
+    .insert(schema.speakers)
+    .values({ clipId, position: speakerIdsInOrder(db, clipId).length, description })
+    .returning()
+    .all()
+  return row.id
+}
+
+/** Rewrites how a voice is described. */
+export function updateSpeaker(db: ProjectDatabase, speakerId: number, description: string): void {
+  const changed = db
+    .update(schema.speakers)
+    .set({ description })
+    .where(eq(schema.speakers.id, speakerId))
+    .returning()
+    .all()
+  if (changed.length === 0) {
+    throw CompositionError.notFound(`Speaker ${speakerId}`)
+  }
+}
+
+/** Removes a voice and everything it said, then renumbers the rest. */
+export function deleteSpeaker(db: ProjectDatabase, speakerId: number): void {
+  const speaker = db.select().from(schema.speakers).where(eq(schema.speakers.id, speakerId)).get()
+  if (!speaker) {
+    throw CompositionError.notFound(`Speaker ${speakerId}`)
+  }
+
+  db.transaction((tx) => {
+    tx.delete(schema.speakers).where(eq(schema.speakers.id, speakerId)).run()
+    speakerIdsInOrder(tx, speaker.clipId).forEach((id, position) => {
+      tx.update(schema.speakers).set({ position }).where(eq(schema.speakers.id, id)).run()
+    })
+  })
+}
+
+/** What the prompt calls the speaker sitting at `position`. */
+export function speakerLabel(position: number): string {
+  return `S${position + 1}`
+}
+
+function toSummary(row: ClipRow): ClipSummary {
+  return { ...row, createdAt: row.createdAt.toISOString() }
+}
+
+function clipOfShot(db: ProjectDb, shotId: number): number {
+  const shot = db.select().from(schema.shots).where(eq(schema.shots.id, shotId)).get()
+  if (!shot) {
+    throw CompositionError.notFound(`Shot ${shotId}`)
+  }
+  return shot.clipId
+}
+
+function shotIdsInOrder(db: ProjectDb, clipId: number): number[] {
+  return db
+    .select({ id: schema.shots.id })
+    .from(schema.shots)
+    .where(eq(schema.shots.clipId, clipId))
+    .orderBy(asc(schema.shots.position), asc(schema.shots.id))
+    .all()
+    .map((row) => row.id)
+}
+
+function speakerIdsInOrder(db: ProjectDb, clipId: number): number[] {
+  return db
+    .select({ id: schema.speakers.id })
+    .from(schema.speakers)
+    .where(eq(schema.speakers.clipId, clipId))
+    .orderBy(asc(schema.speakers.position), asc(schema.speakers.id))
+    .all()
+    .map((row) => row.id)
+}
+
+function renumberShots(db: ProjectDb, clipId: number): void {
+  shotIdsInOrder(db, clipId).forEach((id, position) => {
+    db.update(schema.shots).set({ position }).where(eq(schema.shots.id, id)).run()
+  })
+}
