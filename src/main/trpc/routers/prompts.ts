@@ -1,9 +1,10 @@
 import { TRPCError } from "@trpc/server"
 import { z } from "zod"
 import type { ProjectDatabase } from "../../core/db"
+import { briefComposer } from "../../core/prompting/composers/brief"
 import { PromptServiceError } from "../../core/prompting/errors"
-import { generateH3Prompt } from "../../core/prompting/generate"
 import { insertGeneration, listGenerations } from "../../core/prompting/generation-store"
+import { minimaxH3 } from "../../core/prompting/targets/minimax-h3"
 import type { Context } from "../context"
 import { publicProcedure, router } from "../trpc"
 
@@ -41,16 +42,27 @@ export const promptsRouter = router({
     .mutation(async ({ ctx, input }) => {
       const db = requireProject(ctx)
       try {
-        const generated = await generateH3Prompt(
-          ctx.promptClient(ctx.settings.llamaServerUrl()),
-          input.brief
-        )
+        // Clips arrive in step 5; until then the brief stands in for a clip with nothing but a note.
+        const composed = await briefComposer.compose({
+          composition: {
+            id: 0,
+            name: "",
+            style: "",
+            note: input.brief,
+            musicNote: "",
+            speakers: [],
+            shots: [],
+          },
+          target: minimaxH3,
+          client: ctx.promptClient(ctx.settings.llamaServerUrl()),
+          scope: { kind: "all" },
+        })
         return insertGeneration(db, {
           target: TARGET,
           brief: input.brief,
-          fields: generated.fields,
-          rendered: generated.rendered,
-          model: generated.model,
+          fields: composed.fields,
+          rendered: composed.rendered,
+          model: composed.model ?? "",
         })
       } catch (error) {
         asClientError(error)
