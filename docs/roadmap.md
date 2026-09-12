@@ -58,18 +58,19 @@ at Q2 or Q3 with the Lightning LoRA.
 
 1. Welcome screen, project create and open, recent projects, and an empty
    project workspace.
+2. Prompt generation: a brief becomes a MiniMax H3 text-to-video prompt
+   through llama-server, kept in the project and listed in the workspace.
 
 ## Milestones
 
-2. Asset library: people, places, objects, plus picklists for camera
+3. Asset library: people, places, objects, plus picklists for camera
    angle, movement, transition, lighting and style. Reference images and
    RefMod files attached to assets. Description drafted from images by the
    local vision model.
-3. Storyboard editor: ordered shots referencing assets and picklists, with
+4. Storyboard editor: ordered shots referencing assets and picklists, with
    duration, dialogue and sound notes. Split into clips under 15 seconds,
-   chained by last frame to first frame.
-4. Prompt generation per clip per target model using the official prompt
-   guides as templates. Edit, regenerate, version every prompt.
+   chained by last frame to first frame. Prompts generated per clip per
+   target model, edited, regenerated and versioned.
 5. Runpod link: connect to a pod, pull outputs into the project, show each
    take next to its shot, mark good or bad with notes, export chosen takes.
 6. ComfyUI templates: API-format workflow JSON per target with named slots,
@@ -97,3 +98,11 @@ at Q2 or Q3 with the Lightning LoRA.
   second window would need a session per window.
 - Testing Library cleanup is registered by hand in the renderer test setup
   because Vitest globals are off. Turning globals on would remove it.
+- Streaming tokens to the renderer needs a subscription link over the
+  `trpc://` scheme.
+- The reference image forms of the H3 prompt (I2VA, FL2VA, L2VA) need the
+  alignment line and arrive with the asset library.
+- A generation that runs past the two minute timeout is reported as a
+  server that could not be reached, which is not what happened.
+- Nothing records which system prompt wrote a stored generation, so
+  prompts from before a change cannot be told from prompts after it.
