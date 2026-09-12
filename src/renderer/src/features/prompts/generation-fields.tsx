@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react"
+import { Check, Copy } from "lucide-react"
 import { Button } from "@renderer/design-system"
 import type { GenerationRecord } from "@renderer/lib/trpc"
 
@@ -81,7 +82,8 @@ export function GenerationFields({ generation }: GenerationFieldsProps): React.J
           size="sm"
           onClick={() => void copy("all", asBlock(fields, generation.rendered))}
         >
-          {copied === "all" ? "Copied" : "Copy all"}
+          {copied === "all" ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
+          Copy all
         </Button>
       </div>
 
@@ -98,12 +100,17 @@ export function GenerationFields({ generation }: GenerationFieldsProps): React.J
             )}
             <Button
               variant="ghost"
-              size="sm"
-              className="shrink-0"
+              size="icon"
+              className="size-7 shrink-0"
               aria-label={`Copy ${field.name}`}
+              title={`Copy ${field.name}`}
               onClick={() => void copy(field.name, field.value)}
             >
-              {copied === field.name ? "Copied" : "Copy"}
+              {copied === field.name ? (
+                <Check className="size-3.5" />
+              ) : (
+                <Copy className="size-3.5" />
+              )}
             </Button>
           </div>
         ))}

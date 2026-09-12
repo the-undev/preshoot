@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react"
+import { Check, Copy } from "lucide-react"
 import { Button, Input } from "@renderer/design-system"
 import type { GenerationRecord } from "@renderer/lib/trpc"
 import { GenerationFields } from "./generation-fields"
@@ -83,9 +84,6 @@ export function PromptResult({
           )}
         </div>
         <div className="flex shrink-0 gap-2">
-          <Button variant="outline" size="sm" onClick={() => void copy()}>
-            {copied ? "Copied" : "Copy"}
-          </Button>
           <Button
             variant="outline"
             size="sm"
@@ -110,7 +108,24 @@ export function PromptResult({
 
       <GenerationFields generation={generation} />
 
-      <pre className="text-sm whitespace-pre-wrap text-muted-foreground">{generation.rendered}</pre>
+      <div className="flex min-w-0 flex-col gap-1">
+        <div className="flex items-center justify-between gap-2">
+          <h3 className="font-heading text-sm font-semibold text-muted-foreground">Prompt</h3>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-7"
+            aria-label="Copy the prompt"
+            title="Copy the prompt"
+            onClick={() => void copy()}
+          >
+            {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
+          </Button>
+        </div>
+        <pre className="text-sm whitespace-pre-wrap text-muted-foreground">
+          {generation.rendered}
+        </pre>
+      </div>
 
       <form
         className="flex min-w-0 gap-2"

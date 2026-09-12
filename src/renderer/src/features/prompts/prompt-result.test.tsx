@@ -112,6 +112,22 @@ describe("PromptResult", () => {
     expect(screen.getByText("400 words")).toBeInTheDocument()
   })
 
+  it("copies the prompt from beside it", async () => {
+    const written: string[] = []
+    Object.assign(navigator, {
+      clipboard: {
+        writeText: vi.fn(async (text: string) => {
+          written.push(text)
+        }),
+      },
+    })
+    renderResult()
+
+    fireEvent.click(screen.getByRole("button", { name: "Copy the prompt" }))
+
+    await vi.waitFor(() => expect(written).toEqual([generation.rendered]))
+  })
+
   it("says what change made an edited prompt", () => {
     renderResult({
       generation: { ...generation, composer: "edit", editInstruction: "She is happier." },
