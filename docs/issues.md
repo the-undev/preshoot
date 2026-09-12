@@ -45,8 +45,9 @@ says so.
 
 ## What the prompt still gets wrong
 
-Checked against `docs/minimax-h3/`. What has been fixed is gone from this
-list; what is left was found by generating against the model.
+Checked against the H3 prompt guides and against the system prompt in
+`targets/minimax-h3.ts`. What has been fixed is gone from this list; what is
+left was found by generating against the model.
 
 - The identity in the speaker example leaks into the answer. Asked for a
   clip about a young woman, one run in four still writes "The elderly keeper
@@ -59,13 +60,6 @@ list; what is left was found by generating against the model.
   form to look for.
 - Unintelligible speech in reference audio is written `[unclear]` rather than
   guessed at. Nothing says so.
-
-Found by reading `docs/minimax-h3/VIDEO_PROMPT_WRITING_GUIDE_base_en.md`
-against the system prompt in `targets/minimax-h3.ts`, which until now had
-been written from memory of the guide rather than from the guide.
-
-- Unintelligible speech in reference audio is written `[unclear]` rather than
-  guessed at.
 
 ## Improvements
 

@@ -9,9 +9,9 @@ can be copied one field at a time into whatever runs the model, and gives a
 clip the settings the model takes that nothing in the app decides.
 
 The request shape is recorded in `docs/h3-mapping.md`, taken from the
-scripts vendored in `docs/minimax-h3/`. Nothing here submits anything: there
-is no endpoint to submit to yet, and the adaptor that would build one
-belongs with the Runpod work.
+request scripts linked in `docs/minimax-h3.md`. Nothing here submits
+anything: there is no endpoint to submit to yet, and the adaptor that would
+build one belongs with the Runpod work.
 
 Read `CLAUDE.md`, `docs/roadmap.md`, `docs/issues.md` and
 `docs/h3-mapping.md` first. Work on the branch `feature/prompt-generation`.
