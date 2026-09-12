@@ -108,7 +108,7 @@ describe("ClipEditor", () => {
 
     expect(screen.getByLabelText("Clip")).toHaveValue("Lighthouse")
     expect(screen.getByLabelText("Style")).toHaveValue("Live-action, cinematic")
-    expect(screen.getByLabelText("Note")).toHaveValue("A keeper lights the lamp.")
+    expect(screen.getByLabelText("What this clip is")).toHaveValue("A keeper lights the lamp.")
   })
 
   it("adds up the shots", () => {

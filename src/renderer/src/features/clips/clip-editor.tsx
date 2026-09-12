@@ -276,7 +276,7 @@ export function ClipEditor({
       </div>
 
       <div className="flex flex-col gap-1">
-        <Label htmlFor="clip-note">Note</Label>
+        <Label htmlFor="clip-note">What this clip is</Label>
         <Textarea
           id="clip-note"
           rows={2}
@@ -285,6 +285,10 @@ export function ClipEditor({
           onChange={(event) => setNote(event.target.value)}
           onBlur={() => commit({ note })}
         />
+        <p className="text-xs text-muted-foreground">
+          Given to the model above the shots, so it knows what it is writing. It is also the whole
+          input for &quot;From this alone&quot;, and what History lists each result by.
+        </p>
       </div>
 
       <div className="flex flex-col gap-1">

@@ -44,7 +44,7 @@ export function builtinVariants(target: PromptTarget): PromptVariant[] {
       id: builtinVariantId(target.id, "brief"),
       targetId: target.id,
       strategy: "brief",
-      name: "Built-in, brief only",
+      name: "Built-in, from the clip alone",
       systemPrompt: target.brief.systemPrompt,
       editable: false,
     },

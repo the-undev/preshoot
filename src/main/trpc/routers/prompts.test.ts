@@ -271,7 +271,7 @@ describe("prompts router", () => {
 
     expect(variants.map((variant) => variant.name)).toEqual([
       "Built-in, prose per shot",
-      "Built-in, brief only",
+      "Built-in, from the clip alone",
       "Built-in, editing",
       "Terser",
     ])

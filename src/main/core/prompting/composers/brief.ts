@@ -5,10 +5,10 @@ import type { ComposeInput, ComposedPrompt, PromptComposer } from "./composer"
 /** Enough for the three fields of one clip with room to spare. */
 const MAX_TOKENS = 800
 
-/** Writes the whole prompt from the clip's note and ignores its shots, as milestone 2 did. */
+/** Writes the whole prompt from what the clip says it is, ignoring its shots. */
 export const briefComposer: PromptComposer = {
   id: "brief",
-  name: "Brief only, ignoring the shots",
+  name: "From this alone, ignoring the shots",
 
   async compose({
     composition,
@@ -19,7 +19,9 @@ export const briefComposer: PromptComposer = {
   }: ComposeInput): Promise<ComposedPrompt> {
     const note = composition.note.trim()
     if (note.length === 0) {
-      throw CompositionError.nothingToWrite("Write a note for this clip before generating from it.")
+      throw CompositionError.nothingToWrite(
+        "Say what this clip is before writing a prompt from that alone."
+      )
     }
 
     const answer = await client.chat({
