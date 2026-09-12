@@ -95,14 +95,18 @@ export const clips = sqliteTable("clips", {
 
 export const speakers = sqliteTable("speakers", {
   id: integer("id").primaryKey({ autoIncrement: true }),
-  clipId: integer("clip_id").notNull().references(() => clips.id, { onDelete: "cascade" }),
+  clipId: integer("clip_id")
+    .notNull()
+    .references(() => clips.id, { onDelete: "cascade" }),
   position: integer("position").notNull(),
   description: text("description").notNull(),
 })
 
 export const shots = sqliteTable("shots", {
   id: integer("id").primaryKey({ autoIncrement: true }),
-  clipId: integer("clip_id").notNull().references(() => clips.id, { onDelete: "cascade" }),
+  clipId: integer("clip_id")
+    .notNull()
+    .references(() => clips.id, { onDelete: "cascade" }),
   position: integer("position").notNull(),
   durationMs: integer("duration_ms").notNull(),
   cameraMotion: text("camera_motion"),
@@ -114,16 +118,28 @@ export const shots = sqliteTable("shots", {
   soundNote: text("sound_note").notNull(),
 })
 
-export const shotAssets = sqliteTable("shot_assets", {
-  shotId: integer("shot_id").notNull().references(() => shots.id, { onDelete: "cascade" }),
-  assetId: integer("asset_id").notNull().references(() => assets.id, { onDelete: "restrict" }),
-  position: integer("position").notNull(),
-}, (table) => [primaryKey({ columns: [table.shotId, table.assetId] })])
+export const shotAssets = sqliteTable(
+  "shot_assets",
+  {
+    shotId: integer("shot_id")
+      .notNull()
+      .references(() => shots.id, { onDelete: "cascade" }),
+    assetId: integer("asset_id")
+      .notNull()
+      .references(() => assets.id, { onDelete: "restrict" }),
+    position: integer("position").notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.shotId, table.assetId] })]
+)
 
 export const dialogueLines = sqliteTable("dialogue_lines", {
   id: integer("id").primaryKey({ autoIncrement: true }),
-  shotId: integer("shot_id").notNull().references(() => shots.id, { onDelete: "cascade" }),
-  speakerId: integer("speaker_id").notNull().references(() => speakers.id, { onDelete: "cascade" }),
+  shotId: integer("shot_id")
+    .notNull()
+    .references(() => shots.id, { onDelete: "cascade" }),
+  speakerId: integer("speaker_id")
+    .notNull()
+    .references(() => speakers.id, { onDelete: "cascade" }),
   position: integer("position").notNull(),
   language: text("language").notNull(),
   text: text("text").notNull(),
@@ -210,7 +226,7 @@ system prompt, schema and user message, moved behind the interface.
   string to reproduce. When the scope is one shot it names that shot as the
   only one to write and gives the prose already written for the others.
 - `prose.schema`: an object with `shots`, an array of `{ shot: number, prose:
-  string }`, plus `overall_soundscape` and `non_diegetic_music`.
+string }`, plus `overall_soundscape` and `non_diegetic_music`.
 - `prose.readProse`: parses, checks there is one entry per shot asked for and
   that every dialogue line of those shots appears verbatim, and throws
   `bad-response` otherwise.
@@ -273,7 +289,7 @@ without touching the client.
   `readComposition(db, clipId): ClipComposition` joining speakers, shots,
   their things and their dialogue in position order.
 - Shots: `insertShot`, `updateShot`, `deleteShot`, `moveShot(db, shotId,
-  toPosition)`, `setShotThings`, `setShotDialogue`. Positions are
+toPosition)`, `setShotThings`, `setShotDialogue`. Positions are
   renumbered from zero after every change, so nothing else has to defend
   against gaps.
 - Speakers: `insertSpeaker`, `updateSpeaker`, `deleteSpeaker`.
@@ -294,27 +310,27 @@ record, `listGenerations(db, clipId)` filtering to one clip, and a nullable
 
 `src/main/trpc/routers/assets.ts`, mounted as `assets`:
 
-| Procedure | Kind     | Input                           | Output    |
-| --------- | -------- | ------------------------------- | --------- |
-| `list`    | query    | none                            | `Asset[]` |
-| `create`  | mutation | `{ kind, name, description }`   | `Asset`   |
-| `update`  | mutation | `{ id, name, description }`     | `Asset`   |
-| `remove`  | mutation | `{ id }`                        | `void`    |
+| Procedure | Kind     | Input                         | Output    |
+| --------- | -------- | ----------------------------- | --------- |
+| `list`    | query    | none                          | `Asset[]` |
+| `create`  | mutation | `{ kind, name, description }` | `Asset`   |
+| `update`  | mutation | `{ id, name, description }`   | `Asset`   |
+| `remove`  | mutation | `{ id }`                      | `void`    |
 
 `src/main/trpc/routers/clips.ts`, mounted as `clips`:
 
-| Procedure     | Kind     | Input                                   | Output            |
-| ------------- | -------- | --------------------------------------- | ----------------- |
-| `list`        | query    | none                                    | `ClipSummary[]`   |
-| `create`      | mutation | `{ name }`                              | `ClipSummary`     |
-| `update`      | mutation | `{ id, name, style, note, musicNote }`  | `ClipSummary`     |
-| `remove`      | mutation | `{ id }`                                | `void`            |
-| `composition` | query    | `{ clipId }`                            | `ClipComposition` |
-| `addShot`     | mutation | `{ clipId }`                            | `ClipComposition` |
-| `updateShot`  | mutation | the shot's fields                       | `ClipComposition` |
-| `moveShot`    | mutation | `{ shotId, toPosition }`                | `ClipComposition` |
-| `removeShot`  | mutation | `{ shotId }`                            | `ClipComposition` |
-| `addSpeaker`, `updateSpeaker`, `removeSpeaker` | mutation | speaker fields | `ClipComposition` |
+| Procedure                                      | Kind     | Input                                  | Output            |
+| ---------------------------------------------- | -------- | -------------------------------------- | ----------------- |
+| `list`                                         | query    | none                                   | `ClipSummary[]`   |
+| `create`                                       | mutation | `{ name }`                             | `ClipSummary`     |
+| `update`                                       | mutation | `{ id, name, style, note, musicNote }` | `ClipSummary`     |
+| `remove`                                       | mutation | `{ id }`                               | `void`            |
+| `composition`                                  | query    | `{ clipId }`                           | `ClipComposition` |
+| `addShot`                                      | mutation | `{ clipId }`                           | `ClipComposition` |
+| `updateShot`                                   | mutation | the shot's fields                      | `ClipComposition` |
+| `moveShot`                                     | mutation | `{ shotId, toPosition }`               | `ClipComposition` |
+| `removeShot`                                   | mutation | `{ shotId }`                           | `ClipComposition` |
+| `addSpeaker`, `updateSpeaker`, `removeSpeaker` | mutation | speaker fields                         | `ClipComposition` |
 
 Every mutation returns the whole composition, so the renderer holds one query
 and never stitches partial updates together.
