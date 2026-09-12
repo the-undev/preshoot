@@ -11,6 +11,7 @@ const clips: ClipSummary[] = [
     style: "vintage film",
     note: "",
     musicNote: "",
+    prompts: 3,
     createdAt: "2026-09-12T08:00:00.000Z",
   },
   {
@@ -20,13 +21,22 @@ const clips: ClipSummary[] = [
     style: "Live-action, cinematic",
     note: "",
     musicNote: "",
+    prompts: 0,
     createdAt: "2026-09-11T08:00:00.000Z",
   },
 ]
 
 describe("ClipList", () => {
   it("lists the clips in the order given", () => {
-    render(<ClipList clips={clips} selectedId={1} onSelect={vi.fn()} onCreate={vi.fn()} />)
+    render(
+      <ClipList
+        clips={clips}
+        selectedId={1}
+        onSelect={vi.fn()}
+        onCreate={vi.fn()}
+        onRemove={vi.fn()}
+      />
+    )
 
     const names = screen.getAllByRole("listitem").map((item) => item.textContent)
     expect(names[0]).toContain("Lamp room")
@@ -35,16 +45,32 @@ describe("ClipList", () => {
 
   it("reports the clip that was chosen", () => {
     const onSelect = vi.fn()
-    render(<ClipList clips={clips} selectedId={1} onSelect={onSelect} onCreate={vi.fn()} />)
+    render(
+      <ClipList
+        clips={clips}
+        selectedId={1}
+        onSelect={onSelect}
+        onCreate={vi.fn()}
+        onRemove={vi.fn()}
+      />
+    )
 
-    fireEvent.click(screen.getByRole("button", { name: /Lamp room/ }))
+    fireEvent.click(screen.getByRole("button", { name: /^Lamp room/ }))
 
     expect(onSelect).toHaveBeenCalledWith(2)
   })
 
   it("starts a clip with the name typed, without its surrounding space", () => {
     const onCreate = vi.fn()
-    render(<ClipList clips={clips} selectedId={null} onSelect={vi.fn()} onCreate={onCreate} />)
+    render(
+      <ClipList
+        clips={clips}
+        selectedId={null}
+        onSelect={vi.fn()}
+        onCreate={onCreate}
+        onRemove={vi.fn()}
+      />
+    )
 
     fireEvent.change(screen.getByLabelText("New clip name"), { target: { value: "  Storm  " } })
     fireEvent.click(screen.getByRole("button", { name: "Add" }))
@@ -52,8 +78,33 @@ describe("ClipList", () => {
     expect(onCreate).toHaveBeenCalledWith("Storm")
   })
 
+  it("reports the clip to delete", () => {
+    const onRemove = vi.fn()
+    render(
+      <ClipList
+        clips={clips}
+        selectedId={null}
+        onSelect={vi.fn()}
+        onCreate={vi.fn()}
+        onRemove={onRemove}
+      />
+    )
+
+    fireEvent.click(screen.getByRole("button", { name: "Delete Lamp room" }))
+
+    expect(onRemove).toHaveBeenCalledWith(clips[0])
+  })
+
   it("says so when the project has no clips", () => {
-    render(<ClipList clips={[]} selectedId={null} onSelect={vi.fn()} onCreate={vi.fn()} />)
+    render(
+      <ClipList
+        clips={[]}
+        selectedId={null}
+        onSelect={vi.fn()}
+        onCreate={vi.fn()}
+        onRemove={vi.fn()}
+      />
+    )
 
     expect(screen.getByText("No clips in this project yet.")).toBeInTheDocument()
   })

@@ -107,10 +107,10 @@ export const clipsRouter = router({
       }
     }),
 
-  /** Removes a clip and everything under it. */
+  /** Removes a clip and everything under it, saying how many prompts went with it. */
   remove: publicProcedure.input(z.object({ id: clipId })).mutation(({ ctx, input }) => {
     try {
-      deleteClip(requireProject(ctx), input.id)
+      return { prompts: deleteClip(requireProject(ctx), input.id) }
     } catch (error) {
       asClientError(error)
     }

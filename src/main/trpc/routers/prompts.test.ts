@@ -341,18 +341,13 @@ describe("prompts router", () => {
     expect((await caller.prompts.list({ clipId }))[0].verdict).toBe("good")
   })
 
-  it("refuses to rewrite a shot of a prompt that came from no clip", async () => {
+  it("takes a clip's prompts with it when the clip goes", async () => {
     await openProject()
-    const { clipId, shotIds } = await clipOfTwo()
-    const generated = await caller.prompts.generate({
-      clipId,
-      composerId: "prose",
-      variantId: null,
-    })
-    await caller.clips.remove({ id: clipId })
+    const { clipId } = await clipOfTwo()
+    await caller.prompts.generate({ clipId, composerId: "prose", variantId: null })
+    await caller.prompts.generate({ clipId, composerId: "assembled", variantId: null })
 
-    await expect(
-      caller.prompts.regenerateShot({ generationId: generated.id, shotId: shotIds[0] })
-    ).rejects.toThrow(expect.objectContaining({ code: "BAD_REQUEST" }))
+    expect(await caller.clips.remove({ id: clipId })).toEqual({ prompts: 2 })
+    await expect(caller.prompts.list({ clipId })).resolves.toEqual([])
   })
 })

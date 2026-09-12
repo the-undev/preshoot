@@ -192,6 +192,10 @@ describe("clip store", () => {
     ])
   })
 
+  it("counts what has been generated for each clip", () => {
+    expect(listClips(handle.db)[0].prompts).toBe(0)
+  })
+
   it("takes the shots and their dialogue when the clip goes", () => {
     const shotId = insertShot(handle.db, clipId)
     const speakerId = insertSpeaker(handle.db, clipId, "The keeper")

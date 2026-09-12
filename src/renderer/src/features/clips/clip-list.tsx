@@ -7,6 +7,7 @@ interface ClipListProps {
   selectedId: number | null
   onSelect: (id: number) => void
   onCreate: (name: string) => void
+  onRemove: (clip: ClipSummary) => void
 }
 
 /** The project's clips, newest first, with the box that starts another. */
@@ -15,6 +16,7 @@ export function ClipList({
   selectedId,
   onSelect,
   onCreate,
+  onRemove,
 }: ClipListProps): React.JSX.Element {
   const [name, setName] = useState("")
   const trimmedName = name.trim()
@@ -46,16 +48,24 @@ export function ClipList({
       ) : (
         <ul className="flex flex-col gap-1">
           {clips.map((clip) => (
-            <li key={clip.id}>
+            <li key={clip.id} className="flex items-center gap-1">
               <Button
                 variant={clip.id === selectedId ? "secondary" : "ghost"}
-                className="h-auto w-full justify-start px-3 py-2 text-left"
+                className="h-auto flex-1 justify-start px-3 py-2 text-left"
                 onClick={() => onSelect(clip.id)}
               >
                 <span className="flex min-w-0 flex-col">
                   <span className="text-sm font-medium">{clip.name}</span>
                   <span className="truncate text-xs text-muted-foreground">{clip.style}</span>
                 </span>
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                aria-label={`Delete ${clip.name}`}
+                onClick={() => onRemove(clip)}
+              >
+                Delete
               </Button>
             </li>
           ))}

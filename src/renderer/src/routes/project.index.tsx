@@ -1,6 +1,16 @@
 import { useState } from "react"
 import { createFileRoute } from "@tanstack/react-router"
-import { Alert, AlertDescription } from "@renderer/design-system"
+import {
+  Alert,
+  AlertDescription,
+  Button,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@renderer/design-system"
 import { useAssets } from "@renderer/features/assets/use-assets"
 import { ClipEditor } from "@renderer/features/clips/clip-editor"
 import { ClipList } from "@renderer/features/clips/clip-list"
@@ -8,6 +18,7 @@ import { ComparePanel } from "@renderer/features/clips/compare-panel"
 import { useClip } from "@renderer/features/clips/use-clip"
 import { useCompare, type ComparePair } from "@renderer/features/clips/use-compare"
 import { useClips } from "@renderer/features/clips/use-clips"
+import type { ClipSummary } from "@renderer/lib/trpc"
 import { useGenerateClip } from "@renderer/features/clips/use-generate-clip"
 import { GenerationHistory } from "@renderer/features/prompts/generation-history"
 import { useVariants } from "@renderer/features/prompts/use-variants"
@@ -20,6 +31,7 @@ export const Route = createFileRoute("/project/")({
 function Clips(): React.JSX.Element {
   const clips = useClips()
   const [chosenId, setChosenId] = useState<number | null>(null)
+  const [removing, setRemoving] = useState<ClipSummary | null>(null)
   const clipId = chosenId ?? clips.clips[0]?.id ?? null
 
   return (
@@ -30,6 +42,7 @@ function Clips(): React.JSX.Element {
           selectedId={clipId}
           onSelect={setChosenId}
           onCreate={clips.create}
+          onRemove={setRemoving}
         />
         {clips.errorMessage && (
           <Alert variant="destructive">
@@ -37,6 +50,35 @@ function Clips(): React.JSX.Element {
           </Alert>
         )}
       </section>
+
+      {removing && (
+        <Dialog open onOpenChange={(open) => !open && setRemoving(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Delete {removing.name}?</DialogTitle>
+              <DialogDescription>
+                {removing.prompts === 0
+                  ? "Its shots go with it. Nothing has been generated for it."
+                  : `Its shots and the ${removing.prompts} prompts written for it go with it.`}
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setRemoving(null)}>
+                Cancel
+              </Button>
+              <Button
+                onClick={() => {
+                  clips.remove(removing.id)
+                  if (chosenId === removing.id) setChosenId(null)
+                  setRemoving(null)
+                }}
+              >
+                Delete
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
 
       {clipId === null ? (
         <p className="text-sm text-muted-foreground">Start a clip to write a prompt for it.</p>

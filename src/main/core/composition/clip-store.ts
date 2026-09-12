@@ -1,4 +1,4 @@
-import { asc, desc, eq } from "drizzle-orm"
+import { asc, count, desc, eq } from "drizzle-orm"
 import { schema, type ProjectDatabase, type ProjectDb } from "../db"
 import type { ClipComposition, ShotComposition } from "./clip"
 import { CompositionError } from "./errors"
@@ -14,6 +14,7 @@ export interface ClipSummary {
   style: string
   note: string
   musicNote: string
+  prompts: number
   createdAt: string
 }
 
@@ -41,12 +42,25 @@ type ClipRow = typeof schema.clips.$inferSelect
 
 /** Every clip in the project, newest first. */
 export function listClips(db: ProjectDatabase): ClipSummary[] {
+  const counts = promptCounts(db)
   return db
     .select()
     .from(schema.clips)
     .orderBy(desc(schema.clips.createdAt), desc(schema.clips.id))
     .all()
-    .map(toSummary)
+    .map((row) => toSummary(row, counts.get(row.id) ?? 0))
+}
+
+/** How many prompts have been generated for each clip. */
+function promptCounts(db: ProjectDatabase): Map<number, number> {
+  const rows = db
+    .select({ clipId: schema.generations.clipId, written: count() })
+    .from(schema.generations)
+    .groupBy(schema.generations.clipId)
+    .all()
+  return new Map(
+    rows.filter((row) => row.clipId !== null).map((row) => [row.clipId as number, row.written])
+  )
 }
 
 /** One clip's own fields, without its shots. */
@@ -55,7 +69,7 @@ export function readClip(db: ProjectDatabase, clipId: number): ClipSummary {
   if (!row) {
     throw CompositionError.notFound(`Clip ${clipId}`)
   }
-  return toSummary(row)
+  return toSummary(row, promptCounts(db).get(row.id) ?? 0)
 }
 
 /** Starts a clip with no shots. */
@@ -68,7 +82,7 @@ export function insertClip(
     .values({ ...input, note: "", musicNote: "", createdAt: new Date() })
     .returning()
     .all()
-  return toSummary(row)
+  return toSummary(row, 0)
 }
 
 /** Rewrites the clip's own fields, leaving its shots and speakers alone. */
@@ -85,15 +99,26 @@ export function updateClip(
   if (!row) {
     throw CompositionError.notFound(`Clip ${input.id}`)
   }
-  return toSummary(row)
+  return toSummary(row, promptCounts(db).get(row.id) ?? 0)
 }
 
-/** Removes a clip and everything under it. */
-export function deleteClip(db: ProjectDatabase, clipId: number): void {
-  const removed = db.delete(schema.clips).where(eq(schema.clips.id, clipId)).returning().all()
-  if (removed.length === 0) {
-    throw CompositionError.notFound(`Clip ${clipId}`)
-  }
+/**
+ * Removes a clip and everything under it, prompts included. Left behind, a prompt would have no
+ * clip to be read under, so it would be unreachable rather than kept.
+ */
+export function deleteClip(db: ProjectDatabase, clipId: number): number {
+  return db.transaction((tx) => {
+    const prompts = tx
+      .delete(schema.generations)
+      .where(eq(schema.generations.clipId, clipId))
+      .returning()
+      .all()
+    const removed = tx.delete(schema.clips).where(eq(schema.clips.id, clipId)).returning().all()
+    if (removed.length === 0) {
+      throw CompositionError.notFound(`Clip ${clipId}`)
+    }
+    return prompts.length
+  })
 }
 
 /** The whole clip, with its speakers, shots, the things they show and what is said. */
@@ -335,8 +360,8 @@ export function speakerLabel(position: number): string {
   return `S${position + 1}`
 }
 
-function toSummary(row: ClipRow): ClipSummary {
-  return { ...row, createdAt: row.createdAt.toISOString() }
+function toSummary(row: ClipRow, prompts: number): ClipSummary {
+  return { ...row, prompts, createdAt: row.createdAt.toISOString() }
 }
 
 function clipOfShot(db: ProjectDb, shotId: number): number {

@@ -168,11 +168,10 @@ describe("clips router", () => {
     )
   })
 
-  it("removes a clip", async () => {
+  it("removes a clip and says nothing had been generated for it", async () => {
     const clip = await caller.clips.create({ name: "Lighthouse" })
 
-    await caller.clips.remove({ id: clip.id })
-
+    expect(await caller.clips.remove({ id: clip.id })).toEqual({ prompts: 0 })
     expect(await caller.clips.list()).toEqual([])
   })
 })
