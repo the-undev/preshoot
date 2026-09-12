@@ -13,6 +13,8 @@ export interface GeneratePanel {
   composers: ComposerOption[]
   composerId: string
   chooseComposer(id: string): void
+  variantId: string | null
+  chooseVariant(id: string | null): void
   generations: GenerationRecord[]
   latest: GenerationRecord | null
   generate(): void
@@ -26,6 +28,7 @@ export function useGenerateClip(clipId: number): GeneratePanel {
   const trpc = useTRPC()
   const queryClient = useQueryClient()
   const [chosen, setChosen] = useState<string | null>(null)
+  const [variantId, setVariantId] = useState<string | null>(null)
 
   const ways = useQuery(trpc.prompts.composers.queryOptions())
   const generations = useQuery(trpc.prompts.list.queryOptions({ clipId }))
@@ -46,9 +49,11 @@ export function useGenerateClip(clipId: number): GeneratePanel {
     composers: ways.data?.composers ?? [],
     composerId,
     chooseComposer: setChosen,
+    variantId,
+    chooseVariant: setVariantId,
     generations: generations.data ?? [],
     latest,
-    generate: () => generate.mutate({ clipId, composerId }),
+    generate: () => generate.mutate({ clipId, composerId, variantId }),
     regenerateShot: (shotId) => {
       if (latest) regenerate.mutate({ generationId: latest.id, shotId })
     },

@@ -16,6 +16,7 @@ export const proseComposer: PromptComposer = {
   async compose({
     composition,
     model,
+    systemPrompt,
     target,
     client,
     scope,
@@ -26,7 +27,7 @@ export const proseComposer: PromptComposer = {
 
     const answer = await client.chat({
       model,
-      system: target.prose.systemPrompt,
+      system: systemPrompt,
       user: target.prose.instruction(composition, scope),
       schema: target.prose.schema,
       maxTokens: BASE_TOKENS + TOKENS_PER_SHOT * composition.shots.length,

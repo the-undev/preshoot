@@ -7,6 +7,7 @@ import type { ComposeScope, PromptTarget, TargetFields } from "../target"
 export interface ComposeInput {
   composition: ClipComposition
   model: string
+  systemPrompt: string
   target: PromptTarget
   client: LlamaServerClient
   scope: ComposeScope

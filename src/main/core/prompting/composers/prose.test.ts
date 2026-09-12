@@ -64,18 +64,19 @@ function clientAnswering(content: string): {
 }
 
 describe("proseComposer", () => {
-  it("sends the target's prose prompt, instruction and schema", async () => {
+  it("sends the system prompt it was given, with the target's instruction and schema", async () => {
     const { client, requests } = clientAnswering(answer)
 
     await proseComposer.compose({
       composition,
       model: "Qwen3.5-9B",
+      systemPrompt: "You write prompts.",
       target: minimaxH3,
       client,
       scope: { kind: "all" },
     })
 
-    expect(requests[0].system).toBe(minimaxH3.prose.systemPrompt)
+    expect(requests[0].system).toBe("You write prompts.")
     expect(requests[0].schema).toBe(minimaxH3.prose.schema)
     expect(requests[0].user).toContain("Shot 1 (starts at 00:00.000")
     expect(requests[0].maxTokens).toBeGreaterThan(1000)
@@ -87,6 +88,7 @@ describe("proseComposer", () => {
     const composed = await proseComposer.compose({
       composition,
       model: "Qwen3.5-9B",
+      systemPrompt: "You write prompts.",
       target: minimaxH3,
       client,
       scope: { kind: "all" },
@@ -115,6 +117,7 @@ describe("proseComposer", () => {
     const composed = await proseComposer.compose({
       composition,
       model: "Qwen3.5-9B",
+      systemPrompt: "You write prompts.",
       target: minimaxH3,
       client,
       scope: {
@@ -145,6 +148,7 @@ describe("proseComposer", () => {
       proseComposer.compose({
         composition: { ...composition, shots: [] },
         model: "Qwen3.5-9B",
+        systemPrompt: "You write prompts.",
         target: minimaxH3,
         client,
         scope: { kind: "all" },
@@ -165,6 +169,7 @@ describe("proseComposer", () => {
       proseComposer.compose({
         composition,
         model: "Qwen3.5-9B",
+        systemPrompt: "You write prompts.",
         target: minimaxH3,
         client,
         scope: { kind: "all" },

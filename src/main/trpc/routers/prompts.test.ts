@@ -15,6 +15,13 @@ import { appRouter } from "../router"
 
 const migrationsFolder = join(__dirname, "../../../../resources/migrations")
 
+/** Settings with a model chosen, since writing with a model refuses without one. */
+function settingsWithModel(path: string): AppSettingsStore {
+  const settings = new AppSettingsStore(path)
+  settings.setLlamaModel("Qwen3.5-9B")
+  return settings
+}
+
 /** An answer covering `count` shots, keyed the way the instruction numbers them. */
 function proseAnswer(count: number): string {
   return JSON.stringify({
@@ -42,7 +49,7 @@ describe("prompts router", () => {
     const ctx: Context = {
       versions: { app: "0.0.0", electron: "0", chrome: "0", node: "0" },
       projects: session,
-      settings: new AppSettingsStore(join(dir, "settings.json")),
+      settings: settingsWithModel(join(dir, "settings.json")),
       migrationsFolder,
       dialogs: { pickDirectory: async () => null },
       promptClient: () =>
@@ -89,7 +96,11 @@ describe("prompts router", () => {
     await openProject()
     const { clipId } = await clipOfTwo()
 
-    const generated = await caller.prompts.generate({ clipId, composerId: "prose" })
+    const generated = await caller.prompts.generate({
+      clipId,
+      composerId: "prose",
+      variantId: null,
+    })
 
     expect(generated.composer).toBe("prose")
     expect(generated.clipId).toBe(clipId)
@@ -104,7 +115,11 @@ describe("prompts router", () => {
     await openProject()
     const { clipId } = await clipOfTwo()
 
-    const generated = await caller.prompts.generate({ clipId, composerId: "assembled" })
+    const generated = await caller.prompts.generate({
+      clipId,
+      composerId: "assembled",
+      variantId: null,
+    })
 
     expect(generated.model).toBeNull()
     expect(requests).toEqual([])
@@ -114,7 +129,7 @@ describe("prompts router", () => {
     await openProject()
     const first = await clipOfTwo()
     const second = await clipOfTwo()
-    await caller.prompts.generate({ clipId: first.clipId, composerId: "prose" })
+    await caller.prompts.generate({ clipId: first.clipId, composerId: "prose", variantId: null })
 
     expect(await caller.prompts.list({ clipId: first.clipId })).toHaveLength(1)
     expect(await caller.prompts.list({ clipId: second.clipId })).toEqual([])
@@ -124,15 +139,15 @@ describe("prompts router", () => {
     await openProject()
     const clip = await caller.clips.create({ name: "Empty" })
 
-    await expect(caller.prompts.generate({ clipId: clip.id, composerId: "prose" })).rejects.toThrow(
-      expect.objectContaining({ code: "BAD_REQUEST" })
-    )
+    await expect(
+      caller.prompts.generate({ clipId: clip.id, composerId: "prose", variantId: null })
+    ).rejects.toThrow(expect.objectContaining({ code: "BAD_REQUEST" }))
   })
 
   it("refuses to generate without an open project", async () => {
-    await expect(caller.prompts.generate({ clipId: 1, composerId: "prose" })).rejects.toThrow(
-      expect.objectContaining({ code: "PRECONDITION_FAILED" })
-    )
+    await expect(
+      caller.prompts.generate({ clipId: 1, composerId: "prose", variantId: null })
+    ).rejects.toThrow(expect.objectContaining({ code: "PRECONDITION_FAILED" }))
   })
 
   it("passes on a server that cannot be reached, with its message", async () => {
@@ -142,7 +157,9 @@ describe("prompts router", () => {
       throw PromptServiceError.unreachable("http://127.0.0.1:8080")
     })
 
-    await expect(caller.prompts.generate({ clipId, composerId: "prose" })).rejects.toThrow(
+    await expect(
+      caller.prompts.generate({ clipId, composerId: "prose", variantId: null })
+    ).rejects.toThrow(
       expect.objectContaining({
         code: "SERVICE_UNAVAILABLE",
         message: expect.stringContaining("http://127.0.0.1:8080"),
@@ -155,15 +172,15 @@ describe("prompts router", () => {
     const { clipId } = await clipOfTwo()
     chat = vi.fn(async () => ({ content: "not a prompt", model: "Qwen3.5-9B" }))
 
-    await expect(caller.prompts.generate({ clipId, composerId: "prose" })).rejects.toThrow(
-      expect.objectContaining({ code: "BAD_GATEWAY" })
-    )
+    await expect(
+      caller.prompts.generate({ clipId, composerId: "prose", variantId: null })
+    ).rejects.toThrow(expect.objectContaining({ code: "BAD_GATEWAY" }))
   })
 
   it("rewrites one shot and keeps what was written for the others", async () => {
     await openProject()
     const { clipId, shotIds } = await clipOfTwo()
-    const first = await caller.prompts.generate({ clipId, composerId: "prose" })
+    const first = await caller.prompts.generate({ clipId, composerId: "prose", variantId: null })
     chat = vi.fn(async () => ({
       content: JSON.stringify({
         shots: [{ shot: 2, prose: "Shot 2 written again." }],
@@ -186,10 +203,153 @@ describe("prompts router", () => {
     expect(again.rendered).toContain("Shot 2 written again.")
   })
 
+  it("records the prompt it wrote with and the text of it", async () => {
+    await openProject()
+    const { clipId } = await clipOfTwo()
+
+    const generated = await caller.prompts.generate({
+      clipId,
+      composerId: "prose",
+      variantId: null,
+    })
+
+    expect(generated.promptVariantId).toBe("builtin:minimax-h3:prose")
+    expect(generated.systemPrompt).toContain("MiniMax H3")
+    expect(requests[0].system).toBe(generated.systemPrompt)
+  })
+
+  it("writes with a prompt stored in the project", async () => {
+    await openProject()
+    const { clipId } = await clipOfTwo()
+    const variant = await caller.prompts.saveVariant({
+      id: null,
+      targetId: "minimax-h3",
+      strategy: "prose",
+      name: "Terser",
+      systemPrompt: "Write it shorter.",
+    })
+
+    const generated = await caller.prompts.generate({
+      clipId,
+      composerId: "prose",
+      variantId: variant.id,
+    })
+
+    expect(requests[0].system).toBe("Write it shorter.")
+    expect(generated.promptVariantId).toBe(variant.id)
+  })
+
+  it("lists the prompts that can write for the clip's target", async () => {
+    await openProject()
+    const { clipId } = await clipOfTwo()
+    await caller.prompts.saveVariant({
+      id: null,
+      targetId: "minimax-h3",
+      strategy: "prose",
+      name: "Terser",
+      systemPrompt: "Write it shorter.",
+    })
+
+    const variants = await caller.prompts.variants({ clipId })
+
+    expect(variants.map((variant) => variant.name)).toEqual([
+      "Built-in, prose per shot",
+      "Built-in, brief only",
+      "Terser",
+    ])
+  })
+
+  it("refuses to write when no model has been chosen", async () => {
+    await openProject()
+    const { clipId } = await clipOfTwo()
+    new AppSettingsStore(join(dir, "settings.json")).setLlamaModel("")
+
+    await expect(
+      caller.prompts.generate({ clipId, composerId: "prose", variantId: null })
+    ).rejects.toThrow(
+      expect.objectContaining({ code: "BAD_REQUEST", message: expect.stringContaining("settings") })
+    )
+  })
+
+  it("assembles without a model even when none is chosen", async () => {
+    await openProject()
+    const { clipId } = await clipOfTwo()
+    new AppSettingsStore(join(dir, "settings.json")).setLlamaModel("")
+
+    const generated = await caller.prompts.generate({
+      clipId,
+      composerId: "assembled",
+      variantId: null,
+    })
+
+    expect(generated.model).toBeNull()
+  })
+
+  it("writes a clip several ways under one run", async () => {
+    await openProject()
+    const { clipId } = await clipOfTwo()
+
+    const run = await caller.prompts.compare({
+      clipId,
+      runs: [
+        { composerId: "prose", variantId: null },
+        { composerId: "assembled", variantId: null },
+      ],
+    })
+
+    expect(run).toHaveLength(2)
+    expect(run[0].composer).toBe("prose")
+    expect(run[1].composer).toBe("assembled")
+    expect(run[0].runId).toBe(run[1].runId)
+    expect(run[0].runId).not.toBeNull()
+  })
+
+  it("keeps what landed when a later way of writing fails", async () => {
+    await openProject()
+    const { clipId } = await clipOfTwo()
+    chat = vi.fn(async () => ({ content: "not a prompt", model: "Qwen3.5-9B" }))
+
+    await expect(
+      caller.prompts.compare({
+        clipId,
+        runs: [
+          { composerId: "assembled", variantId: null },
+          { composerId: "prose", variantId: null },
+        ],
+      })
+    ).rejects.toThrow(expect.objectContaining({ code: "BAD_GATEWAY" }))
+
+    expect(await caller.prompts.list({ clipId })).toHaveLength(1)
+  })
+
+  it("marks a result good or bad and keeps a note", async () => {
+    await openProject()
+    const { clipId } = await clipOfTwo()
+    const generated = await caller.prompts.generate({
+      clipId,
+      composerId: "prose",
+      variantId: null,
+    })
+
+    const judged = await caller.prompts.judge({
+      generationId: generated.id,
+      verdict: "good",
+      note: "Kept the voice across the cut.",
+    })
+
+    expect(judged.verdict).toBe("good")
+    expect(judged.note).toBe("Kept the voice across the cut.")
+    expect((await caller.prompts.list({ clipId }))[0].verdict).toBe("good")
+  })
+
   it("refuses to rewrite a shot of a prompt that came from no clip", async () => {
     await openProject()
     const { clipId, shotIds } = await clipOfTwo()
-    const generated = await caller.prompts.generate({ clipId, composerId: "prose" })
+    const generated = await caller.prompts.generate({
+      clipId,
+      composerId: "prose",
+      variantId: null,
+    })
     await caller.clips.remove({ id: clipId })
 
     await expect(

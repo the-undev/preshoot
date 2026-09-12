@@ -36,6 +36,7 @@ describe("briefComposer", () => {
     const composed = await briefComposer.compose({
       composition,
       model: "Qwen3.5-9B",
+      systemPrompt: "You write prompts.",
       target: minimaxH3,
       client,
       scope: { kind: "all" },
@@ -47,18 +48,19 @@ describe("briefComposer", () => {
     expect(composed.rendered).toContain("integrated_multimodal_description: [Shot 1]")
   })
 
-  it("sends the whole-prompt system prompt and the clip's note", async () => {
+  it("sends the system prompt it was given and the clip's note", async () => {
     const { client, requests } = clientAnswering(JSON.stringify(fields))
 
     await briefComposer.compose({
       composition,
       model: "Qwen3.5-9B",
+      systemPrompt: "You write prompts.",
       target: minimaxH3,
       client,
       scope: { kind: "all" },
     })
 
-    expect(requests[0].system).toBe(minimaxH3.brief.systemPrompt)
+    expect(requests[0].system).toBe("You write prompts.")
     expect(requests[0].user).toContain("A baker opens the shutters.")
     expect(requests[0].schema).toBe(minimaxH3.brief.schema)
   })
@@ -70,6 +72,7 @@ describe("briefComposer", () => {
       briefComposer.compose({
         composition,
         model: "Qwen3.5-9B",
+        systemPrompt: "You write prompts.",
         target: minimaxH3,
         client,
         scope: { kind: "all" },
@@ -84,6 +87,7 @@ describe("briefComposer", () => {
       briefComposer.compose({
         composition: { ...composition, note: "   " },
         model: "Qwen3.5-9B",
+        systemPrompt: "You write prompts.",
         target: minimaxH3,
         client,
         scope: { kind: "all" },

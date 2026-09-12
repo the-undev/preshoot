@@ -46,6 +46,7 @@ describe("assembledComposer", () => {
     const composed = await assembledComposer.compose({
       composition,
       model: "Qwen3.5-9B",
+      systemPrompt: "You write prompts.",
       target: minimaxH3,
       client: refusingClient,
       scope: { kind: "all" },
@@ -64,6 +65,7 @@ describe("assembledComposer", () => {
     const composed = await assembledComposer.compose({
       composition,
       model: "Qwen3.5-9B",
+      systemPrompt: "You write prompts.",
       target: minimaxH3,
       client: refusingClient,
       scope: { kind: "all" },
@@ -85,6 +87,7 @@ describe("assembledComposer", () => {
     const composed = await assembledComposer.compose({
       composition: silent,
       model: "Qwen3.5-9B",
+      systemPrompt: "You write prompts.",
       target: minimaxH3,
       client: refusingClient,
       scope: { kind: "all" },
@@ -99,6 +102,7 @@ describe("assembledComposer", () => {
       assembledComposer.compose({
         composition: { ...composition, shots: [] },
         model: "Qwen3.5-9B",
+        systemPrompt: "You write prompts.",
         target: minimaxH3,
         client: refusingClient,
         scope: { kind: "all" },

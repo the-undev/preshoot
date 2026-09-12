@@ -9,7 +9,13 @@ export const briefComposer: PromptComposer = {
   id: "brief",
   name: "Brief only, ignoring the shots",
 
-  async compose({ composition, model, target, client }: ComposeInput): Promise<ComposedPrompt> {
+  async compose({
+    composition,
+    model,
+    systemPrompt,
+    target,
+    client,
+  }: ComposeInput): Promise<ComposedPrompt> {
     const note = composition.note.trim()
     if (note.length === 0) {
       throw CompositionError.nothingToWrite("Write a note for this clip before generating from it.")
@@ -17,7 +23,7 @@ export const briefComposer: PromptComposer = {
 
     const answer = await client.chat({
       model,
-      system: target.brief.systemPrompt,
+      system: systemPrompt,
       user: target.brief.userMessage(note),
       schema: target.brief.schema,
       maxTokens: MAX_TOKENS,
