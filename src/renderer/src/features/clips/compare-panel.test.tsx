@@ -36,6 +36,8 @@ function result(id: number, composer: string, verdict: string | null): Generatio
     systemPrompt: "You write the prose of each shot.",
     verdict,
     note: "",
+    parentId: null,
+    editInstruction: null,
     createdAt: "2026-09-12T08:00:00.000Z",
   }
 }

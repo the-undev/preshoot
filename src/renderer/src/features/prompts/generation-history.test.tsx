@@ -26,6 +26,8 @@ const generations: GenerationRecord[] = [
     systemPrompt: null,
     verdict: null,
     note: "",
+    parentId: null,
+    editInstruction: null,
     createdAt: "2026-09-12T08:00:00.000Z",
   },
   {
@@ -44,6 +46,8 @@ const generations: GenerationRecord[] = [
     systemPrompt: null,
     verdict: null,
     note: "",
+    parentId: null,
+    editInstruction: null,
     createdAt: "2026-09-11T08:00:00.000Z",
   },
 ]

@@ -43,6 +43,8 @@ describe("generation store", () => {
       systemPrompt: null,
       verdict: null,
       note: "",
+      parentId: null,
+      editInstruction: null,
     })
   }
 

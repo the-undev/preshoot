@@ -342,6 +342,85 @@ describe("prompts router", () => {
     expect((await caller.prompts.list({ clipId }))[0].verdict).toBe("good")
   })
 
+  it("rewrites a prompt and keeps what it came from", async () => {
+    await openProject()
+    const { clipId } = await clipOfTwo()
+    const first = await caller.prompts.generate({ clipId, composerId: "prose", variantId: null })
+    chat = vi.fn(async () => ({
+      content: JSON.stringify({
+        integrated_multimodal_description: "[Shot 1] Live-action, cinematic. She is smiling.",
+        overall_soundscape: "Traffic passes.",
+        non_diegetic_music: "N/A",
+      }),
+      model: "Qwen3.5-9B",
+    }))
+
+    const edited = await caller.prompts.edit({
+      generationId: first.id,
+      instruction: "She is happier.",
+      variantId: null,
+    })
+
+    expect(edited.composer).toBe("edit")
+    expect(edited.parentId).toBe(first.id)
+    expect(edited.editInstruction).toBe("She is happier.")
+    expect(edited.clipId).toBe(clipId)
+    expect(edited.promptVariantId).toBe("builtin:minimax-h3:edit")
+    expect(edited.rendered).toContain("She is smiling.")
+    expect(requests[1].user).toContain(first.fields.integrated_multimodal_description)
+    expect(requests[1].user).toContain("She is happier.")
+  })
+
+  it("edits an edit, keeping the chain", async () => {
+    await openProject()
+    const { clipId } = await clipOfTwo()
+    const first = await caller.prompts.generate({ clipId, composerId: "prose", variantId: null })
+    chat = vi.fn(async () => ({
+      content: JSON.stringify({
+        integrated_multimodal_description: "[Shot 1] Live-action, cinematic. She is smiling.",
+        overall_soundscape: "Traffic passes.",
+        non_diegetic_music: "N/A",
+      }),
+      model: "Qwen3.5-9B",
+    }))
+    const once = await caller.prompts.edit({
+      generationId: first.id,
+      instruction: "She is happier.",
+      variantId: null,
+    })
+
+    const twice = await caller.prompts.edit({
+      generationId: once.id,
+      instruction: "Faster.",
+      variantId: null,
+    })
+
+    expect(twice.parentId).toBe(once.id)
+    expect((await caller.prompts.list({ clipId })).map((entry) => entry.parentId)).toEqual([
+      once.id,
+      first.id,
+      null,
+    ])
+  })
+
+  it("refuses an edit with nothing asked for", async () => {
+    await openProject()
+    const { clipId } = await clipOfTwo()
+    const first = await caller.prompts.generate({ clipId, composerId: "prose", variantId: null })
+
+    await expect(
+      caller.prompts.edit({ generationId: first.id, instruction: "   ", variantId: null })
+    ).rejects.toThrow(expect.objectContaining({ code: "BAD_REQUEST" }))
+  })
+
+  it("refuses to edit a prompt that is not in the project", async () => {
+    await openProject()
+
+    await expect(
+      caller.prompts.edit({ generationId: 99, instruction: "Faster.", variantId: null })
+    ).rejects.toThrow(expect.objectContaining({ code: "NOT_FOUND" }))
+  })
+
   it("takes a clip's prompts with it when the clip goes", async () => {
     await openProject()
     const { clipId } = await clipOfTwo()

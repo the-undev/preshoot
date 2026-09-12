@@ -21,6 +21,8 @@ export interface GenerationRecord {
   systemPrompt: string | null
   verdict: string | null
   note: string
+  parentId: number | null
+  editInstruction: string | null
   createdAt: string
 }
 

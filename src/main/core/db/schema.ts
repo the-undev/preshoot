@@ -112,5 +112,9 @@ export const generations = sqliteTable("generations", {
   systemPrompt: text("system_prompt"),
   verdict: text("verdict"),
   note: text("note").notNull().default(""),
+  // A plain column rather than a key: a clip's generations go in one statement, and a
+  // self-referencing key would be checked row by row inside it.
+  parentId: integer("parent_id"),
+  editInstruction: text("edit_instruction"),
   createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
 })

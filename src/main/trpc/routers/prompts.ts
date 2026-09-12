@@ -6,6 +6,7 @@ import type { ClipProse } from "../../core/composition/prose"
 import type { ProjectDatabase } from "../../core/db"
 import { COMPOSERS, composerById, DEFAULT_COMPOSER_ID } from "../../core/prompting/composers"
 import type { ComposedPrompt } from "../../core/prompting/composers/composer"
+import { editPrompt } from "../../core/prompting/edit"
 import {
   insertGeneration,
   judgeGeneration,
@@ -87,6 +88,8 @@ async function writeClip(
     systemPrompt: variant.systemPrompt,
     verdict: null,
     note: "",
+    parentId: null,
+    editInstruction: null,
   })
 }
 
@@ -233,6 +236,68 @@ export const promptsRouter = router({
           })
         }
         return listRun(db, runId)
+      } catch (error) {
+        asClientError(error)
+      }
+    }),
+
+  /** Rewrites a prompt with one change made, keeping what it came from. */
+  edit: publicProcedure
+    .input(
+      z.object({
+        generationId: z.number().int(),
+        instruction: z.string().trim().min(1),
+        variantId: variantId.nullable(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const db = requireProject(ctx)
+      try {
+        const previous = readGeneration(db, input.generationId)
+        if (!previous) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "That prompt is not in this project." })
+        }
+        const model = ctx.settings.llamaModel()
+        if (model.length === 0) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Choose a model in settings before editing a prompt.",
+          })
+        }
+
+        const target = targetById(previous.target)
+        const variant = readVariant(
+          db,
+          target,
+          input.variantId ?? builtinVariantId(previous.target, "edit")
+        )
+        const edited = await editPrompt({
+          target,
+          client: ctx.promptClient(ctx.settings.llamaServerUrl()),
+          model,
+          systemPrompt: variant.systemPrompt,
+          previous: previous.fields,
+          instruction: input.instruction,
+        })
+
+        return insertGeneration(db, {
+          target: previous.target,
+          composer: "edit",
+          clipId: previous.clipId,
+          brief: previous.brief,
+          fields: edited.fields,
+          composition: previous.composition,
+          prose: null,
+          rendered: edited.rendered,
+          model: edited.model,
+          runId: previous.runId,
+          promptVariantId: variant.id,
+          systemPrompt: variant.systemPrompt,
+          verdict: null,
+          note: "",
+          parentId: previous.id,
+          editInstruction: input.instruction,
+        })
       } catch (error) {
         asClientError(error)
       }

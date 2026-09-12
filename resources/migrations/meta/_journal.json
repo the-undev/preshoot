@@ -43,6 +43,13 @@
       "when": 1789213321979,
       "tag": "0005_ambiguous_owl",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1789218109450,
+      "tag": "0006_fresh_greymalkin",
+      "breakpoints": true
     }
   ]
 }
