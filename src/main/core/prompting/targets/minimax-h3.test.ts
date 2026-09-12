@@ -42,6 +42,8 @@ const line = {
 const composition: ClipComposition = {
   id: 1,
   name: "Lighthouse",
+  form: "t2v",
+  frames: [],
   style: "Live-action, cinematic",
   note: "A keeper lights the lamp during a storm.",
   musicNote: "",
@@ -305,6 +307,62 @@ describe("reading prose back", () => {
       { shotId: 11, prose: `The keeper climbs. ${dialogueTag("English", "Almost there.")}` },
       { shotId: 12, prose: "The lamp sweeps the water." },
     ])
+  })
+})
+
+describe("the line the prompt opens with", () => {
+  const picture = {
+    role: "first" as const,
+    imageId: 3,
+    fileName: "3-aaa.png",
+    mediaType: "image/png",
+    assetName: "Keeper",
+  }
+  const last = { ...picture, role: "last" as const, imageId: 4 }
+
+  it("says nothing for a clip written from text", () => {
+    expect(minimaxH3.instructionLine(composition)).toBe("")
+  })
+
+  it("references the opening picture for image to video", () => {
+    const line = minimaxH3.instructionLine({
+      ...composition,
+      form: "i2v",
+      frames: [picture],
+    })
+
+    expect(line).toBe(
+      "For the target video, at 0.00 seconds into the target video, <Picture 1> (from [Shot 1]) is fully referenced."
+    )
+  })
+
+  it("aligns both pictures for first and last frame, to two decimal places", () => {
+    const line = minimaxH3.instructionLine({
+      ...composition,
+      form: "fl2v",
+      frames: [picture, last],
+    })
+
+    expect(line).toBe(
+      "How the reference pictures align with the target video — Picture 1 (from Shot 1) aligns with the 0.00-second mark of the target video; Picture 2 (from Shot 2) aligns with the 7.50-second mark of the target video."
+    )
+  })
+
+  it("lands on the closing picture for last frame", () => {
+    const line = minimaxH3.instructionLine({ ...composition, form: "l2v", frames: [last] })
+
+    expect(line).toBe(
+      "How the reference pictures align with the target video — <Picture 1> (from [Shot 2]) aligns with the 7.50-second mark of the target video."
+    )
+  })
+
+  it("refuses a form whose picture has not been chosen", () => {
+    expect(() => minimaxH3.instructionLine({ ...composition, form: "i2v", frames: [] })).toThrow(
+      expect.objectContaining({ code: "nothing-to-write" })
+    )
+    expect(() =>
+      minimaxH3.instructionLine({ ...composition, form: "fl2v", frames: [picture] })
+    ).toThrow(expect.objectContaining({ code: "nothing-to-write" }))
   })
 })
 

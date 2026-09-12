@@ -38,7 +38,20 @@ export const clips = sqliteTable("clips", {
   style: text("style").notNull(),
   note: text("note").notNull(),
   musicNote: text("music_note").notNull(),
+  form: text("form").notNull().default("t2v"),
   createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+})
+
+/** A picture a clip is anchored to, for the forms that begin or end on one. */
+export const clipFrames = sqliteTable("clip_frames", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  clipId: integer("clip_id")
+    .notNull()
+    .references(() => clips.id, { onDelete: "cascade" }),
+  imageId: integer("image_id")
+    .notNull()
+    .references(() => assetImages.id, { onDelete: "cascade" }),
+  role: text("role").notNull(),
 })
 
 /** A voice in a clip. Its position is its number, so speaker 1 is spoken of as (S1). */

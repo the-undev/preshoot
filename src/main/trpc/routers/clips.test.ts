@@ -165,6 +165,7 @@ describe("clips router", () => {
       style: "",
       note: "",
       musicNote: "",
+      form: "t2v",
     })
 
     expect(emptied.name).toBe("")

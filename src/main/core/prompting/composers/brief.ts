@@ -1,4 +1,5 @@
 import { CompositionError } from "../../composition/errors"
+import { renderPrompt } from "../target"
 import type { ComposeInput, ComposedPrompt, PromptComposer } from "./composer"
 
 /** Enough for the three fields of one clip with room to spare. */
@@ -30,6 +31,11 @@ export const briefComposer: PromptComposer = {
     })
 
     const fields = target.brief.readFields(answer.content)
-    return { fields, rendered: target.render(fields), model: answer.model, prose: null }
+    return {
+      fields,
+      rendered: renderPrompt(target, composition, fields),
+      model: answer.model,
+      prose: null,
+    }
   },
 }

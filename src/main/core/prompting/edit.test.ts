@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest"
+import type { ClipComposition } from "../composition/clip"
 import { editPrompt } from "./edit"
 import type { ChatRequest, LlamaServerClient } from "./llama-server-client"
 import { minimaxH3 } from "./targets/minimax-h3"
@@ -7,6 +8,18 @@ const previous = {
   integrated_multimodal_description: "[Shot 1] Live-action, cinematic. A woman waits at a stop.",
   overall_soundscape: "Traffic passes.",
   non_diegetic_music: "N/A",
+}
+
+const composition: ClipComposition = {
+  id: 1,
+  name: "Bus stop",
+  form: "t2v",
+  frames: [],
+  style: "Live-action, cinematic",
+  note: "",
+  musicNote: "",
+  speakers: [],
+  shots: [],
 }
 
 const answer = {
@@ -33,6 +46,7 @@ describe("editPrompt", () => {
       client,
       model: "Qwen3.5-9B",
       systemPrompt: "You rewrite prompts.",
+      composition,
       previous,
       instruction: "She is happier.",
     })
@@ -51,6 +65,7 @@ describe("editPrompt", () => {
       client,
       model: "Qwen3.5-9B",
       systemPrompt: "You rewrite prompts.",
+      composition,
       previous,
       instruction: "She is happier.",
     })
@@ -70,6 +85,7 @@ describe("editPrompt", () => {
         client,
         model: "Qwen3.5-9B",
         systemPrompt: "You rewrite prompts.",
+        composition,
         previous,
         instruction: "She is happier.",
       })

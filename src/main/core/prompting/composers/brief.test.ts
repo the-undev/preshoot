@@ -13,6 +13,8 @@ const fields = {
 const composition: ClipComposition = {
   id: 1,
   name: "Bakery",
+  form: "t2v",
+  frames: [],
   style: "Live-action, cinematic",
   note: "A baker opens the shutters.",
   musicNote: "",

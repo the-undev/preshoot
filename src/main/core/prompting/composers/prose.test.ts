@@ -7,6 +7,8 @@ import { proseComposer } from "./prose"
 const composition: ClipComposition = {
   id: 1,
   name: "Lighthouse",
+  form: "t2v",
+  frames: [],
   style: "Live-action, cinematic",
   note: "A keeper lights the lamp.",
   musicNote: "",
@@ -103,6 +105,34 @@ describe("proseComposer", () => {
       { shotId: 11, prose: "The keeper climbs." },
       { shotId: 12, prose: "The lamp catches." },
     ])
+  })
+
+  it("puts the form's opening line in front of the fields", async () => {
+    const { client } = clientAnswering(answer)
+
+    const composed = await proseComposer.compose({
+      composition: {
+        ...composition,
+        form: "i2v",
+        frames: [
+          {
+            role: "first",
+            imageId: 3,
+            fileName: "3-aaa.png",
+            mediaType: "image/png",
+            assetName: "Keeper",
+          },
+        ],
+      },
+      model: "Qwen3.5-9B",
+      systemPrompt: "You write prompts.",
+      target: minimaxH3,
+      client,
+      scope: { kind: "all" },
+    })
+
+    expect(composed.rendered.startsWith("For the target video, at 0.00 seconds")).toBe(true)
+    expect(composed.rendered).toContain("\n\nintegrated_multimodal_description:")
   })
 
   it("asks for one shot alone when that is the scope", async () => {

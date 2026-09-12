@@ -31,6 +31,8 @@ function shot(id: number, over: Partial<ShotComposition> = {}): ShotComposition 
 const composition: ClipComposition = {
   id: 1,
   name: "Lighthouse",
+  form: "t2v",
+  frames: [],
   style: "Live-action, cinematic",
   note: "",
   musicNote: "A slow piano figure.",

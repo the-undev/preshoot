@@ -71,6 +71,13 @@
       "when": 1789238502074,
       "tag": "0009_majestic_sasquatch",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1789238643829,
+      "tag": "0010_glamorous_sandman",
+      "breakpoints": true
     }
   ]
 }

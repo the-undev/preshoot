@@ -2,6 +2,7 @@ import { useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
 import { Alert, AlertDescription, Button, ConfirmDialog } from "@renderer/design-system"
+import { useAssetImages } from "@renderer/features/assets/use-asset-images"
 import { useAssets } from "@renderer/features/assets/use-assets"
 import { ClipEditor } from "@renderer/features/clips/clip-editor"
 import { ClipList } from "@renderer/features/clips/clip-list"
@@ -82,6 +83,7 @@ interface OpenClipProps {
 function OpenClip({ clipId, targetId }: OpenClipProps): React.JSX.Element {
   const clip = useClip(clipId)
   const library = useAssets()
+  const pictures = useAssetImages()
   const writing = useGenerateClip(clipId)
   const prompts = useVariants(targetId)
   const comparison = useCompare(clipId)
@@ -103,6 +105,7 @@ function OpenClip({ clipId, targetId }: OpenClipProps): React.JSX.Element {
           composition={clip.composition}
           vocabularies={clip.vocabularies}
           library={library.assets}
+          libraryImages={pictures.images}
           composers={writing.composers}
           composerId={writing.composerId}
           variants={prompts.variants}
@@ -121,6 +124,7 @@ function OpenClip({ clipId, targetId }: OpenClipProps): React.JSX.Element {
           onRemoveSpeaker={clip.removeSpeaker}
           onChooseComposer={writing.chooseComposer}
           onChooseVariant={writing.chooseVariant}
+          onSetFrame={clip.setFrame}
           onGenerate={writing.generate}
           onRegenerateShot={writing.regenerateShot}
         />

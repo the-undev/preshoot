@@ -10,7 +10,15 @@ import {
   SelectValue,
   Textarea,
 } from "@renderer/design-system"
-import type { Asset, ClipComposition, PromptVariant, Vocabularies } from "@renderer/lib/trpc"
+import {
+  assetImageUrl,
+  type Asset,
+  type AssetImage,
+  type ClipComposition,
+  type FrameComposition,
+  type PromptVariant,
+  type Vocabularies,
+} from "@renderer/lib/trpc"
 import { ClipSpeakers } from "./clip-speakers"
 import { ShotList } from "./shot-list"
 import type { ClipFields, ShotFields } from "./use-clip"
@@ -19,10 +27,28 @@ import type { ComposerOption } from "./use-generate-clip"
 /** How long a clip may run before the target model stops being able to hold it. */
 const MAX_CLIP_SECONDS = 15
 
+/** Stands for "no picture", since a picker cannot hold an empty value. */
+const NO_FRAME = "none"
+
+/** What each form is called on screen. */
+const FORM_NAMES = [
+  { id: "t2v", name: "Text to video" },
+  { id: "i2v", name: "Image to video" },
+  { id: "fl2v", name: "First and last frame" },
+  { id: "l2v", name: "Last frame" },
+] as const
+
+/** Which forms anchor to a picture at which end. */
+const FRAME_ROLES = [
+  { role: "first" as const, label: "Opens on", forms: ["i2v", "fl2v"] },
+  { role: "last" as const, label: "Ends on", forms: ["fl2v", "l2v"] },
+]
+
 interface ClipEditorProps {
   composition: ClipComposition
   vocabularies: Vocabularies
   library: Asset[]
+  libraryImages: AssetImage[]
   composers: ComposerOption[]
   composerId: string
   variants: PromptVariant[]
@@ -41,6 +67,7 @@ interface ClipEditorProps {
   onRemoveSpeaker: (speakerId: number) => void
   onChooseComposer: (composerId: string) => void
   onChooseVariant: (variantId: string) => void
+  onSetFrame: (role: "first" | "last", imageId: number | null) => void
   onGenerate: () => void
   onRegenerateShot: (shotId: number) => void
 }
@@ -50,6 +77,7 @@ export function ClipEditor({
   composition,
   vocabularies,
   library,
+  libraryImages,
   composers,
   composerId,
   variants,
@@ -68,6 +96,7 @@ export function ClipEditor({
   onRemoveSpeaker,
   onChooseComposer,
   onChooseVariant,
+  onSetFrame,
   onGenerate,
   onRegenerateShot,
 }: ClipEditorProps): React.JSX.Element {
@@ -80,7 +109,7 @@ export function ClipEditor({
   const tooLong = seconds > MAX_CLIP_SECONDS
 
   function commit(over: Partial<ClipFields>): void {
-    onClipChange({ name, style, note, musicNote, ...over })
+    onClipChange({ name, style, note, musicNote, form: composition.form, ...over })
   }
 
   return (
@@ -110,6 +139,38 @@ export function ClipEditor({
             ))}
           </datalist>
         </div>
+      </div>
+
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+        <div className="flex flex-col gap-1">
+          <Label htmlFor="clip-form">Written for</Label>
+          <Select
+            value={composition.form}
+            onValueChange={(value) => commit({ form: value as ClipFields["form"] })}
+          >
+            <SelectTrigger id="clip-form" className="w-64">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {FORM_NAMES.map((form) => (
+                <SelectItem key={form.id} value={form.id}>
+                  {form.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {FRAME_ROLES.filter((role) => role.forms.includes(composition.form)).map((role) => (
+          <ClipFrame
+            key={role.role}
+            role={role.role}
+            label={role.label}
+            frame={composition.frames.find((frame) => frame.role === role.role) ?? null}
+            library={libraryImages}
+            onChoose={(imageId) => onSetFrame(role.role, imageId)}
+          />
+        ))}
       </div>
 
       <div className="flex flex-col gap-1">
@@ -215,6 +276,49 @@ export function ClipEditor({
           </p>
         )}
       </section>
+    </div>
+  )
+}
+
+interface ClipFrameProps {
+  role: "first" | "last"
+  label: string
+  frame: FrameComposition | null
+  library: AssetImage[]
+  onChoose: (imageId: number | null) => void
+}
+
+/** The picture one end of the clip is anchored to, chosen from the library's pictures. */
+function ClipFrame({ role, label, frame, library, onChoose }: ClipFrameProps): React.JSX.Element {
+  return (
+    <div className="flex flex-col gap-1">
+      <Label htmlFor={`clip-frame-${role}`}>{label}</Label>
+      <div className="flex items-center gap-2">
+        {frame && (
+          <img
+            src={assetImageUrl(frame.imageId)}
+            alt={`${label} picture`}
+            className="size-10 rounded border object-cover"
+          />
+        )}
+        <Select
+          value={frame ? String(frame.imageId) : ""}
+          onValueChange={(value) => onChoose(value === NO_FRAME ? null : Number(value))}
+        >
+          <SelectTrigger id={`clip-frame-${role}`} className="w-56">
+            <SelectValue placeholder="Choose a picture" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={NO_FRAME}>None</SelectItem>
+            {library.map((image) => (
+              <SelectItem key={image.id} value={String(image.id)}>
+                {image.fileName}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      {!frame && <p className="text-xs text-destructive">This form needs a picture here.</p>}
     </div>
   )
 }

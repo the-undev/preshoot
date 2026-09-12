@@ -48,10 +48,27 @@ export interface ShotComposition {
   soundNote: string
 }
 
+/** Which of the target's forms a clip is written for. */
+export type ClipForm = "t2v" | "i2v" | "fl2v" | "l2v"
+
+/** Every form, for the picker and for what the router will accept. */
+export const CLIP_FORMS: ClipForm[] = ["t2v", "i2v", "fl2v", "l2v"]
+
+/** A picture a clip is anchored to, copied out of the library so a stored composition stands alone. */
+export interface FrameComposition {
+  role: "first" | "last"
+  imageId: number
+  fileName: string
+  mediaType: string
+  assetName: string
+}
+
 /** A clip as the composers see it. Knows nothing of any target, model or database. */
 export interface ClipComposition {
   id: number
   name: string
+  form: ClipForm
+  frames: FrameComposition[]
   style: string
   note: string
   musicNote: string
@@ -62,6 +79,14 @@ export interface ClipComposition {
 /** How long the whole clip runs. */
 export function clipDurationMs(composition: ClipComposition): number {
   return composition.shots.reduce((total, shot) => total + shot.durationMs, 0)
+}
+
+/** The picture anchoring one end of the clip, or nothing when it has none. */
+export function frameOf(
+  composition: ClipComposition,
+  role: FrameComposition["role"]
+): FrameComposition | null {
+  return composition.frames.find((frame) => frame.role === role) ?? null
 }
 
 /** When a shot starts, which is where its cut goes. The first shot starts at zero. */

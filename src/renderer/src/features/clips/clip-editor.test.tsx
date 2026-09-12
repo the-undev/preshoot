@@ -31,6 +31,8 @@ function shot(id: number, durationMs: number): ShotComposition {
 const composition: ClipComposition = {
   id: 1,
   name: "Lighthouse",
+  form: "t2v",
+  frames: [],
   style: "Live-action, cinematic",
   note: "A keeper lights the lamp.",
   musicNote: "",
@@ -51,6 +53,7 @@ function renderEditor(over: Partial<React.ComponentProps<typeof ClipEditor>> = {
       composition={composition}
       vocabularies={vocabularies}
       library={[]}
+      libraryImages={[]}
       composers={[
         { id: "prose", name: "Model prose per shot" },
         { id: "assembled", name: "Assembled without the model" },
@@ -81,6 +84,7 @@ function renderEditor(over: Partial<React.ComponentProps<typeof ClipEditor>> = {
       onRemoveSpeaker={vi.fn()}
       onChooseComposer={vi.fn()}
       onChooseVariant={vi.fn()}
+      onSetFrame={vi.fn()}
       onGenerate={onGenerate}
       onRegenerateShot={vi.fn()}
       {...over}
@@ -154,6 +158,20 @@ describe("ClipEditor", () => {
     expect(
       screen.getByText("No model chosen. Open settings, press Check, and pick one.")
     ).toBeInTheDocument()
+  })
+
+  it("asks for a picture when the form needs one", () => {
+    renderEditor({ composition: { ...composition, form: "i2v" } })
+
+    expect(screen.getByLabelText("Opens on")).toBeInTheDocument()
+    expect(screen.getByText("This form needs a picture here.")).toBeInTheDocument()
+  })
+
+  it("asks for nothing extra when the clip is written from text", () => {
+    renderEditor()
+
+    expect(screen.queryByLabelText("Opens on")).not.toBeInTheDocument()
+    expect(screen.getByLabelText("Written for")).toHaveTextContent("Text to video")
   })
 
   it("will not write a clip with no shots", () => {

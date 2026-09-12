@@ -1,5 +1,8 @@
 import { z } from "zod"
+import { CompositionError } from "../../composition/errors"
 import {
+  clipDurationMs,
+  frameOf,
   shotStartMs,
   type ClipComposition,
   type DialogueComposition,
@@ -384,6 +387,40 @@ function assemble(composition: ClipComposition, prose: ClipProse): TargetFields 
   }
 }
 
+/**
+ * The line the prompt opens with. The wording is fixed by the guide, including where it writes
+ * a label with angle brackets and where it writes it without: see docs/h3-mapping.md.
+ */
+function instructionLine(composition: ClipComposition): string {
+  if (composition.form === "t2v") {
+    return ""
+  }
+
+  const shots = composition.shots.length
+  const seconds = (clipDurationMs(composition) / 1000).toFixed(2)
+  const first = frameOf(composition, "first")
+  const last = frameOf(composition, "last")
+
+  if (composition.form === "i2v") {
+    if (!first) {
+      throw CompositionError.nothingToWrite("Choose the picture this clip opens on.")
+    }
+    return `For the target video, at 0.00 seconds into the target video, <Picture 1> (from [Shot 1]) is fully referenced.`
+  }
+
+  if (composition.form === "l2v") {
+    if (!last) {
+      throw CompositionError.nothingToWrite("Choose the picture this clip ends on.")
+    }
+    return `How the reference pictures align with the target video — <Picture 1> (from [Shot ${shots}]) aligns with the ${seconds}-second mark of the target video.`
+  }
+
+  if (!first || !last) {
+    throw CompositionError.nothingToWrite("Choose the pictures this clip opens and ends on.")
+  }
+  return `How the reference pictures align with the target video — Picture 1 (from Shot 1) aligns with the 0.00-second mark of the target video; Picture 2 (from Shot ${shots}) aligns with the ${seconds}-second mark of the target video.`
+}
+
 /** One shot written from the composition alone, for the way that calls no model. */
 function describeShot(composition: ClipComposition, shotId: number): string {
   const shot = composition.shots.find((entry) => entry.id === shotId)
@@ -497,6 +534,7 @@ export const minimaxH3: PromptTarget = {
   name: "MiniMax H3",
   vocabularies: H3_VOCABULARIES,
   render: renderH3Prompt,
+  instructionLine,
   brief: {
     systemPrompt: H3_SYSTEM_PROMPT,
     schema: H3_PROMPT_SCHEMA,

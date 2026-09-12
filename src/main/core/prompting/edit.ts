@@ -1,6 +1,7 @@
 import type { ComposedPrompt } from "./composers/composer"
 import type { LlamaServerClient } from "./llama-server-client"
-import type { PromptTarget, TargetFields } from "./target"
+import type { ClipComposition } from "../composition/clip"
+import { renderPrompt, type PromptTarget, type TargetFields } from "./target"
 
 /** Enough to rewrite a whole prompt with room to spare. */
 const MAX_TOKENS = 900
@@ -11,6 +12,7 @@ export interface EditRequest {
   client: LlamaServerClient
   model: string
   systemPrompt: string
+  composition: ClipComposition
   previous: TargetFields
   instruction: string
 }
@@ -24,11 +26,19 @@ export async function editPrompt(request: EditRequest): Promise<ComposedPrompt> 
   const answer = await request.client.chat({
     model: request.model,
     system: request.systemPrompt,
-    user: target.edit.userMessage(target.render(request.previous), request.instruction),
+    user: target.edit.userMessage(
+      renderPrompt(target, request.composition, request.previous),
+      request.instruction
+    ),
     schema: target.edit.schema,
     maxTokens: MAX_TOKENS,
   })
 
   const fields = target.edit.readFields(answer.content)
-  return { fields, rendered: target.render(fields), model: answer.model, prose: null }
+  return {
+    fields,
+    rendered: renderPrompt(target, request.composition, fields),
+    model: answer.model,
+    prose: null,
+  }
 }

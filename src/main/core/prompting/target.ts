@@ -50,7 +50,20 @@ export interface PromptTarget {
   name: string
   vocabularies: Vocabularies
   render(fields: TargetFields): string
+  /** The line the prompt opens with, which depends on the form the clip is written for. */
+  instructionLine(composition: ClipComposition): string
   brief: BriefStrategy
   prose: ProseStrategy
   edit: EditStrategy
+}
+
+/** The finished prompt: the form's opening line, when it has one, then the fields. */
+export function renderPrompt(
+  target: PromptTarget,
+  composition: ClipComposition,
+  fields: TargetFields
+): string {
+  const line = target.instructionLine(composition)
+  const body = target.render(fields)
+  return line.length > 0 ? `${line}\n\n${body}` : body
 }

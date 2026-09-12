@@ -1,6 +1,6 @@
-import { asc, count, desc, eq } from "drizzle-orm"
+import { and, asc, count, desc, eq } from "drizzle-orm"
 import { schema, type ProjectDatabase, type ProjectDb } from "../db"
-import type { ClipComposition, ShotComposition } from "./clip"
+import type { ClipComposition, ClipForm, FrameComposition, ShotComposition } from "./clip"
 import { CompositionError } from "./errors"
 
 /** How long a new shot runs until the user says otherwise. */
@@ -14,6 +14,7 @@ export interface ClipSummary {
   style: string
   note: string
   musicNote: string
+  form: ClipForm
   prompts: number
   createdAt: string
 }
@@ -91,11 +92,24 @@ export function insertClip(
 /** Rewrites the clip's own fields, leaving its shots and speakers alone. */
 export function updateClip(
   db: ProjectDatabase,
-  input: { id: number; name: string; style: string; note: string; musicNote: string }
+  input: {
+    id: number
+    name: string
+    style: string
+    note: string
+    musicNote: string
+    form: ClipForm
+  }
 ): ClipSummary {
   const [row] = db
     .update(schema.clips)
-    .set({ name: input.name, style: input.style, note: input.note, musicNote: input.musicNote })
+    .set({
+      name: input.name,
+      style: input.style,
+      note: input.note,
+      musicNote: input.musicNote,
+      form: input.form,
+    })
     .where(eq(schema.clips.id, input.id))
     .returning()
     .all()
@@ -204,6 +218,8 @@ export function readComposition(db: ProjectDatabase, clipId: number): ClipCompos
   return {
     id: clip.id,
     name: clip.name,
+    form: clip.form as ClipForm,
+    frames: readFrames(db, clipId),
     style: clip.style,
     note: clip.note,
     musicNote: clip.musicNote,
@@ -214,6 +230,50 @@ export function readComposition(db: ProjectDatabase, clipId: number): ClipCompos
     })),
     shots,
   }
+}
+
+/** The pictures this clip is anchored to, with the library thing each came from. */
+function readFrames(db: ProjectDb, clipId: number): FrameComposition[] {
+  return db
+    .select({
+      role: schema.clipFrames.role,
+      imageId: schema.clipFrames.imageId,
+      fileName: schema.assetImages.fileName,
+      mediaType: schema.assetImages.mediaType,
+      assetName: schema.assets.name,
+    })
+    .from(schema.clipFrames)
+    .innerJoin(schema.assetImages, eq(schema.assetImages.id, schema.clipFrames.imageId))
+    .innerJoin(schema.assets, eq(schema.assets.id, schema.assetImages.assetId))
+    .where(eq(schema.clipFrames.clipId, clipId))
+    .all()
+    .map((row) => ({ ...row, role: row.role as FrameComposition["role"] }))
+}
+
+/** Anchors one end of the clip to a picture, replacing whatever was there. */
+export function setClipFrame(
+  db: ProjectDatabase,
+  input: { clipId: number; role: FrameComposition["role"]; imageId: number }
+): void {
+  readClip(db, input.clipId)
+  db.transaction((tx) => {
+    tx.delete(schema.clipFrames)
+      .where(
+        and(eq(schema.clipFrames.clipId, input.clipId), eq(schema.clipFrames.role, input.role))
+      )
+      .run()
+    tx.insert(schema.clipFrames).values(input).run()
+  })
+}
+
+/** Takes the picture off one end of the clip. */
+export function clearClipFrame(
+  db: ProjectDatabase,
+  input: { clipId: number; role: FrameComposition["role"] }
+): void {
+  db.delete(schema.clipFrames)
+    .where(and(eq(schema.clipFrames.clipId, input.clipId), eq(schema.clipFrames.role, input.role)))
+    .run()
 }
 
 /** Adds an empty shot at the end of the clip. */
@@ -389,7 +449,7 @@ export function speakerLabel(position: number): string {
 }
 
 function toSummary(row: ClipRow, prompts: number): ClipSummary {
-  return { ...row, prompts, createdAt: row.createdAt.toISOString() }
+  return { ...row, form: row.form as ClipForm, prompts, createdAt: row.createdAt.toISOString() }
 }
 
 function clipOfShot(db: ProjectDb, shotId: number): number {

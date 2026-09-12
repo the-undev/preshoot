@@ -26,6 +26,7 @@ export interface ClipFields {
   style: string
   note: string
   musicNote: string
+  form: ClipComposition["form"]
 }
 
 /** One open clip and every call that changes it. */
@@ -35,6 +36,7 @@ export interface ClipPanel {
   isSaving: boolean
   errorMessage: string | null
   updateClip(fields: ClipFields): void
+  setFrame(role: "first" | "last", imageId: number | null): void
   addShot(): void
   updateShot(shotId: number, fields: ShotFields): void
   moveShot(shotId: number, toPosition: number): void
@@ -61,6 +63,7 @@ export function useClip(clipId: number): ClipPanel {
   }
 
   const composed = { onSuccess: replace }
+  const setFrame = useMutation(trpc.clips.setFrame.mutationOptions(composed))
   const addShot = useMutation(trpc.clips.addShot.mutationOptions(composed))
   const updateShot = useMutation(trpc.clips.updateShot.mutationOptions(composed))
   const moveShot = useMutation(trpc.clips.moveShot.mutationOptions(composed))
@@ -79,6 +82,7 @@ export function useClip(clipId: number): ClipPanel {
   )
 
   const writes = [
+    setFrame,
     addShot,
     updateShot,
     moveShot,
@@ -96,6 +100,7 @@ export function useClip(clipId: number): ClipPanel {
     // The message from main already says what the user can do about it.
     errorMessage: writes.map((write) => write.error?.message).find(Boolean) ?? null,
     updateClip: (fields) => updateClip.mutate({ id: clipId, ...fields }),
+    setFrame: (role, imageId) => setFrame.mutate({ clipId, role, imageId }),
     addShot: () => addShot.mutate({ clipId }),
     updateShot: (shotId, fields) => updateShot.mutate({ shotId, ...fields }),
     moveShot: (shotId, toPosition) => moveShot.mutate({ shotId, toPosition }),

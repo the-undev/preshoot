@@ -1,6 +1,8 @@
 import { TRPCError } from "@trpc/server"
 import { z } from "zod"
+import { CLIP_FORMS, type ClipForm } from "../../core/composition/clip"
 import {
+  clearClipFrame,
   clipIdOfShot,
   clipIdOfSpeaker,
   deleteClip,
@@ -17,6 +19,7 @@ import {
   setShotThings,
   updateClip,
   updateShot,
+  setClipFrame,
   updateSpeaker,
 } from "../../core/composition/clip-store"
 import type { ProjectDatabase } from "../../core/db"
@@ -105,6 +108,7 @@ export const clipsRouter = router({
         style: z.string(),
         note: z.string(),
         musicNote: z.string(),
+        form: z.enum(CLIP_FORMS as [ClipForm, ...ClipForm[]]),
       })
     )
     .mutation(({ ctx, input }) => {
@@ -141,6 +145,29 @@ export const clipsRouter = router({
       asClientError(error)
     }
   }),
+
+  /** Anchors one end of the clip to a picture, or takes the picture off it. */
+  setFrame: publicProcedure
+    .input(
+      z.object({
+        clipId,
+        role: z.enum(["first", "last"]),
+        imageId: z.number().int().nullable(),
+      })
+    )
+    .mutation(({ ctx, input }) => {
+      const db = requireProject(ctx)
+      try {
+        if (input.imageId === null) {
+          clearClipFrame(db, { clipId: input.clipId, role: input.role })
+        } else {
+          setClipFrame(db, { clipId: input.clipId, role: input.role, imageId: input.imageId })
+        }
+        return readComposition(db, input.clipId)
+      } catch (error) {
+        asClientError(error)
+      }
+    }),
 
   /** Adds an empty shot at the end of the clip. */
   addShot: publicProcedure.input(z.object({ clipId })).mutation(({ ctx, input }) => {

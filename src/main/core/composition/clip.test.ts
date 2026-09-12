@@ -26,6 +26,8 @@ function shot(id: number, durationMs: number): ShotComposition {
 const composition: ClipComposition = {
   id: 1,
   name: "Lighthouse",
+  form: "t2v",
+  frames: [],
   style: "Live-action, cinematic",
   note: "A keeper lights the lamp.",
   musicNote: "",

@@ -325,8 +325,16 @@ export const promptsRouter = router({
           target,
           input.variantId ?? builtinVariantId(previous.target, "edit")
         )
+        if (!previous.composition) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "This prompt kept no clip, so it cannot be edited.",
+          })
+        }
+
         const edited = await editPrompt({
           target,
+          composition: previous.composition,
           client: ctx.promptClient(ctx.settings.llamaServerUrl()),
           model,
           systemPrompt: variant.systemPrompt,

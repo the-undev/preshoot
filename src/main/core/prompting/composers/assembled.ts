@@ -1,5 +1,6 @@
 import { CompositionError } from "../../composition/errors"
 import type { ClipProse } from "../../composition/prose"
+import { renderPrompt } from "../target"
 import type { ComposeInput, ComposedPrompt, PromptComposer } from "./composer"
 
 /**
@@ -31,6 +32,6 @@ export const assembledComposer: PromptComposer = {
     }
 
     const fields = target.prose.assemble(composition, prose)
-    return { fields, rendered: target.render(fields), model: null, prose }
+    return { fields, rendered: renderPrompt(target, composition, fields), model: null, prose }
   },
 }

@@ -1,4 +1,5 @@
 import { CompositionError } from "../../composition/errors"
+import { renderPrompt } from "../target"
 import type { ComposeInput, ComposedPrompt, PromptComposer } from "./composer"
 
 /** Room for the two clip-level fields, plus room for each shot's prose. */
@@ -35,6 +36,11 @@ export const proseComposer: PromptComposer = {
 
     const prose = target.prose.readProse(answer.content, composition, scope)
     const fields = target.prose.assemble(composition, prose)
-    return { fields, rendered: target.render(fields), model: answer.model, prose }
+    return {
+      fields,
+      rendered: renderPrompt(target, composition, fields),
+      model: answer.model,
+      prose,
+    }
   },
 }

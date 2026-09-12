@@ -71,6 +71,9 @@ export type ClipSummary = RouterOutputs["clips"]["list"][number]
 /** A whole clip: its speakers, its shots, what they show and what is said. */
 export type ClipComposition = RouterOutputs["clips"]["composition"]
 
+/** A picture a clip is anchored to. */
+export type FrameComposition = ClipComposition["frames"][number]
+
 /** One shot of a clip. */
 export type ShotComposition = ClipComposition["shots"][number]
 
