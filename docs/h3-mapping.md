@@ -75,6 +75,40 @@ Four label kinds, assigned once and used the same way in every section:
 | `summary` with a task-type prefix                            | The task types, some derivable from what is attached                                                                                                                                                                      | Derivable, except which of reuse or reference an audio asset is          |
 | `retention_analysis`, one line per label with a fixed marker | A marker per asset, chosen by the user: `fully_preserved`, `partially_preserved`, `attribute_transfer`, `weak_reference` for visible content, and `fully_copy`, `partially_copy`, `reference`, `weak_reference` for audio | Missing. This is intent, not something the model should invent           |
 
+## What a generation request actually takes
+
+From the request scripts in the model repo, vendored beside the guides. The
+prompt is one field of several, and the rest is not in the app at all.
+
+```json
+{
+  "task": "t2va | i2va | fl2va | l2va | ref2va",
+  "prompt": "<the instruction line, a blank line, then the three fields>",
+  "conditions": [
+    { "type": "image", "uri": "...", "role": "keyframe", "frame_index": 0 },
+    { "type": "audio", "uri": "...", "role": "reference" },
+    { "type": "video", "uri": "...", "role": "reference" }
+  ],
+  "target": { "short_edge": 768, "aspect_ratio": "auto", "duration_seconds": 8 },
+  "seed": 0
+}
+```
+
+| Field                         | Where it comes from                                                                                                                           |
+| ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `task`                        | The clip's form. Have it.                                                                                                                     |
+| `prompt`                      | What the app writes. Have it, and it is the right shape.                                                                                      |
+| `conditions[].type` and `uri` | A picture or audio file. Have pictures; audio is missing.                                                                                     |
+| `conditions[].role`           | `keyframe` for the image forms, `reference` for full reference. Derivable from the form.                                                      |
+| `conditions[].frame_index`    | Which frame a keyframe lands on. Derivable for the first frame; the last frame needs the frame count, which needs a frame rate nothing holds. |
+| `target.duration_seconds`     | The clip's duration. Have it, and never show it.                                                                                              |
+| `target.short_edge`           | Missing. A resolution nothing in the app decides.                                                                                             |
+| `target.aspect_ratio`         | Missing.                                                                                                                                      |
+| `seed`                        | Missing.                                                                                                                                      |
+
+So a finished prompt is not enough to generate from. The app holds most of
+the rest and shows none of it.
+
 ## What this means for the work
 
 1. The keyframe forms are small. A clip gains a form and one or two frame

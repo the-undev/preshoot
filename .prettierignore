@@ -7,3 +7,4 @@ tsconfig.*.json
 src/renderer/src/routeTree.gen.ts
 resources/migrations
 docs/minimax-h3/VIDEO_PROMPT_WRITING_GUIDE_*.md
+docs/minimax-h3/*.sh
