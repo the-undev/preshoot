@@ -38,6 +38,11 @@ describe("generation store", () => {
       prose: null,
       rendered: "integrated_multimodal_description: ...",
       model: "Qwen3.5-9B",
+      runId: null,
+      promptVariantId: null,
+      systemPrompt: null,
+      verdict: null,
+      note: "",
     })
   }
 

@@ -1,5 +1,6 @@
 import { desc, eq, isNull } from "drizzle-orm"
 import type { ClipComposition } from "../composition/clip"
+import { CompositionError } from "../composition/errors"
 import type { ClipProse } from "../composition/prose"
 import { schema, type ProjectDatabase } from "../db"
 
@@ -15,6 +16,11 @@ export interface GenerationRecord {
   prose: ClipProse | null
   rendered: string
   model: string | null
+  runId: string | null
+  promptVariantId: string | null
+  systemPrompt: string | null
+  verdict: string | null
+  note: string
   createdAt: string
 }
 
@@ -42,6 +48,34 @@ export function listGenerations(db: ProjectDatabase, clipId: number | null): Gen
     .orderBy(desc(schema.generations.createdAt), desc(schema.generations.id))
     .all()
     .map(toRecord)
+}
+
+/** Every generation of one comparison run, oldest first, which is the order they were written in. */
+export function listRun(db: ProjectDatabase, runId: string): GenerationRecord[] {
+  return db
+    .select()
+    .from(schema.generations)
+    .where(eq(schema.generations.runId, runId))
+    .orderBy(schema.generations.id)
+    .all()
+    .map(toRecord)
+}
+
+/** Marks a generation good or bad and keeps a note against it. */
+export function judgeGeneration(
+  db: ProjectDatabase,
+  input: { id: number; verdict: string | null; note: string }
+): GenerationRecord {
+  const [row] = db
+    .update(schema.generations)
+    .set({ verdict: input.verdict, note: input.note })
+    .where(eq(schema.generations.id, input.id))
+    .returning()
+    .all()
+  if (!row) {
+    throw CompositionError.notFound(`Prompt ${input.id}`)
+  }
+  return toRecord(row)
 }
 
 /** One stored generation, or nothing when it has gone. */

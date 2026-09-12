@@ -85,6 +85,16 @@ export const dialogueLines = sqliteTable("dialogue_lines", {
   text: text("text").notNull(),
 })
 
+/** System prompts written in this project, alongside the ones the targets ship with. */
+export const promptVariants = sqliteTable("prompt_variants", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  targetId: text("target_id").notNull(),
+  strategy: text("strategy").notNull(),
+  name: text("name").notNull(),
+  systemPrompt: text("system_prompt").notNull(),
+  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+})
+
 /** Every prompt the app has generated for this project, kept whether or not it was used. */
 export const generations = sqliteTable("generations", {
   id: integer("id").primaryKey({ autoIncrement: true }),
@@ -97,5 +107,10 @@ export const generations = sqliteTable("generations", {
   prose: text("prose", { mode: "json" }).$type<ClipProse>(),
   rendered: text("rendered").notNull(),
   model: text("model"),
+  runId: text("run_id"),
+  promptVariantId: text("prompt_variant_id"),
+  systemPrompt: text("system_prompt"),
+  verdict: text("verdict"),
+  note: text("note").notNull().default(""),
   createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
 })

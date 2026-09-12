@@ -46,6 +46,11 @@ async function writeClip(
     prose: composed.prose,
     rendered: composed.rendered,
     model: composed.model,
+    runId: null,
+    promptVariantId: null,
+    systemPrompt: null,
+    verdict: null,
+    note: "",
   })
 }
 

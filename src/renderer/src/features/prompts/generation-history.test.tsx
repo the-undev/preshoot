@@ -21,6 +21,11 @@ const generations: GenerationRecord[] = [
     fields,
     rendered: "integrated_multimodal_description: second",
     model: "Qwen3.5-9B",
+    runId: null,
+    promptVariantId: null,
+    systemPrompt: null,
+    verdict: null,
+    note: "",
     createdAt: "2026-09-12T08:00:00.000Z",
   },
   {
@@ -34,6 +39,11 @@ const generations: GenerationRecord[] = [
     fields,
     rendered: "integrated_multimodal_description: first",
     model: "Qwen3.5-9B",
+    runId: null,
+    promptVariantId: null,
+    systemPrompt: null,
+    verdict: null,
+    note: "",
     createdAt: "2026-09-11T08:00:00.000Z",
   },
 ]
