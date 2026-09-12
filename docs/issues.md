@@ -72,13 +72,13 @@ been written from memory of the guide rather than from the guide.
 - A shot is reordered by dragging its handle. From the keyboard that means
   focusing the handle, pressing space to lift it, moving with the arrows and
   pressing space again, which nothing on screen says.
-- The history and the compare panel share one scrolling pane, so reaching the
-  comparison still means scrolling past every prompt the clip has.
 - A comparison run is listed by the time it ran, so telling two runs of the
   same minute apart means reading their results.
-- Every entry in the history carries its own edit box, Export and Save, so a
-  long history is a long column of controls. The actions may belong behind
-  one control per entry.
+- The library screen puts the form on the left and the list on the right,
+  which reads backwards: you pick from the list, then edit.
+- A library thing cannot be added without leaving the clip that needs it.
+- Ctrl and enter writes the clip, and only a line of grey text beside the
+  button says so. Nothing else in the app has a shortcut.
 - The `brief` column on `generations` holds the clip's note, and an edit
   copies its parent's, so the name no longer says what the column holds.
 - `readVariant` lists every variant of a target to find one of them.
