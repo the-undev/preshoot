@@ -11,6 +11,7 @@ function respondWith(body: unknown, init?: ResponseInit): typeof fetch {
 
 function chatRequest(): Parameters<LlamaServerClient["chat"]>[0] {
   return {
+    model: "Qwen3.5-9B",
     system: "You write prompts.",
     user: "A baker opens the shutters.",
     schema: { type: "object" },
@@ -66,6 +67,69 @@ describe("LlamaServerClient", () => {
       { role: "system", content: "You write prompts." },
       { role: "user", content: "A baker opens the shutters." },
     ])
+    expect(sent.model).toBe("Qwen3.5-9B")
+  })
+
+  it("lists the models the server has, with the loaded ones marked", async () => {
+    const client = new LlamaServerClient({
+      baseUrl,
+      fetch: respondWith({
+        data: [
+          {
+            id: "unsloth/Qwen3.5-9B-GGUF:Q4_K_M",
+            status: { value: "loaded" },
+            architecture: { input_modalities: ["text", "image"] },
+          },
+          {
+            id: "other",
+            status: { value: "unloaded" },
+            architecture: { input_modalities: ["text"] },
+          },
+        ],
+      }),
+    })
+
+    expect(await client.models()).toEqual([
+      {
+        id: "unsloth/Qwen3.5-9B-GGUF:Q4_K_M",
+        state: "loaded",
+        modalities: ["text", "image"],
+      },
+      { id: "other", state: "unloaded", modalities: ["text"] },
+    ])
+  })
+
+  it("reads a server that reports no state as unknown", async () => {
+    const client = new LlamaServerClient({
+      baseUrl,
+      fetch: respondWith({ data: [{ id: "only-one" }] }),
+    })
+
+    expect(await client.models()).toEqual([{ id: "only-one", state: "unknown", modalities: [] }])
+  })
+
+  it("asks the server to free a model", async () => {
+    const fetchMock = vi.fn(async () => new Response("{}"))
+    const client = new LlamaServerClient({ baseUrl, fetch: fetchMock as unknown as typeof fetch })
+
+    await client.unload("unsloth/Qwen3.5-9B-GGUF:Q4_K_M")
+
+    const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit]
+    expect(url).toBe(`${baseUrl}/models/unload`)
+    expect(JSON.parse(init.body as string)).toEqual({
+      model: "unsloth/Qwen3.5-9B-GGUF:Q4_K_M",
+    })
+  })
+
+  it("reads a server that does not know how to unload as a bad response", async () => {
+    const client = new LlamaServerClient({
+      baseUrl,
+      fetch: respondWith({ error: "not found" }, { status: 404 }),
+    })
+
+    await expect(client.unload("anything")).rejects.toThrow(
+      expect.objectContaining({ code: "bad-response" })
+    )
   })
 
   it("returns the answer and the model that wrote it", async () => {

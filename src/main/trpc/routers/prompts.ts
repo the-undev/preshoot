@@ -30,6 +30,7 @@ async function writeClip(
 
   const composed: ComposedPrompt = await composer.compose({
     composition,
+    model: ctx.settings.llamaModel(),
     target: targetById(clip.target),
     client: ctx.promptClient(ctx.settings.llamaServerUrl()),
     scope: input.scope,

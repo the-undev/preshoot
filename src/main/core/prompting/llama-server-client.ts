@@ -1,8 +1,9 @@
 import { z } from "zod"
 import { PromptServiceError } from "./errors"
 
-/** One schema-constrained chat request. */
+/** One schema-constrained chat request. The router refuses a request that names no model. */
 export interface ChatRequest {
+  model: string
   system: string
   user: string
   schema: Record<string, unknown>
@@ -13,6 +14,13 @@ export interface ChatRequest {
 export interface ChatResult {
   content: string
   model: string
+}
+
+/** One model the server knows about, and whether it is holding memory right now. */
+export interface ServerModel {
+  id: string
+  state: "loaded" | "unloaded" | "unknown"
+  modalities: string[]
 }
 
 /** What the client needs to reach a server. `fetch` is a parameter so tests can supply their own. */
@@ -26,10 +34,29 @@ const CHAT_TIMEOUT_MS = 120_000
 
 const healthResponseSchema = z.object({ status: z.string() })
 
+const modelsResponseSchema = z.object({
+  data: z.array(
+    z.object({
+      id: z.string(),
+      // A server that is not in router mode answers without these two.
+      status: z.object({ value: z.string() }).optional(),
+      architecture: z.object({ input_modalities: z.array(z.string()) }).optional(),
+    })
+  ),
+})
+
 const chatResponseSchema = z.object({
   model: z.string(),
   choices: z.array(z.object({ message: z.object({ content: z.string() }) })),
 })
+
+/** What the server says about a model, or `unknown` when it does not say. */
+function readState(value: string | undefined): ServerModel["state"] {
+  if (value === "loaded" || value === "unloaded") {
+    return value
+  }
+  return "unknown"
+}
 
 /** Talks to one llama-server over its OpenAI-compatible API. */
 export class LlamaServerClient {
@@ -57,12 +84,42 @@ export class LlamaServerClient {
     return "ok"
   }
 
+  /** Every model the server can serve, with the ones holding memory marked. */
+  async models(): Promise<ServerModel[]> {
+    const response = await this.send("/v1/models", { method: "GET" })
+    if (!response.ok) {
+      throw PromptServiceError.badResponse()
+    }
+    const body = modelsResponseSchema.safeParse(await this.readJson(response))
+    if (!body.success) {
+      throw PromptServiceError.badResponse()
+    }
+    return body.data.data.map((model) => ({
+      id: model.id,
+      state: readState(model.status?.value),
+      modalities: model.architecture?.input_modalities ?? [],
+    }))
+  }
+
+  /** Frees a model, which is how the card is handed to something else without stopping the server. */
+  async unload(modelId: string): Promise<void> {
+    const response = await this.send("/models/unload", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ model: modelId }),
+    })
+    if (!response.ok) {
+      throw PromptServiceError.badResponse()
+    }
+  }
+
   /** Asks for one answer shaped by `request.schema`. */
   async chat(request: ChatRequest): Promise<ChatResult> {
     const response = await this.send("/v1/chat/completions", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
+        model: request.model,
         messages: [
           { role: "system", content: request.system },
           { role: "user", content: request.user },

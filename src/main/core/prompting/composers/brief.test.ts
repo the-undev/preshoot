@@ -35,6 +35,7 @@ describe("briefComposer", () => {
 
     const composed = await briefComposer.compose({
       composition,
+      model: "Qwen3.5-9B",
       target: minimaxH3,
       client,
       scope: { kind: "all" },
@@ -49,7 +50,13 @@ describe("briefComposer", () => {
   it("sends the whole-prompt system prompt and the clip's note", async () => {
     const { client, requests } = clientAnswering(JSON.stringify(fields))
 
-    await briefComposer.compose({ composition, target: minimaxH3, client, scope: { kind: "all" } })
+    await briefComposer.compose({
+      composition,
+      model: "Qwen3.5-9B",
+      target: minimaxH3,
+      client,
+      scope: { kind: "all" },
+    })
 
     expect(requests[0].system).toBe(minimaxH3.brief.systemPrompt)
     expect(requests[0].user).toContain("A baker opens the shutters.")
@@ -60,7 +67,13 @@ describe("briefComposer", () => {
     const { client } = clientAnswering('{"description":"only one field"}')
 
     await expect(
-      briefComposer.compose({ composition, target: minimaxH3, client, scope: { kind: "all" } })
+      briefComposer.compose({
+        composition,
+        model: "Qwen3.5-9B",
+        target: minimaxH3,
+        client,
+        scope: { kind: "all" },
+      })
     ).rejects.toThrow(expect.objectContaining({ code: "bad-response" }))
   })
 
@@ -70,6 +83,7 @@ describe("briefComposer", () => {
     await expect(
       briefComposer.compose({
         composition: { ...composition, note: "   " },
+        model: "Qwen3.5-9B",
         target: minimaxH3,
         client,
         scope: { kind: "all" },

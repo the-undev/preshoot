@@ -26,6 +26,7 @@ export type RecentProject = z.infer<typeof recentProjectSchema>
 export const appSettingsSchema = z.object({
   recentProjects: z.array(recentProjectSchema).default([]),
   llamaServerUrl: llamaServerUrlSchema.default(DEFAULT_LLAMA_SERVER_URL),
+  llamaModel: z.string().default(""),
 })
 
 export type AppSettings = z.infer<typeof appSettingsSchema>
@@ -68,6 +69,16 @@ export class AppSettingsStore {
   /** Points the app at a different llama-server. */
   setLlamaServerUrl(url: string): void {
     this.update({ llamaServerUrl: url })
+  }
+
+  /** The model the server is asked for, which is empty until one is chosen. */
+  llamaModel(): string {
+    return this.read().llamaModel
+  }
+
+  /** Asks the server for a different model from now on. */
+  setLlamaModel(id: string): void {
+    this.update({ llamaModel: id })
   }
 
   /** Replaces the settings file, writing beside it first so a failed write leaves the old file intact. */

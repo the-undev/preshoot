@@ -69,6 +69,7 @@ describe("proseComposer", () => {
 
     await proseComposer.compose({
       composition,
+      model: "Qwen3.5-9B",
       target: minimaxH3,
       client,
       scope: { kind: "all" },
@@ -85,6 +86,7 @@ describe("proseComposer", () => {
 
     const composed = await proseComposer.compose({
       composition,
+      model: "Qwen3.5-9B",
       target: minimaxH3,
       client,
       scope: { kind: "all" },
@@ -112,6 +114,7 @@ describe("proseComposer", () => {
 
     const composed = await proseComposer.compose({
       composition,
+      model: "Qwen3.5-9B",
       target: minimaxH3,
       client,
       scope: {
@@ -141,6 +144,7 @@ describe("proseComposer", () => {
     await expect(
       proseComposer.compose({
         composition: { ...composition, shots: [] },
+        model: "Qwen3.5-9B",
         target: minimaxH3,
         client,
         scope: { kind: "all" },
@@ -158,7 +162,13 @@ describe("proseComposer", () => {
     )
 
     await expect(
-      proseComposer.compose({ composition, target: minimaxH3, client, scope: { kind: "all" } })
+      proseComposer.compose({
+        composition,
+        model: "Qwen3.5-9B",
+        target: minimaxH3,
+        client,
+        scope: { kind: "all" },
+      })
     ).rejects.toThrow(expect.objectContaining({ code: "bad-response" }))
   })
 })

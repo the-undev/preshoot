@@ -6,6 +6,7 @@ import type { ComposeScope, PromptTarget, TargetFields } from "../target"
 /** Everything a composer needs: what to write, for which target, through which server, and how much. */
 export interface ComposeInput {
   composition: ClipComposition
+  model: string
   target: PromptTarget
   client: LlamaServerClient
   scope: ComposeScope

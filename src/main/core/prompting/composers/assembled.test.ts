@@ -45,6 +45,7 @@ describe("assembledComposer", () => {
   it("builds the prompt without calling the model", async () => {
     const composed = await assembledComposer.compose({
       composition,
+      model: "Qwen3.5-9B",
       target: minimaxH3,
       client: refusingClient,
       scope: { kind: "all" },
@@ -62,6 +63,7 @@ describe("assembledComposer", () => {
   it("joins the shots' sound notes and takes the music from the clip", async () => {
     const composed = await assembledComposer.compose({
       composition,
+      model: "Qwen3.5-9B",
       target: minimaxH3,
       client: refusingClient,
       scope: { kind: "all" },
@@ -82,6 +84,7 @@ describe("assembledComposer", () => {
 
     const composed = await assembledComposer.compose({
       composition: silent,
+      model: "Qwen3.5-9B",
       target: minimaxH3,
       client: refusingClient,
       scope: { kind: "all" },
@@ -95,6 +98,7 @@ describe("assembledComposer", () => {
     await expect(
       assembledComposer.compose({
         composition: { ...composition, shots: [] },
+        model: "Qwen3.5-9B",
         target: minimaxH3,
         client: refusingClient,
         scope: { kind: "all" },

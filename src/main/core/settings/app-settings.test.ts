@@ -35,6 +35,7 @@ describe("AppSettingsStore", () => {
     expect(store.read()).toEqual({
       recentProjects: [],
       llamaServerUrl: DEFAULT_LLAMA_SERVER_URL,
+      llamaModel: "",
     })
   })
 
@@ -43,12 +44,24 @@ describe("AppSettingsStore", () => {
     expect(store.read()).toEqual({
       recentProjects: [],
       llamaServerUrl: DEFAULT_LLAMA_SERVER_URL,
+      llamaModel: "",
     })
   })
 
   it("reads a file without a server URL as the default one", () => {
     writeFileSync(settingsPath, JSON.stringify({ recentProjects: [] }), "utf8")
 
+    expect(store.llamaServerUrl()).toBe(DEFAULT_LLAMA_SERVER_URL)
+  })
+
+  it("has no model until one is chosen", () => {
+    expect(store.llamaModel()).toBe("")
+  })
+
+  it("reads back the model it was given", () => {
+    store.setLlamaModel("unsloth/Qwen3.5-9B-GGUF:Q4_K_M")
+
+    expect(store.llamaModel()).toBe("unsloth/Qwen3.5-9B-GGUF:Q4_K_M")
     expect(store.llamaServerUrl()).toBe(DEFAULT_LLAMA_SERVER_URL)
   })
 

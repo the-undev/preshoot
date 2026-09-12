@@ -13,12 +13,19 @@ export const proseComposer: PromptComposer = {
   id: "prose",
   name: "Model prose per shot",
 
-  async compose({ composition, target, client, scope }: ComposeInput): Promise<ComposedPrompt> {
+  async compose({
+    composition,
+    model,
+    target,
+    client,
+    scope,
+  }: ComposeInput): Promise<ComposedPrompt> {
     if (composition.shots.length === 0) {
       throw CompositionError.nothingToWrite("Add a shot before writing this clip.")
     }
 
     const answer = await client.chat({
+      model,
       system: target.prose.systemPrompt,
       user: target.prose.instruction(composition, scope),
       schema: target.prose.schema,
