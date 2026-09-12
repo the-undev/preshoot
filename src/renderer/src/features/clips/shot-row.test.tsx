@@ -177,7 +177,9 @@ describe("ShotRow", () => {
   it("says where people come from, and offers to go there", () => {
     const { onAddPeople } = renderRow({ library: [] })
 
-    expect(screen.getByText(/People, places and objects live in the library/)).toBeInTheDocument()
+    expect(
+      screen.getByText(/The people, places and objects a shot holds live in the library/)
+    ).toBeInTheDocument()
     fireEvent.click(screen.getByRole("button", { name: "Open the library" }))
 
     expect(onAddPeople).toHaveBeenCalled()

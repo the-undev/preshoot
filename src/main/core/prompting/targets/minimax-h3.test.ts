@@ -153,7 +153,7 @@ describe("the prose instruction", () => {
     expect(instruction).toContain("Shot 2 (starts at 00:04.500, runs 3.0 seconds)")
     expect(instruction).toContain("push in with small amplitude at slow speed")
     expect(instruction).toContain('Begin this shot with exactly "the shot cuts to"')
-    expect(instruction).toContain("Shows (person) Keeper: an elderly man in oilskins")
+    expect(instruction).toContain("Subject (person) Keeper: an elderly man in oilskins")
   })
 
   it("carries the speakers and the dialogue word for word", () => {

@@ -242,7 +242,7 @@ function shotBlock(composition: ClipComposition, shot: ShotComposition, index: n
     lines.push(`  Lighting: ${shot.lighting}`)
   }
   for (const thing of shot.things) {
-    lines.push(`  Shows (${thing.kind}) ${thing.name}: ${thing.description}`)
+    lines.push(`  Subject (${thing.kind}) ${thing.name}: ${thing.description}`)
   }
   lines.push(`  Happens: ${sentence(shot.action)}`)
   if (shot.soundNote.trim().length > 0) {

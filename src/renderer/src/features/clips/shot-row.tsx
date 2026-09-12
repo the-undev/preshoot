@@ -232,12 +232,12 @@ export function ShotRow({
           </div>
 
           <div className="flex flex-col gap-2">
-            <span className="text-sm font-medium">Shows</span>
+            <span className="text-sm font-medium">Subjects</span>
             {library.length === 0 ? (
               <div className="flex flex-wrap items-center gap-2">
                 <p className="text-xs text-muted-foreground">
-                  People, places and objects live in the library. Add them there and they can be
-                  shown here.
+                  The people, places and objects a shot holds live in the library. Add them there
+                  and they can be put in this shot.
                 </p>
                 <Button type="button" variant="outline" size="sm" onClick={onAddPeople}>
                   Open the library
