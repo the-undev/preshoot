@@ -25,7 +25,7 @@ describe("projects router", () => {
       projects: session,
       settings: new AppSettingsStore(join(dir, "settings.json")),
       migrationsFolder,
-      dialogs: { pickDirectory: (options) => pickDirectory(options) },
+      dialogs: { pickDirectory: (options) => pickDirectory(options), saveFile: async () => null },
       promptClient: () => {
         throw new Error("the projects router does not generate prompts")
       },

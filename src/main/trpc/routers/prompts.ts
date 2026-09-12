@@ -1,7 +1,9 @@
 import { randomUUID } from "node:crypto"
+import { basename, dirname } from "node:path"
 import { TRPCError } from "@trpc/server"
 import { z } from "zod"
 import { readClip, readComposition } from "../../core/composition/clip-store"
+import { promptFileName, writePromptFiles } from "../../core/export/prompt-export"
 import type { ClipProse } from "../../core/composition/prose"
 import type { ProjectDatabase } from "../../core/db"
 import { COMPOSERS, composerById, DEFAULT_COMPOSER_ID } from "../../core/prompting/composers"
@@ -25,6 +27,7 @@ import {
   readVariant,
   updateVariant,
 } from "../../core/prompting/variant-store"
+import { projectPromptExportsPath } from "../../core/projects/marker"
 import { asClientError } from "../client-errors"
 import type { Context } from "../context"
 import { requireProject } from "../project"
@@ -116,6 +119,37 @@ function proseToKeep(previous: GenerationRecord, shotId: number, shotIds: number
     })
   }
   return previous.prose
+}
+
+/** The generation to export and what its files should be called. */
+function readForExport(
+  db: ProjectDatabase,
+  generationId: number
+): { generation: GenerationRecord; baseName: string } {
+  const generation = readGeneration(db, generationId)
+  if (!generation) {
+    throw new TRPCError({ code: "NOT_FOUND", message: "That prompt is not in this project." })
+  }
+  const clipName = generation.clipId === null ? "prompt" : readClip(db, generation.clipId).name
+  return {
+    generation,
+    baseName: promptFileName({ clipName, createdAt: generation.createdAt }),
+  }
+}
+
+/** What is kept beside an exported prompt, so a file can be traced back to what made it. */
+function exportMeta(generation: GenerationRecord): Record<string, unknown> {
+  return {
+    target: generation.target,
+    composer: generation.composer,
+    promptVariantId: generation.promptVariantId,
+    model: generation.model,
+    brief: generation.brief,
+    editInstruction: generation.editInstruction,
+    verdict: generation.verdict,
+    note: generation.note,
+    createdAt: generation.createdAt,
+  }
 }
 
 export const promptsRouter = router({
@@ -337,6 +371,44 @@ export const promptsRouter = router({
       } catch (error) {
         asClientError(error)
       }
+    }),
+
+  /** Writes the prompt into the project, where everything exported lives. */
+  exportToProject: publicProcedure
+    .input(z.object({ generationId: z.number().int() }))
+    .mutation(({ ctx, input }) => {
+      const project = ctx.projects.current()
+      if (!project) {
+        throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Open a project first." })
+      }
+      const { generation, baseName } = readForExport(project.db, input.generationId)
+      return writePromptFiles({
+        directory: projectPromptExportsPath(project.directory),
+        baseName,
+        rendered: generation.rendered,
+        meta: exportMeta(generation),
+      })
+    }),
+
+  /** Asks where to put the prompt, and does nothing when the dialog is cancelled. */
+  exportToFile: publicProcedure
+    .input(z.object({ generationId: z.number().int() }))
+    .mutation(async ({ ctx, input }) => {
+      const db = requireProject(ctx)
+      const { generation, baseName } = readForExport(db, input.generationId)
+      const chosen = await ctx.dialogs.saveFile({
+        title: "Save prompt",
+        defaultPath: `${baseName}.txt`,
+      })
+      if (!chosen) {
+        return null
+      }
+      return writePromptFiles({
+        directory: dirname(chosen),
+        baseName: basename(chosen).replace(/\.txt$/i, ""),
+        rendered: generation.rendered,
+        meta: exportMeta(generation),
+      })
     }),
 
   /** Marks a result good or bad and keeps a note against it. */

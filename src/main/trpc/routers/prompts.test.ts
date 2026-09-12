@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync } from "node:fs"
+import { mkdtempSync, readFileSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
@@ -39,19 +39,29 @@ describe("prompts router", () => {
   let session: ProjectSession
   let chat: (request: ChatRequest) => Promise<ChatResult>
   let requests: ChatRequest[]
+  let saveTo: string | null
+  let savePrompts: { title: string; defaultPath: string }[]
   let caller: ReturnType<typeof appRouter.createCaller>
 
   beforeEach(async () => {
     dir = mkdtempSync(join(tmpdir(), "preshoot-prompts-"))
     session = new ProjectSession()
     requests = []
+    saveTo = null
+    savePrompts = []
     chat = vi.fn(async () => ({ content: proseAnswer(2), model: "Qwen3.5-9B" }))
     const ctx: Context = {
       versions: { app: "0.0.0", electron: "0", chrome: "0", node: "0" },
       projects: session,
       settings: settingsWithModel(join(dir, "settings.json")),
       migrationsFolder,
-      dialogs: { pickDirectory: async () => null },
+      dialogs: {
+        pickDirectory: async () => null,
+        saveFile: async (options) => {
+          savePrompts.push(options)
+          return saveTo
+        },
+      },
       promptClient: () =>
         ({
           chat: (request: ChatRequest) => {
@@ -419,6 +429,61 @@ describe("prompts router", () => {
     await expect(
       caller.prompts.edit({ generationId: 99, instruction: "Faster.", variantId: null })
     ).rejects.toThrow(expect.objectContaining({ code: "NOT_FOUND" }))
+  })
+
+  it("writes the prompt and its metadata into the project", async () => {
+    await openProject()
+    const { clipId } = await clipOfTwo()
+    const generated = await caller.prompts.generate({
+      clipId,
+      composerId: "prose",
+      variantId: null,
+    })
+
+    const written = await caller.prompts.exportToProject({ generationId: generated.id })
+
+    expect(written.textPath).toContain(join(dir, "film", "exports", "prompts"))
+    expect(readFileSync(written.textPath, "utf8")).toBe(`${generated.rendered}\n`)
+    expect(JSON.parse(readFileSync(written.metaPath, "utf8"))).toEqual(
+      expect.objectContaining({ composer: "prose", model: "Qwen3.5-9B" })
+    )
+  })
+
+  it("saves the prompt where the dialog says", async () => {
+    await openProject()
+    const { clipId } = await clipOfTwo()
+    const generated = await caller.prompts.generate({
+      clipId,
+      composerId: "prose",
+      variantId: null,
+    })
+    saveTo = join(dir, "elsewhere", "my-prompt.txt")
+
+    const written = await caller.prompts.exportToFile({ generationId: generated.id })
+
+    expect(savePrompts[0].defaultPath).toMatch(/^lighthouse-.*\.txt$/)
+    expect(written?.textPath).toBe(saveTo)
+    expect(readFileSync(join(dir, "elsewhere", "my-prompt.json"), "utf8")).toContain("prose")
+  })
+
+  it("writes nothing when the save dialog is cancelled", async () => {
+    await openProject()
+    const { clipId } = await clipOfTwo()
+    const generated = await caller.prompts.generate({
+      clipId,
+      composerId: "prose",
+      variantId: null,
+    })
+
+    expect(await caller.prompts.exportToFile({ generationId: generated.id })).toBeNull()
+  })
+
+  it("refuses to export a prompt that is not in the project", async () => {
+    await openProject()
+
+    await expect(caller.prompts.exportToProject({ generationId: 99 })).rejects.toThrow(
+      expect.objectContaining({ code: "NOT_FOUND" })
+    )
   })
 
   it("takes a clip's prompts with it when the clip goes", async () => {

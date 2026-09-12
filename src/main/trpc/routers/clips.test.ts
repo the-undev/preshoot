@@ -22,7 +22,7 @@ describe("clips router", () => {
       projects: session,
       settings: new AppSettingsStore(join(dir, "settings.json")),
       migrationsFolder,
-      dialogs: { pickDirectory: async () => null },
+      dialogs: { pickDirectory: async () => null, saveFile: async () => null },
       promptClient: () => {
         throw new Error("the clips router does not generate prompts")
       },
