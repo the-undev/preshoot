@@ -109,64 +109,10 @@ at Q2 or Q3 with the Lightning LoRA.
 10. Local ComfyUI management: model downloads, start and stop, RefMod
     creation if the H3 VAE fits in 8GB with offload (TBD).
 
-## Open items
+## Open questions
+
+Unanswered, and each one decides a later milestone. Bugs, limitations and
+improvements live in `docs/issues.md`.
 
 - Whether Qwen Image at Q4 is usable with RAM offload on this machine.
 - Whether RefMod creation fits on 8GB. Import RefMods regardless.
-- Image editing (Qwen Image Edit) as a shot type that edits a library image.
-- `app.getVersion()` reports the Electron version when run from `out/`
-  unpackaged; correct once packaged.
-- TypeScript 7, Vite 8 and ESLint 10 are out. The template pins TS 5.9,
-  Vite 7 and ESLint 9; upgrade when electron-vite and the toolkit configs
-  support them.
-- The Electron postinstall silently skipped extracting the binary in this
-  environment; the zip was cached and extracted by hand. Check whether a
-  clean `pnpm install` on this machine reproduces it.
-- The recent projects list drops an entry whose folder is missing when the
-  list is read, so a project on an unmounted drive is forgotten rather than
-  hidden.
-- Only one project is open at a time, for the app rather than per window. A
-  second window would need a session per window.
-- Testing Library cleanup is registered by hand in the renderer test setup
-  because Vitest globals are off. Turning globals on would remove it.
-- Streaming tokens to the renderer needs a subscription link over the
-  `trpc://` scheme.
-- The reference image forms of the H3 prompt (I2VA, FL2VA, L2VA) need the
-  alignment line and arrive with the asset images.
-- A generation that runs past the two minute timeout is reported as a
-  server that could not be reached, which is not what happened.
-- Nothing checks that the prose the model returns holds the camera motion it
-  was given, only that it holds the dialogue.
-- A clip has one style for every shot, so it cannot change style at a cut.
-- The language of a line of dialogue is free text rather than a picklist.
-- The editor saves a shot as it is changed, so there is no undo.
-- Everything milestone 2 generated before clips existed has no clip, and the
-  history is read per clip, so those prompts cannot be reached.
-- drizzle-kit generated a table rebuild that read columns added in the same
-  migration, which would have failed on a fresh database. The change was
-  split into two migrations. Check the generated SQL whenever a column
-  changes and columns are added together.
-- The multimodal projector has to stay off the GPU on this card. Loaded onto
-  it, an image encode aborted inside CUDA while another model held VRAM.
-  Whether it fits on the GPU alone is untested.
-- A vision request needs `enable_thinking` off as much as a text one does, or
-  the answer is spent on reasoning.
-- A comparison run stops at the first way of writing that fails and leaves
-  the ones already written, which are kept under the run but shown as a
-  short row of results.
-- Only the newest comparison run is shown, and only in the clip it belongs
-  to. Older runs are in the database and out of reach.
-- A verdict and its note are written together, so marking a result good
-  rewrites whatever note the box holds at that moment.
-- Export writes one prompt at a time. There is no way to write out a whole
-  clip or project at once.
-- An edit is made from the prompt as it was, not from the clip as it is now,
-  so editing an old prompt after changing its clip keeps the old wording.
-  That is what makes an edit chain readable, but it will surprise someone.
-- An edit can rewrite dialogue. Asked to make a character happier as a bus
-  arrived, the model changed "It is late again." to "It's here!", which left
-  the clip holding a line the prompt no longer says. Arguably the better
-  prompt, but the two now disagree. Tightening the built-in edit prompt is a
-  copy and an edit away, since it is a variant.
-- The save dialog offers no file type filter, and appends nothing when a
-  name is typed without an extension.
