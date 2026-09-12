@@ -1,0 +1,75 @@
+/** How long a clip may run before the target model stops being able to hold it. */
+export const MAX_CLIP_MS = 15_000
+
+/** One thing a shot shows, copied from the library so a stored composition stands on its own. */
+export interface ThingComposition {
+  kind: string
+  name: string
+  description: string
+}
+
+/** A voice in the clip. The label is what the prompt calls it, such as "S1". */
+export interface SpeakerComposition {
+  id: number
+  label: string
+  description: string
+}
+
+/** One spoken line, kept verbatim because the target reproduces it word for word. */
+export interface DialogueComposition {
+  speakerId: number
+  language: string
+  text: string
+}
+
+/**
+ * One shot: how long it lasts, how it is shot, what it shows and what is said. The motion,
+ * amplitude, speed, transition and lighting hold values from the target's vocabularies.
+ */
+export interface ShotComposition {
+  id: number
+  durationMs: number
+  cameraMotion: string | null
+  amplitude: string | null
+  speed: string | null
+  transition: string | null
+  lighting: string | null
+  things: ThingComposition[]
+  action: string
+  dialogue: DialogueComposition[]
+  soundNote: string
+}
+
+/** A clip as the composers see it. Knows nothing of any target, model or database. */
+export interface ClipComposition {
+  id: number
+  name: string
+  style: string
+  note: string
+  musicNote: string
+  speakers: SpeakerComposition[]
+  shots: ShotComposition[]
+}
+
+/** How long the whole clip runs. */
+export function clipDurationMs(composition: ClipComposition): number {
+  return composition.shots.reduce((total, shot) => total + shot.durationMs, 0)
+}
+
+/** When a shot starts, which is where its cut goes. The first shot starts at zero. */
+export function shotStartMs(composition: ClipComposition, shotId: number): number {
+  let start = 0
+  for (const shot of composition.shots) {
+    if (shot.id === shotId) return start
+    start += shot.durationMs
+  }
+  throw new Error(`Shot ${shotId} is not in clip ${composition.id}`)
+}
+
+/** The speaker of a line, for naming it in an instruction. */
+export function speakerOf(
+  composition: ClipComposition,
+  speakerId: number
+): SpeakerComposition | null {
+  return composition.speakers.find((speaker) => speaker.id === speakerId) ?? null
+}
