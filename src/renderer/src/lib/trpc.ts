@@ -54,6 +54,14 @@ export type ServerReport = RouterOutputs["settings"]["checkLlamaServer"]
 /** One thing in the project's library. */
 export type Asset = RouterOutputs["assets"]["list"][number]
 
+/** One reference picture of a library thing. */
+export type AssetImage = RouterOutputs["assets"]["images"][number]
+
+/** Where the renderer reads a picture from. */
+export function assetImageUrl(imageId: number): string {
+  return `asset://${imageId}`
+}
+
 /** What a library thing can be. */
 export type AssetKind = RouterInputs["assets"]["create"]["kind"]
 
