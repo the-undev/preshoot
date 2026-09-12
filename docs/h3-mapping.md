@@ -1,8 +1,8 @@
 # What H3 accepts, and what the app must hold to produce it
 
-Worked backwards from `docs/minimax-h3/`: every feature the guides describe,
-and the input the app needs before it can write it. Read before planning
-anything that touches the H3 prompt.
+Worked backwards from the H3 prompt guides, which `docs/minimax-h3.md`
+links: every feature they describe, and the input the app needs before it
+can write it. Read before planning anything that touches the H3 prompt.
 
 RefMod is out of scope and not covered here.
 

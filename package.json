@@ -3,9 +3,14 @@
   "version": "0.1.0",
   "private": true,
   "description": "Storyboard and prompt builder for local and Runpod video and image generation",
-  "license": "UNLICENSED",
+  "license": "MIT",
   "author": "the-undev",
   "homepage": "https://github.com/the-undev/preshoot",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/the-undev/preshoot.git"
+  },
+  "packageManager": "pnpm@11.26.0",
   "main": "./out/main/index.js",
   "scripts": {
     "format": "prettier --write .",

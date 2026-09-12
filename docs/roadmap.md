@@ -70,9 +70,11 @@ at Q2 or Q3 with the Lightning LoRA.
 - Reference pictures are copied into the project rather than referenced where
   they sit, so a project stays a folder that can be moved, and the renderer
   reads them through an `asset://` scheme that serves only the open project.
-- The model's own guides are vendored under `docs/minimax-h3/` and
+- The model's own guides are linked from `docs/minimax-h3.md`, and
   `docs/h3-mapping.md` maps what they allow back to the inputs the app holds.
   Prompt work is checked against them rather than against memory of them.
+  They are not copied in: their licence restricts both the territory they may
+  be distributed in and the terms they may carry.
 - Describing a picture is not writing a prompt for a particular model, so it
   sits beside the targets rather than inside one, and goes through a client
   call of its own: a vision answer is prose, not JSON.

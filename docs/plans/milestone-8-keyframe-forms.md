@@ -2,7 +2,7 @@
 
 A clip says which form it is written for, and the keyframe forms carry the
 pictures they anchor to. The mapping behind this is `docs/h3-mapping.md`;
-the guides themselves are in `docs/minimax-h3/`.
+the guides themselves are linked from `docs/minimax-h3.md`.
 
 Full reference is not in this milestone. It is a second target with six
 fields rather than three, and it needs audio, subject labels and retention
