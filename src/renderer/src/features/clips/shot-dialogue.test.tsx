@@ -8,7 +8,16 @@ const speakers: SpeakerComposition[] = [
   { id: 8, label: "S2", description: "The operator" },
 ]
 
-const lines: DialogueLine[] = [{ speakerId: 7, language: "English", text: "Almost" }]
+const lines: DialogueLine[] = [
+  {
+    speakerIds: [7],
+    language: "English",
+    text: "Almost",
+    offScreen: false,
+    crossesCut: false,
+    cutOff: false,
+  },
+]
 
 describe("ShotDialogue", () => {
   it("asks for a speaker before a line can be written", () => {
@@ -39,7 +48,7 @@ describe("ShotDialogue", () => {
     fireEvent.blur(text)
 
     expect(onChange).toHaveBeenCalledWith([
-      { speakerId: 7, language: "English", text: "Almost there." },
+      expect.objectContaining({ speakerIds: [7], text: "Almost there." }),
     ])
   })
 
@@ -49,7 +58,27 @@ describe("ShotDialogue", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Add line" }))
 
-    expect(onChange).toHaveBeenCalledWith([{ speakerId: 7, language: "English", text: "" }])
+    expect(onChange).toHaveBeenCalledWith([
+      expect.objectContaining({ speakerIds: [7], text: "", offScreen: false }),
+    ])
+  })
+
+  it("lets a second speaker share a line", () => {
+    const onChange = vi.fn()
+    render(<ShotDialogue shotId={11} lines={lines} speakers={speakers} onChange={onChange} />)
+
+    fireEvent.click(screen.getByRole("button", { name: "S2 speaks line 1" }))
+
+    expect(onChange).toHaveBeenCalledWith([expect.objectContaining({ speakerIds: [7, 8] })])
+  })
+
+  it("marks a line as carried across the cut", () => {
+    const onChange = vi.fn()
+    render(<ShotDialogue shotId={11} lines={lines} speakers={speakers} onChange={onChange} />)
+
+    fireEvent.click(screen.getByLabelText("Carries across the cut"))
+
+    expect(onChange).toHaveBeenCalledWith([expect.objectContaining({ crossesCut: true })])
   })
 
   it("removes a line at once", () => {

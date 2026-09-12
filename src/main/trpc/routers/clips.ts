@@ -51,9 +51,12 @@ const shotInput = z.object({
   things: z.array(z.number().int()),
   dialogue: z.array(
     z.object({
-      speakerId: z.number().int(),
+      speakerIds: z.array(z.number().int()),
       language: z.string(),
       text: z.string(),
+      offScreen: z.boolean(),
+      crossesCut: z.boolean(),
+      cutOff: z.boolean(),
     })
   ),
 })

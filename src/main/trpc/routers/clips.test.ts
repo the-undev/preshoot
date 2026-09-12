@@ -104,9 +104,12 @@ describe("clips router", () => {
       things: [keeper.id],
       dialogue: [
         {
-          speakerId: withSpeaker.speakers[0].id,
+          speakerIds: [withSpeaker.speakers[0].id],
           language: "English",
           text: "Almost there.",
+          offScreen: false,
+          crossesCut: false,
+          cutOff: false,
         },
       ],
     })
@@ -136,11 +139,20 @@ describe("clips router", () => {
       action: "climbs",
       soundNote: "",
       things: [],
-      dialogue: [{ speakerId: withSpeaker.speakers[0].id, language: "English", text: "" }],
+      dialogue: [
+        {
+          speakerIds: [withSpeaker.speakers[0].id],
+          language: "English",
+          text: "",
+          offScreen: false,
+          crossesCut: false,
+          cutOff: false,
+        },
+      ],
     })
 
     expect(composition.shots[0].dialogue).toEqual([
-      { speakerId: withSpeaker.speakers[0].id, language: "English", text: "" },
+      expect.objectContaining({ speakerIds: [withSpeaker.speakers[0].id], text: "" }),
     ])
   })
 

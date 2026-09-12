@@ -83,18 +83,24 @@ export const shotAssets = sqliteTable(
   (table) => [primaryKey({ columns: [table.shotId, table.assetId] })]
 )
 
-/** One spoken line, kept as typed because the target reproduces it word for word. */
+/**
+ * One spoken line, kept as typed because the target reproduces it word for word. Several speakers
+ * can share a line, which the target writes as a compound id such as (S1,S2), so the speakers are
+ * a list rather than a key. Nothing else in the schema points at speakers, so removing one has to
+ * take itself out of these by hand.
+ */
 export const dialogueLines = sqliteTable("dialogue_lines", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   shotId: integer("shot_id")
     .notNull()
     .references(() => shots.id, { onDelete: "cascade" }),
-  speakerId: integer("speaker_id")
-    .notNull()
-    .references(() => speakers.id, { onDelete: "cascade" }),
+  speakerIds: text("speaker_ids", { mode: "json" }).$type<number[]>().notNull().default([]),
   position: integer("position").notNull(),
   language: text("language").notNull(),
   text: text("text").notNull(),
+  offScreen: integer("off_screen", { mode: "boolean" }).notNull().default(false),
+  crossesCut: integer("crosses_cut", { mode: "boolean" }).notNull().default(false),
+  cutOff: integer("cut_off", { mode: "boolean" }).notNull().default(false),
 })
 
 /** System prompts written in this project, alongside the ones the targets ship with. */

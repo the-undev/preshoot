@@ -1,14 +1,13 @@
 import { useState } from "react"
-import {
-  Button,
-  Input,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@renderer/design-system"
+import { Button, Checkbox, Input, Label } from "@renderer/design-system"
 import type { DialogueLine, SpeakerComposition } from "@renderer/lib/trpc"
+
+/** What can be said about a line beyond who says it and what it says. */
+const FLAGS = [
+  { key: "offScreen", label: "Off screen" },
+  { key: "crossesCut", label: "Carries across the cut" },
+  { key: "cutOff", label: "Cut off by the end" },
+] as const
 
 interface ShotDialogueProps {
   shotId: number
@@ -42,6 +41,10 @@ export function ShotDialogue({
     if (draft?.from === written) onChange(draft.lines)
   }
 
+  const write = (index: number, line: DialogueLine): void => {
+    onChange(shown.map((existing, at) => (at === index ? line : existing)))
+  }
+
   if (speakers.length === 0) {
     return (
       <p className="text-xs text-muted-foreground">
@@ -51,51 +54,77 @@ export function ShotDialogue({
   }
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-3">
       {shown.map((line, index) => (
-        <div key={index} className="flex items-center gap-2">
-          <Select
-            value={String(line.speakerId)}
-            onValueChange={(value) =>
-              onChange(
-                shown.map((existing, at) =>
-                  at === index ? { ...existing, speakerId: Number(value) } : existing
+        <div key={index} className="flex flex-col gap-2 rounded border p-2">
+          <div className="flex items-center gap-2">
+            <div className="flex shrink-0 gap-1">
+              {speakers.map((speaker) => {
+                const speaking = line.speakerIds.includes(speaker.id)
+                return (
+                  <Button
+                    key={speaker.id}
+                    type="button"
+                    variant={speaking ? "secondary" : "outline"}
+                    size="sm"
+                    aria-pressed={speaking}
+                    aria-label={`${speaker.label} speaks line ${index + 1}`}
+                    onClick={() =>
+                      write(index, {
+                        ...line,
+                        speakerIds: speaking
+                          ? line.speakerIds.filter((id) => id !== speaker.id)
+                          : [...line.speakerIds, speaker.id],
+                      })
+                    }
+                  >
+                    {speaker.label}
+                  </Button>
                 )
-              )
-            }
-          >
-            <SelectTrigger aria-label={`Speaker for line ${index + 1}`} className="w-24">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {speakers.map((speaker) => (
-                <SelectItem key={speaker.id} value={String(speaker.id)}>
-                  {speaker.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Input
-            aria-label={`Language for line ${index + 1}`}
-            className="w-28"
-            value={line.language}
-            onChange={(event) => replace(index, { ...line, language: event.target.value })}
-            onBlur={commit}
-          />
-          <Input
-            aria-label={`Line ${index + 1} of shot ${shotId}`}
-            value={line.text}
-            onChange={(event) => replace(index, { ...line, text: event.target.value })}
-            onBlur={commit}
-          />
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={() => onChange(shown.filter((_, at) => at !== index))}
-          >
-            Remove
-          </Button>
+              })}
+            </div>
+            <Input
+              aria-label={`Language for line ${index + 1}`}
+              className="w-28"
+              value={line.language}
+              onChange={(event) => replace(index, { ...line, language: event.target.value })}
+              onBlur={commit}
+            />
+            <Input
+              aria-label={`Line ${index + 1} of shot ${shotId}`}
+              value={line.text}
+              onChange={(event) => replace(index, { ...line, text: event.target.value })}
+              onBlur={commit}
+            />
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => onChange(shown.filter((_, at) => at !== index))}
+            >
+              Remove
+            </Button>
+          </div>
+
+          <div className="flex flex-wrap gap-4">
+            {FLAGS.map((flag) => (
+              <div key={flag.key} className="flex items-center gap-2">
+                <Checkbox
+                  id={`line-${shotId}-${index}-${flag.key}`}
+                  checked={line[flag.key]}
+                  onCheckedChange={(checked) =>
+                    write(index, { ...line, [flag.key]: checked === true })
+                  }
+                />
+                <Label
+                  htmlFor={`line-${shotId}-${index}-${flag.key}`}
+                  className="text-xs font-normal"
+                >
+                  {flag.label}
+                </Label>
+              </div>
+            ))}
+          </div>
         </div>
       ))}
 
@@ -105,7 +134,17 @@ export function ShotDialogue({
           variant="outline"
           size="sm"
           onClick={() =>
-            onChange([...shown, { speakerId: speakers[0].id, language: "English", text: "" }])
+            onChange([
+              ...shown,
+              {
+                speakerIds: [speakers[0].id],
+                language: "English",
+                text: "",
+                offScreen: false,
+                crossesCut: false,
+                cutOff: false,
+              },
+            ])
           }
         >
           Add line

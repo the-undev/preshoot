@@ -16,11 +16,18 @@ export interface SpeakerComposition {
   description: string
 }
 
-/** One spoken line, kept verbatim because the target reproduces it word for word. */
+/**
+ * One spoken line, kept verbatim because the target reproduces it word for word. A line can be
+ * shared by several speakers, spoken off screen, carried across the cut that follows it, or cut
+ * off by the end of the clip.
+ */
 export interface DialogueComposition {
-  speakerId: number
+  speakerIds: number[]
   language: string
   text: string
+  offScreen: boolean
+  crossesCut: boolean
+  cutOff: boolean
 }
 
 /**

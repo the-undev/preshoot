@@ -1,5 +1,10 @@
 import { z } from "zod"
-import { shotStartMs, type ClipComposition, type ShotComposition } from "../../composition/clip"
+import {
+  shotStartMs,
+  type ClipComposition,
+  type DialogueComposition,
+  type ShotComposition,
+} from "../../composition/clip"
 import type { ClipProse } from "../../composition/prose"
 import { PromptServiceError } from "../errors"
 import type { ComposeScope, PromptTarget, TargetFields, Vocabularies } from "../target"
@@ -43,6 +48,10 @@ export const H3_VOCABULARIES: Vocabularies = {
     "the shot transitions to",
     "the shot changes to",
     "the shot switches to",
+    // The guide allows these three when they are asked for, without giving their exact wording.
+    "the shot cross-dissolves to",
+    "the shot fades to",
+    "the shot wipes to",
   ],
   styles: [
     "Live-action",
@@ -164,6 +173,33 @@ function shotNumber(composition: ClipComposition, shotId: number): number {
   return composition.shots.findIndex((shot) => shot.id === shotId) + 1
 }
 
+/** What the prompt calls the speakers of one line, which is compound when they share it. */
+function speakerLabel(composition: ClipComposition, line: DialogueComposition): string {
+  const labels = line.speakerIds
+    .map((id) => composition.speakers.find((speaker) => speaker.id === id)?.label)
+    .filter(Boolean)
+  return labels.length > 0 ? `(${labels.join(",")})` : "(S1)"
+}
+
+/** What else the model has to do with a line beyond reproducing it. */
+function lineRules(line: DialogueComposition): string[] {
+  const rules: string[] = []
+  if (line.offScreen) {
+    rules.push(
+      'spoken off screen: use the exact phrase "says in an off-screen voiceover", and say straight after the tag that the character\'s lips remain closed'
+    )
+  }
+  if (line.crossesCut) {
+    rules.push(
+      "carried across the cut that follows: write <scenetrans> at the connecting point in both shots and say the audio continues across the cut"
+    )
+  }
+  if (line.cutOff) {
+    rules.push("cut off by the end of the clip: write <cutoff> where it stops")
+  }
+  return rules
+}
+
 /** The lines of `shot` that have words in them. A line being typed has none yet. */
 function spokenLines(shot: ShotComposition): ShotComposition["dialogue"] {
   return shot.dialogue.filter((line) => line.text.trim().length > 0)
@@ -195,9 +231,11 @@ function shotBlock(composition: ClipComposition, shot: ShotComposition, index: n
     lines.push(`  Sound: ${sentence(shot.soundNote)}`)
   }
   for (const line of spokenLines(shot)) {
-    const speaker = composition.speakers.find((entry) => entry.id === line.speakerId)
-    const label = speaker ? `(${speaker.label})` : "(S1)"
-    lines.push(`  Says ${label}, reproduce exactly: ${dialogueTag(line.language, line.text)}`)
+    const rules = lineRules(line)
+    lines.push(
+      `  Says ${speakerLabel(composition, line)}, reproduce exactly: ${dialogueTag(line.language, line.text)}` +
+        (rules.length > 0 ? `\n    This line is ${rules.join("; ")}.` : "")
+    )
   }
   return lines.join("\n")
 }
@@ -366,9 +404,10 @@ function describeShot(composition: ClipComposition, shotId: number): string {
     sentences.push(sentence(`Camera: ${cameraPhrase(shot)}`))
   }
   for (const line of spokenLines(shot)) {
-    const speaker = composition.speakers.find((entry) => entry.id === line.speakerId)
-    const who = speaker ? `${speaker.description} (${speaker.label})` : "The speaker (S1)"
-    sentences.push(`${who} says: ${dialogueTag(line.language, line.text)}`)
+    const first = composition.speakers.find((entry) => entry.id === line.speakerIds[0])
+    const who = `${first?.description ?? "The speaker"} ${speakerLabel(composition, line)}`
+    const says = line.offScreen ? "says in an off-screen voiceover" : "says"
+    sentences.push(`${who} ${says}: ${dialogueTag(line.language, line.text)}`)
   }
   return sentences.filter(Boolean).join(" ")
 }
@@ -405,7 +444,7 @@ integrated_multimodal_description is the main body. Everything in it must be vis
 
 Write camera motion as a natural English action inside the shot, using these motion types: zoom in, zoom out, push in, pull out, pan left, pan right, truck left, truck right, tilt up, tilt down, pedestal up, pedestal down, arc shot, tracking shot, static shot, shake slightly, shake strongly, POV, roll clockwise, roll counterclockwise. Add "with small amplitude" or "with large amplitude" and "at slow speed" or "at fast speed" only when they matter. Example: "The camera pushes in with small amplitude at slow speed toward the folded letter in her hands."
 
-Speakers get stable IDs such as (S1) and (S2), introduced with enough detail to fix their identity: character type, age, gender, on or off screen, pitch, timbre, pace or accent. Spoken words go inside <d> with a language tag, kept verbatim: The young woman with a quiet, breathy voice (S1) says: <d>[English] I get off at the next station.</d>. Voiceover uses the exact phrase "says in an off-screen voiceover" and is followed by a statement that the on-screen character's lips remain closed. Text visible on screen goes in double quotation marks, verbatim. Diegetic music, radio, television and phone audio belong here, not in the other two fields.
+Several speakers sharing one line take a compound ID such as (S1,S2). Speakers get stable IDs such as (S1) and (S2), introduced with enough detail to fix their identity: character type, age, gender, on or off screen, pitch, timbre, pace or accent. Spoken words go inside <d> with a language tag, kept verbatim: The young woman with a quiet, breathy voice (S1) says: <d>[English] I get off at the next station.</d>. Voiceover uses the exact phrase "says in an off-screen voiceover" and is followed by a statement that the on-screen character's lips remain closed. Text visible on screen goes in double quotation marks, verbatim. Diegetic music, radio, television and phone audio belong here, not in the other two fields.
 
 overall_soundscape is one paragraph of one to four sentences summarising ambient sound, physical action sounds and non-verbal human sounds across the whole clip: wind, rain, traffic, footsteps, fabric, impacts, breathing, laughter. Do not repeat dialogue, singing or diegetic music. Use "N/A" only when the brief asks for complete silence.
 
@@ -430,7 +469,7 @@ Do not write shot markers such as "[Shot 2]", do not write timestamps, and do no
 
 Write the camera motion you were given into the action sentence as natural English, keeping its amplitude and speed as they were given. Example: "The camera pushes in with small amplitude at slow speed toward the folded letter in her hands."
 
-Reproduce every dialogue line exactly as it was given, inside its <d> tags with its language tag, and introduce the speaker by the identity you were given for them: The elderly keeper with a low, weathered voice (S1) says: <d>[English] Almost there.</d>. Text visible on screen goes in double quotation marks, verbatim. Diegetic music, radio, television and phone audio belong in the prose, not in the other two fields.
+Reproduce every dialogue line exactly as it was given, inside its <d> tags with its language tag, and introduce the speaker by the identity you were given for them: The elderly keeper with a low, weathered voice (S1) says: <d>[English] Almost there.</d>. Several speakers sharing a line take a compound ID such as (S1,S2). A line spoken off screen uses the exact phrase "says in an off-screen voiceover" and is followed by a statement that the character's lips remain closed. A line carried across a cut takes <scenetrans> at the connecting point in both shots, with a statement that the audio continues. A line the clip ends over takes <cutoff> where it stops. Text visible on screen goes in double quotation marks, verbatim. Diegetic music, radio, television and phone audio belong in the prose, not in the other two fields.
 
 A person, place or object that appears in more than one shot looks and sounds the same throughout, so carry the description you gave it into every later shot that shows it. Add scene, character and action detail that stays consistent with what you were given.
 

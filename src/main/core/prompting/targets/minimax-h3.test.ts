@@ -30,7 +30,14 @@ function shot(
   }
 }
 
-const line = { speakerId: 7, language: "English", text: "Almost there." }
+const line = {
+  speakerIds: [7],
+  language: "English",
+  text: "Almost there.",
+  offScreen: false,
+  crossesCut: false,
+  cutOff: false,
+}
 
 const composition: ClipComposition = {
   id: 1,
@@ -164,13 +171,56 @@ describe("the prose instruction", () => {
   })
 })
 
+describe("what a line can say", () => {
+  function withLine(over: Partial<typeof line>): ClipComposition {
+    return {
+      ...composition,
+      speakers: [
+        ...composition.speakers,
+        { id: 8, label: "S2", description: "The radio operator, clipped and flat" },
+      ],
+      shots: [{ ...composition.shots[0], dialogue: [{ ...line, ...over }] }, composition.shots[1]],
+    }
+  }
+
+  it("gives a line two speakers share a compound id", () => {
+    const instruction = minimaxH3.prose.instruction(withLine({ speakerIds: [7, 8] }), {
+      kind: "all",
+    })
+
+    expect(instruction).toContain("Says (S1,S2), reproduce exactly:")
+  })
+
+  it("asks for the voiceover phrasing when a line is off screen", () => {
+    const instruction = minimaxH3.prose.instruction(withLine({ offScreen: true }), { kind: "all" })
+
+    expect(instruction).toContain("says in an off-screen voiceover")
+    expect(instruction).toContain("lips remain closed")
+  })
+
+  it("asks for scenetrans when a line carries across the cut", () => {
+    const instruction = minimaxH3.prose.instruction(withLine({ crossesCut: true }), { kind: "all" })
+
+    expect(instruction).toContain("<scenetrans>")
+  })
+
+  it("asks for cutoff when the clip ends over a line", () => {
+    const instruction = minimaxH3.prose.instruction(withLine({ cutOff: true }), { kind: "all" })
+
+    expect(instruction).toContain("<cutoff>")
+  })
+
+  it("offers the three transitions the guide allows when they are asked for", () => {
+    expect(minimaxH3.vocabularies.transitions).toContain("the shot cross-dissolves to")
+    expect(minimaxH3.vocabularies.transitions).toContain("the shot fades to")
+    expect(minimaxH3.vocabularies.transitions).toContain("the shot wipes to")
+  })
+})
+
 describe("a line of dialogue with nothing typed in it yet", () => {
   const typing: ClipComposition = {
     ...composition,
-    shots: [
-      { ...composition.shots[0], dialogue: [{ speakerId: 7, language: "English", text: "" }] },
-      composition.shots[1],
-    ],
+    shots: [{ ...composition.shots[0], dialogue: [{ ...line, text: "" }] }, composition.shots[1]],
   }
 
   it("is left out of the instruction", () => {

@@ -161,14 +161,30 @@ describe("clip store", () => {
     const shotId = insertShot(handle.db, clipId)
     const speakerId = insertSpeaker(handle.db, clipId, "The keeper, low and weathered")
 
-    setShotDialogue(handle.db, shotId, [{ speakerId, language: "English", text: "Almost there." }])
+    setShotDialogue(handle.db, shotId, [
+      {
+        speakerIds: [speakerId],
+        language: "English",
+        text: "Almost there.",
+        offScreen: false,
+        crossesCut: false,
+        cutOff: false,
+      },
+    ])
 
     const composition = readComposition(handle.db, clipId)
     expect(composition.speakers).toEqual([
       { id: speakerId, label: "S1", description: "The keeper, low and weathered" },
     ])
     expect(composition.shots[0].dialogue).toEqual([
-      { speakerId, language: "English", text: "Almost there." },
+      {
+        speakerIds: [speakerId],
+        language: "English",
+        text: "Almost there.",
+        offScreen: false,
+        crossesCut: false,
+        cutOff: false,
+      },
     ])
   })
 
@@ -177,8 +193,22 @@ describe("clip store", () => {
     const first = insertSpeaker(handle.db, clipId, "The keeper")
     const second = insertSpeaker(handle.db, clipId, "The radio operator")
     setShotDialogue(handle.db, shotId, [
-      { speakerId: first, language: "English", text: "Almost there." },
-      { speakerId: second, language: "English", text: "Say again." },
+      {
+        speakerIds: [first],
+        language: "English",
+        text: "Almost there.",
+        offScreen: false,
+        crossesCut: false,
+        cutOff: false,
+      },
+      {
+        speakerIds: [second],
+        language: "English",
+        text: "Say again.",
+        offScreen: false,
+        crossesCut: false,
+        cutOff: false,
+      },
     ])
 
     deleteSpeaker(handle.db, first)
@@ -188,7 +218,14 @@ describe("clip store", () => {
       { id: second, label: "S1", description: "The radio operator" },
     ])
     expect(composition.shots[0].dialogue).toEqual([
-      { speakerId: second, language: "English", text: "Say again." },
+      {
+        speakerIds: [second],
+        language: "English",
+        text: "Say again.",
+        offScreen: false,
+        crossesCut: false,
+        cutOff: false,
+      },
     ])
   })
 
@@ -199,7 +236,16 @@ describe("clip store", () => {
   it("takes the shots and their dialogue when the clip goes", () => {
     const shotId = insertShot(handle.db, clipId)
     const speakerId = insertSpeaker(handle.db, clipId, "The keeper")
-    setShotDialogue(handle.db, shotId, [{ speakerId, language: "English", text: "Almost there." }])
+    setShotDialogue(handle.db, shotId, [
+      {
+        speakerIds: [speakerId],
+        language: "English",
+        text: "Almost there.",
+        offScreen: false,
+        crossesCut: false,
+        cutOff: false,
+      },
+    ])
 
     deleteClip(handle.db, clipId)
 

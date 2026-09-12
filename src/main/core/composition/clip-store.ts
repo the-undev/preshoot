@@ -33,9 +33,12 @@ export interface ShotInput {
 
 /** One line as the editor sends it back. */
 export interface DialogueInput {
-  speakerId: number
+  speakerIds: number[]
   language: string
   text: string
+  offScreen: boolean
+  crossesCut: boolean
+  cutOff: boolean
 }
 
 type ClipRow = typeof schema.clips.$inferSelect
@@ -160,9 +163,12 @@ export function readComposition(db: ProjectDatabase, clipId: number): ClipCompos
   const dialogueRows = db
     .select({
       shotId: schema.dialogueLines.shotId,
-      speakerId: schema.dialogueLines.speakerId,
+      speakerIds: schema.dialogueLines.speakerIds,
       language: schema.dialogueLines.language,
       text: schema.dialogueLines.text,
+      offScreen: schema.dialogueLines.offScreen,
+      crossesCut: schema.dialogueLines.crossesCut,
+      cutOff: schema.dialogueLines.cutOff,
     })
     .from(schema.dialogueLines)
     .innerJoin(schema.shots, eq(schema.shots.id, schema.dialogueLines.shotId))
@@ -184,7 +190,14 @@ export function readComposition(db: ProjectDatabase, clipId: number): ClipCompos
     action: shot.action,
     dialogue: dialogueRows
       .filter((line) => line.shotId === shot.id)
-      .map(({ speakerId, language, text }) => ({ speakerId, language, text })),
+      .map((line) => ({
+        speakerIds: line.speakerIds,
+        language: line.language,
+        text: line.text,
+        offScreen: line.offScreen,
+        crossesCut: line.crossesCut,
+        cutOff: line.cutOff,
+      })),
     soundNote: shot.soundNote,
   }))
 
@@ -326,7 +339,10 @@ export function updateSpeaker(db: ProjectDatabase, speakerId: number, descriptio
   }
 }
 
-/** Removes a voice and everything it said, then renumbers the rest. */
+/**
+ * Removes a voice, takes it out of everything it shared a line with, and drops the lines it was
+ * the only speaker of. Nothing points at speakers any more, so no key does this for us.
+ */
 export function deleteSpeaker(db: ProjectDatabase, speakerId: number): void {
   const speaker = db.select().from(schema.speakers).where(eq(schema.speakers.id, speakerId)).get()
   if (!speaker) {
@@ -334,6 +350,18 @@ export function deleteSpeaker(db: ProjectDatabase, speakerId: number): void {
   }
 
   db.transaction((tx) => {
+    for (const line of tx.select().from(schema.dialogueLines).all()) {
+      if (!line.speakerIds.includes(speakerId)) continue
+      const left = line.speakerIds.filter((id) => id !== speakerId)
+      if (left.length === 0) {
+        tx.delete(schema.dialogueLines).where(eq(schema.dialogueLines.id, line.id)).run()
+      } else {
+        tx.update(schema.dialogueLines)
+          .set({ speakerIds: left })
+          .where(eq(schema.dialogueLines.id, line.id))
+          .run()
+      }
+    }
     tx.delete(schema.speakers).where(eq(schema.speakers.id, speakerId)).run()
     speakerIdsInOrder(tx, speaker.clipId).forEach((id, position) => {
       tx.update(schema.speakers).set({ position }).where(eq(schema.speakers.id, id)).run()
