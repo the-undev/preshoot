@@ -200,7 +200,7 @@ describe("assets router", () => {
       description: "an elderly man",
     })
     const clip = await caller.clips.create({ name: "Lighthouse" })
-    const composition = await caller.clips.addShot({ clipId: clip.id })
+    const composition = await caller.clips.composition({ clipId: clip.id })
     await caller.clips.updateShot({
       shotId: composition.shots[0].id,
       durationMs: 4000,

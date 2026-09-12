@@ -1,7 +1,15 @@
 import { useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
-import { Alert, AlertDescription, Button, ConfirmDialog } from "@renderer/design-system"
+import {
+  Alert,
+  AlertDescription,
+  ConfirmDialog,
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@renderer/design-system"
 import { useAssetImages } from "@renderer/features/assets/use-asset-images"
 import { useAssets } from "@renderer/features/assets/use-assets"
 import { ClipEditor } from "@renderer/features/clips/clip-editor"
@@ -136,66 +144,78 @@ function OpenClip({ clipId, targetId }: OpenClipProps): React.JSX.Element {
         )}
       </section>
 
-      <section className="flex min-h-0 flex-col gap-4 overflow-y-auto pr-2">
-        {latest && (
-          <PromptResult
-            generation={latest}
+      <Tabs defaultValue="result" className="flex min-h-0 flex-col gap-3">
+        <TabsList>
+          <TabsTrigger value="result">Result</TabsTrigger>
+          <TabsTrigger value="history">History ({writing.generations.length})</TabsTrigger>
+          <TabsTrigger value="compare">Compare</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="result" className="flex min-h-0 flex-col gap-4 overflow-y-auto pr-2">
+          {latest ? (
+            <PromptResult
+              generation={latest}
+              isEditing={actions.isEditing}
+              isExporting={actions.isExporting}
+              onEdit={actions.edit}
+              onExport={actions.exportToProject}
+              onSave={actions.save}
+              onOpenExports={actions.openExports}
+            />
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              Nothing written for this clip yet. Fill in a shot and press Generate.
+            </p>
+          )}
+
+          {actions.exportedTo && (
+            <p className="text-xs text-muted-foreground">Written to {actions.exportedTo}</p>
+          )}
+
+          {actions.errorMessage && (
+            <Alert variant="destructive">
+              <AlertDescription>{actions.errorMessage}</AlertDescription>
+            </Alert>
+          )}
+        </TabsContent>
+
+        <TabsContent value="history" className="min-h-0 overflow-y-auto pr-2">
+          <GenerationHistory
+            generations={earlier}
             isEditing={actions.isEditing}
             isExporting={actions.isExporting}
             onEdit={actions.edit}
             onExport={actions.exportToProject}
             onSave={actions.save}
+            onOpenExports={actions.openExports}
           />
-        )}
+        </TabsContent>
 
-        {actions.exportedTo && (
-          <p className="text-xs text-muted-foreground">Written to {actions.exportedTo}</p>
-        )}
+        <TabsContent value="compare" className="flex min-h-0 flex-col gap-4 overflow-y-auto pr-2">
+          <ComparePanel
+            composers={writing.composers}
+            variants={prompts.variants}
+            pairs={pairs}
+            runs={comparison.runs}
+            runId={comparison.runId}
+            results={comparison.results}
+            failure={comparison.failure}
+            isPending={comparison.isPending}
+            onAddPair={(pair) => setPairs([...pairs, pair])}
+            onRemovePair={(index) => setPairs(pairs.filter((_, at) => at !== index))}
+            onRun={() => comparison.run(pairs)}
+            onChooseRun={comparison.chooseRun}
+            onVerdict={comparison.setVerdict}
+            onNote={comparison.setNote}
+          />
 
-        <div>
-          <Button variant="outline" size="sm" onClick={actions.openExports}>
-            Open exports folder
-          </Button>
-        </div>
-
-        {actions.errorMessage && (
-          <Alert variant="destructive">
-            <AlertDescription>{actions.errorMessage}</AlertDescription>
-          </Alert>
-        )}
-        <h2 className="font-heading text-sm font-semibold text-muted-foreground">History</h2>
-        <GenerationHistory
-          generations={earlier}
-          isEditing={actions.isEditing}
-          isExporting={actions.isExporting}
-          onEdit={actions.edit}
-          onExport={actions.exportToProject}
-          onSave={actions.save}
-        />
-
-        <ComparePanel
-          composers={writing.composers}
-          variants={prompts.variants}
-          pairs={pairs}
-          runs={comparison.runs}
-          runId={comparison.runId}
-          results={comparison.results}
-          failure={comparison.failure}
-          isPending={comparison.isPending}
-          onAddPair={(pair) => setPairs([...pairs, pair])}
-          onRemovePair={(index) => setPairs(pairs.filter((_, at) => at !== index))}
-          onRun={() => comparison.run(pairs)}
-          onChooseRun={comparison.chooseRun}
-          onVerdict={comparison.setVerdict}
-          onNote={comparison.setNote}
-        />
-
-        {comparison.errorMessage && (
-          <Alert variant="destructive">
-            <AlertDescription>{comparison.errorMessage}</AlertDescription>
-          </Alert>
-        )}
-      </section>
+          {comparison.errorMessage && (
+            <Alert variant="destructive">
+              <AlertDescription>{comparison.errorMessage}</AlertDescription>
+            </Alert>
+          )}
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }

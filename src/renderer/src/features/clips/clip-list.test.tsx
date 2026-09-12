@@ -12,6 +12,8 @@ const clips: ClipSummary[] = [
     note: "",
     musicNote: "",
     form: "t2v",
+    shots: 2,
+    durationMs: 7500,
     prompts: 3,
     createdAt: "2026-09-12T08:00:00.000Z",
   },
@@ -22,7 +24,9 @@ const clips: ClipSummary[] = [
     style: "Live-action, cinematic",
     note: "",
     musicNote: "",
-    form: "t2v",
+    form: "i2v",
+    shots: 1,
+    durationMs: 4000,
     prompts: 0,
     createdAt: "2026-09-11T08:00:00.000Z",
   },
@@ -43,6 +47,21 @@ describe("ClipList", () => {
     const names = screen.getAllByRole("listitem").map((item) => item.textContent)
     expect(names[0]).toContain("Lamp room")
     expect(names[1]).toContain("Lighthouse")
+  })
+
+  it("says how each clip is written, how many shots it has and how long it runs", () => {
+    render(
+      <ClipList
+        clips={clips}
+        selectedId={1}
+        onSelect={vi.fn()}
+        onCreate={vi.fn()}
+        onRemove={vi.fn()}
+      />
+    )
+
+    expect(screen.getByText("Text · 2 shots · 7.5s")).toBeInTheDocument()
+    expect(screen.getByText("Image · 1 shot · 4.0s")).toBeInTheDocument()
   })
 
   it("reports the clip that was chosen", () => {

@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq } from "drizzle-orm"
+import { and, asc, count, desc, eq, sum } from "drizzle-orm"
 import { schema, type ProjectDatabase, type ProjectDb } from "../db"
 import type { ClipComposition, ClipForm, FrameComposition, ShotComposition } from "./clip"
 import { CompositionError } from "./errors"
@@ -15,6 +15,8 @@ export interface ClipSummary {
   note: string
   musicNote: string
   form: ClipForm
+  shots: number
+  durationMs: number
   prompts: number
   createdAt: string
 }
@@ -46,13 +48,30 @@ type ClipRow = typeof schema.clips.$inferSelect
 
 /** Every clip in the project, newest first. */
 export function listClips(db: ProjectDatabase): ClipSummary[] {
-  const counts = promptCounts(db)
+  const prompts = promptCounts(db)
+  const shots = shotTotals(db)
   return db
     .select()
     .from(schema.clips)
     .orderBy(desc(schema.clips.createdAt), desc(schema.clips.id))
     .all()
-    .map((row) => toSummary(row, counts.get(row.id) ?? 0))
+    .map((row) => toSummary(row, prompts.get(row.id) ?? 0, shots.get(row.id)))
+}
+
+/** How many shots each clip has and how long they run to. */
+function shotTotals(db: ProjectDatabase): Map<number, { shots: number; durationMs: number }> {
+  const rows = db
+    .select({
+      clipId: schema.shots.clipId,
+      shots: count(),
+      durationMs: sum(schema.shots.durationMs),
+    })
+    .from(schema.shots)
+    .groupBy(schema.shots.clipId)
+    .all()
+  return new Map(
+    rows.map((row) => [row.clipId, { shots: row.shots, durationMs: Number(row.durationMs ?? 0) }])
+  )
 }
 
 /** How many prompts have been generated for each clip. */
@@ -73,7 +92,7 @@ export function readClip(db: ProjectDatabase, clipId: number): ClipSummary {
   if (!row) {
     throw CompositionError.notFound(`Clip ${clipId}`)
   }
-  return toSummary(row, promptCounts(db).get(row.id) ?? 0)
+  return toSummary(row, promptCounts(db).get(row.id) ?? 0, shotTotals(db).get(row.id))
 }
 
 /** Starts a clip with no shots. */
@@ -86,7 +105,7 @@ export function insertClip(
     .values({ ...input, note: "", musicNote: "", createdAt: new Date() })
     .returning()
     .all()
-  return toSummary(row, 0)
+  return toSummary(row, 0, undefined)
 }
 
 /** Rewrites the clip's own fields, leaving its shots and speakers alone. */
@@ -116,7 +135,7 @@ export function updateClip(
   if (!row) {
     throw CompositionError.notFound(`Clip ${input.id}`)
   }
-  return toSummary(row, promptCounts(db).get(row.id) ?? 0)
+  return toSummary(row, promptCounts(db).get(row.id) ?? 0, shotTotals(db).get(row.id))
 }
 
 /**
@@ -448,8 +467,19 @@ export function speakerLabel(position: number): string {
   return `S${position + 1}`
 }
 
-function toSummary(row: ClipRow, prompts: number): ClipSummary {
-  return { ...row, form: row.form as ClipForm, prompts, createdAt: row.createdAt.toISOString() }
+function toSummary(
+  row: ClipRow,
+  prompts: number,
+  shots: { shots: number; durationMs: number } | undefined
+): ClipSummary {
+  return {
+    ...row,
+    form: row.form as ClipForm,
+    shots: shots?.shots ?? 0,
+    durationMs: shots?.durationMs ?? 0,
+    prompts,
+    createdAt: row.createdAt.toISOString(),
+  }
 }
 
 function clipOfShot(db: ProjectDb, shotId: number): number {

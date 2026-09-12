@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react"
+import { fireEvent, render, screen } from "@testing-library/react"
 import { describe, expect, it, vi } from "vitest"
 import type { GenerationRecord } from "@renderer/lib/trpc"
 import { GenerationHistory } from "./generation-history"
@@ -42,21 +42,29 @@ function renderHistory(generations: GenerationRecord[]): void {
       onEdit={vi.fn()}
       onExport={vi.fn()}
       onSave={vi.fn()}
+      onOpenExports={vi.fn()}
     />
   )
 }
 
 describe("GenerationHistory", () => {
-  it("shows the brief and the prompt of every generation", () => {
+  it("shows a line for every generation, folded away", () => {
     renderHistory([
       generation({ id: 2, brief: "Second brief.", rendered: "second" }),
       generation({ id: 1, brief: "First brief.", rendered: "first" }),
     ])
 
     expect(screen.getByText("Second brief.")).toBeInTheDocument()
-    expect(screen.getByText("second")).toBeInTheDocument()
     expect(screen.getByText("First brief.")).toBeInTheDocument()
-    expect(screen.getByText("first")).toBeInTheDocument()
+    expect(screen.queryByText("second")).not.toBeInTheDocument()
+  })
+
+  it("opens an entry to the whole prompt", () => {
+    renderHistory([generation({ id: 2, brief: "Second brief.", rendered: "second" })])
+
+    fireEvent.click(screen.getByRole("button", { name: /Second brief./ }))
+
+    expect(screen.getByText("second")).toBeInTheDocument()
   })
 
   it("keeps the order it is given", () => {
@@ -79,13 +87,12 @@ describe("GenerationHistory", () => {
         editInstruction: "She is happier.",
         rendered: "edited",
       }),
-      generation({ id: 1, rendered: "original" }),
+      generation({ id: 1, brief: "A brief.", rendered: "original" }),
     ])
 
     const [top] = screen.getAllByRole("listitem")
-    expect(top.textContent).toContain("original")
-    expect(top.textContent).toContain("edited")
-    expect(screen.getByText("Edited: She is happier.")).toBeInTheDocument()
+    expect(top.textContent).toContain("A brief.")
+    expect(top.textContent).toContain("She is happier.")
   })
 
   it("nests a chain of edits as deep as it goes", () => {
@@ -103,7 +110,7 @@ describe("GenerationHistory", () => {
       generation({ id: 5, parentId: 99, composer: "edit", editInstruction: "Faster." }),
     ])
 
-    expect(screen.getByText("Edited: Faster.")).toBeInTheDocument()
+    expect(screen.getByText("Faster.")).toBeInTheDocument()
   })
 
   it("says where earlier prompts will go when there are none", () => {

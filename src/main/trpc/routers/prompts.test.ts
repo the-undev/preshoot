@@ -96,7 +96,6 @@ describe("prompts router", () => {
   /** A clip of two shots, ready to write. */
   async function clipOfTwo(): Promise<{ clipId: number; shotIds: number[] }> {
     const clip = await caller.clips.create({ name: "Lighthouse" })
-    await caller.clips.addShot({ clipId: clip.id })
     const composition = await caller.clips.addShot({ clipId: clip.id })
     return { clipId: clip.id, shotIds: composition.shots.map((shot) => shot.id) }
   }
@@ -151,9 +150,11 @@ describe("prompts router", () => {
     expect(await caller.prompts.list({ clipId: second.clipId })).toEqual([])
   })
 
-  it("refuses a clip with no shots", async () => {
+  it("refuses a clip whose only shot has been taken away", async () => {
     await openProject()
     const clip = await caller.clips.create({ name: "Empty" })
+    const composition = await caller.clips.composition({ clipId: clip.id })
+    await caller.clips.removeShot({ shotId: composition.shots[0].id })
 
     await expect(
       caller.prompts.generate({ clipId: clip.id, composerId: "prose", variantId: null })

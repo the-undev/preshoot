@@ -91,13 +91,17 @@ export const clipsRouter = router({
   /** Starts a clip with no shots. */
   create: publicProcedure
     .input(z.object({ name: z.string().trim().min(1) }))
-    .mutation(({ ctx, input }) =>
-      insertClip(requireProject(ctx), {
+    .mutation(({ ctx, input }) => {
+      const db = requireProject(ctx)
+      // Every clip needs a shot, so it starts with one rather than with a button to add one.
+      const clip = insertClip(db, {
         name: input.name,
         target: DEFAULT_TARGET_ID,
         style: DEFAULT_STYLE,
       })
-    ),
+      insertShot(db, clip.id)
+      return readClip(db, clip.id)
+    }),
 
   /** Rewrites the clip's own fields. */
   update: publicProcedure

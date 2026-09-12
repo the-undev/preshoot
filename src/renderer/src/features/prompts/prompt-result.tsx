@@ -21,6 +21,7 @@ export interface PromptActionProps {
   onEdit: (generationId: number, instruction: string) => void
   onExport: (generationId: number) => void
   onSave: (generationId: number) => void
+  onOpenExports: () => void
 }
 
 interface PromptResultProps extends PromptActionProps {
@@ -35,6 +36,7 @@ export function PromptResult({
   onEdit,
   onExport,
   onSave,
+  onOpenExports,
 }: PromptResultProps): React.JSX.Element {
   const [copied, setCopied] = useState(false)
   const [instruction, setInstruction] = useState("")
@@ -98,6 +100,9 @@ export function PromptResult({
             onClick={() => onSave(generation.id)}
           >
             Save
+          </Button>
+          <Button variant="ghost" size="sm" onClick={onOpenExports}>
+            Open folder
           </Button>
         </div>
       </header>

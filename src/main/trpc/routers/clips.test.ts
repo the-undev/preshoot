@@ -48,7 +48,7 @@ describe("clips router", () => {
 
   async function clipWithShot(): Promise<{ clipId: number; shotId: number }> {
     const clip = await caller.clips.create({ name: "Lighthouse" })
-    const composition = await caller.clips.addShot({ clipId: clip.id })
+    const composition = await caller.clips.composition({ clipId: clip.id })
     return { clipId: clip.id, shotId: composition.shots[0].id }
   }
 
@@ -69,14 +69,22 @@ describe("clips router", () => {
     expect(vocabularies.transitions).toContain("the camera cuts to")
   })
 
+  it("starts a clip with the shot it will need", async () => {
+    const clip = await caller.clips.create({ name: "Lighthouse" })
+
+    const composition = await caller.clips.composition({ clipId: clip.id })
+
+    expect(composition.shots).toHaveLength(1)
+    expect(composition.shots[0].durationMs).toBe(4000)
+  })
+
   it("adds shots and gives back the whole clip each time", async () => {
     const clip = await caller.clips.create({ name: "Lighthouse" })
 
     await caller.clips.addShot({ clipId: clip.id })
     const composition = await caller.clips.addShot({ clipId: clip.id })
 
-    expect(composition.shots).toHaveLength(2)
-    expect(composition.shots[0].durationMs).toBe(4000)
+    expect(composition.shots).toHaveLength(3)
   })
 
   it("rewrites a shot with the things it shows and what is said", async () => {
@@ -213,7 +221,6 @@ describe("clips router", () => {
 
   it("moves a shot and removes one", async () => {
     const clip = await caller.clips.create({ name: "Lighthouse" })
-    await caller.clips.addShot({ clipId: clip.id })
     await caller.clips.addShot({ clipId: clip.id })
     const three = await caller.clips.addShot({ clipId: clip.id })
     const ids = three.shots.map((shot) => shot.id)

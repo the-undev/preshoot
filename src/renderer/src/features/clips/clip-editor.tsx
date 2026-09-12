@@ -19,6 +19,7 @@ import {
   type PromptVariant,
   type Vocabularies,
 } from "@renderer/lib/trpc"
+import { clipReadiness } from "./readiness"
 import { ClipSpeakers } from "./clip-speakers"
 import { ShotList } from "./shot-list"
 import type { ClipFields, ShotFields } from "./use-clip"
@@ -107,13 +108,22 @@ export function ClipEditor({
 
   const seconds = composition.shots.reduce((total, shot) => total + shot.durationMs, 0) / 1000
   const tooLong = seconds > MAX_CLIP_SECONDS
+  const missing = clipReadiness(composition, hasModel)
+
+  // Ctrl and Enter writes the clip from anywhere in the editor, as a desktop app would.
+  function onKeyDown(event: React.KeyboardEvent): void {
+    if (event.key === "Enter" && (event.ctrlKey || event.metaKey) && !isGenerating) {
+      event.preventDefault()
+      onGenerate()
+    }
+  }
 
   function commit(over: Partial<ClipFields>): void {
     onClipChange({ name, style, note, musicNote, form: composition.form, ...over })
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6" onKeyDown={onKeyDown}>
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="flex flex-col gap-1">
           <Label htmlFor="clip-name">Clip</Label>
@@ -236,45 +246,53 @@ export function ClipEditor({
         </div>
       </section>
 
-      <section className="flex items-end gap-2">
-        <div className="flex flex-col gap-1">
-          <Label htmlFor="clip-composer">Written by</Label>
-          <Select value={composerId} onValueChange={onChooseComposer}>
-            <SelectTrigger id="clip-composer" className="w-64">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {composers.map((composer) => (
-                <SelectItem key={composer.id} value={composer.id}>
-                  {composer.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="flex flex-col gap-1">
-          <Label htmlFor="clip-variant">Prompt</Label>
-          <Select value={variantId ?? variants[0]?.id ?? ""} onValueChange={onChooseVariant}>
-            <SelectTrigger id="clip-variant" className="w-64">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {variants.map((variant) => (
-                <SelectItem key={variant.id} value={variant.id}>
-                  {variant.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <Button onClick={onGenerate} disabled={isGenerating || composition.shots.length === 0}>
-          {isGenerating ? "Generating…" : "Generate"}
-        </Button>
-        {!hasModel && (
-          <p className="pb-2 text-xs text-destructive">
-            No model chosen. Open settings, press Check, and pick one.
-          </p>
+      <section className="sticky bottom-0 -mx-1 flex flex-col gap-2 border-t bg-background px-1 pt-3 pb-1">
+        {missing.length > 0 && (
+          <ul className="flex flex-col gap-0.5">
+            {missing.map((reason) => (
+              <li key={reason} className="text-xs text-destructive">
+                {reason}
+              </li>
+            ))}
+          </ul>
         )}
+
+        <div className="flex items-end gap-2">
+          <div className="flex flex-col gap-1">
+            <Label htmlFor="clip-composer">Written by</Label>
+            <Select value={composerId} onValueChange={onChooseComposer}>
+              <SelectTrigger id="clip-composer" className="w-56">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {composers.map((composer) => (
+                  <SelectItem key={composer.id} value={composer.id}>
+                    {composer.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex flex-col gap-1">
+            <Label htmlFor="clip-variant">Prompt</Label>
+            <Select value={variantId ?? variants[0]?.id ?? ""} onValueChange={onChooseVariant}>
+              <SelectTrigger id="clip-variant" className="w-56">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {variants.map((variant) => (
+                  <SelectItem key={variant.id} value={variant.id}>
+                    {variant.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <Button onClick={onGenerate} disabled={isGenerating || composition.shots.length === 0}>
+            {isGenerating ? "Generating…" : "Generate"}
+          </Button>
+          <span className="pb-2 text-xs text-muted-foreground">Ctrl and Enter</span>
+        </div>
       </section>
     </div>
   )
@@ -318,7 +336,6 @@ function ClipFrame({ role, label, frame, library, onChoose }: ClipFrameProps): R
           </SelectContent>
         </Select>
       </div>
-      {!frame && <p className="text-xs text-destructive">This form needs a picture here.</p>}
     </div>
   )
 }

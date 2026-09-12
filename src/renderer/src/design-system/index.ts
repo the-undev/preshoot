@@ -37,5 +37,6 @@ export {
   SelectValue,
 } from "./ui/select"
 export { Separator } from "./ui/separator"
+export { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs"
 export { Textarea } from "./ui/textarea"
 export { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip"

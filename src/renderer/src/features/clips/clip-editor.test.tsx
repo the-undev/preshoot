@@ -160,11 +160,27 @@ describe("ClipEditor", () => {
     ).toBeInTheDocument()
   })
 
+  it("names a shot with nothing happening in it before Generate is pressed", () => {
+    renderEditor({
+      composition: { ...composition, shots: [{ ...composition.shots[0], action: "" }] },
+    })
+
+    expect(screen.getByText("Shot 1 has nothing happening in it.")).toBeInTheDocument()
+  })
+
+  it("writes the clip on ctrl and enter", () => {
+    const { onGenerate } = renderEditor()
+
+    fireEvent.keyDown(screen.getByLabelText("Clip"), { key: "Enter", ctrlKey: true })
+
+    expect(onGenerate).toHaveBeenCalled()
+  })
+
   it("asks for a picture when the form needs one", () => {
     renderEditor({ composition: { ...composition, form: "i2v" } })
 
     expect(screen.getByLabelText("Opens on")).toBeInTheDocument()
-    expect(screen.getByText("This form needs a picture here.")).toBeInTheDocument()
+    expect(screen.getByText("Choose the picture this clip opens on.")).toBeInTheDocument()
   })
 
   it("asks for nothing extra when the clip is written from text", () => {

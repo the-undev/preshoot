@@ -2,6 +2,14 @@ import { useState } from "react"
 import { Button, Input } from "@renderer/design-system"
 import type { ClipSummary } from "@renderer/lib/trpc"
 
+/** What each form is called where there is only room for a few words. */
+const FORM_NAMES: Record<string, string> = {
+  t2v: "Text",
+  i2v: "Image",
+  fl2v: "First and last",
+  l2v: "Last frame",
+}
+
 interface ClipListProps {
   clips: ClipSummary[]
   selectedId: number | null
@@ -56,7 +64,7 @@ export function ClipList({
               >
                 <span className="flex min-w-0 flex-col">
                   <span className="text-sm font-medium">{clip.name}</span>
-                  <span className="truncate text-xs text-muted-foreground">{clip.style}</span>
+                  <span className="truncate text-xs text-muted-foreground">{summary(clip)}</span>
                 </span>
               </Button>
               <Button
@@ -73,4 +81,14 @@ export function ClipList({
       )}
     </div>
   )
+}
+
+/** What a clip is, in one line: how it is written, how many shots, how long. */
+function summary(clip: ClipSummary): string {
+  const shots = `${clip.shots} ${clip.shots === 1 ? "shot" : "shots"}`
+  return [
+    FORM_NAMES[clip.form] ?? clip.form,
+    shots,
+    `${(clip.durationMs / 1000).toFixed(1)}s`,
+  ].join(" · ")
 }

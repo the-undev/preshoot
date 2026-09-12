@@ -40,6 +40,7 @@ function renderResult(over: Partial<React.ComponentProps<typeof PromptResult>> =
       onEdit={onEdit}
       onExport={onExport}
       onSave={onSave}
+      onOpenExports={vi.fn()}
       {...over}
     />
   )
