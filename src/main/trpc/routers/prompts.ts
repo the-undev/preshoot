@@ -1,10 +1,16 @@
 import { randomUUID } from "node:crypto"
 import { mkdirSync } from "node:fs"
-import { basename, dirname } from "node:path"
+import { basename, dirname, join } from "node:path"
 import { TRPCError } from "@trpc/server"
 import { z } from "zod"
 import { readClip, readComposition } from "../../core/composition/clip-store"
-import { promptFileName, writePromptFiles } from "../../core/export/prompt-export"
+import {
+  pictureExtension,
+  promptFileName,
+  writePromptFiles,
+  type ExportPicture,
+} from "../../core/export/prompt-export"
+import { projectImagesPath } from "../../core/composition/image-store"
 import type { ClipProse } from "../../core/composition/prose"
 import type { ProjectDatabase } from "../../core/db"
 import { COMPOSERS, composerById, DEFAULT_COMPOSER_ID } from "../../core/prompting/composers"
@@ -33,7 +39,7 @@ import {
 import { projectPromptExportsPath } from "../../core/projects/marker"
 import { asClientError } from "../client-errors"
 import type { Context } from "../context"
-import { requireProject } from "../project"
+import { requireOpenProject, requireProject } from "../project"
 import { publicProcedure, router } from "../trpc"
 
 const clipId = z.number().int()
@@ -148,6 +154,15 @@ function readForExport(
     generation,
     baseName: promptFileName({ clipName, createdAt: generation.createdAt }),
   }
+}
+
+/** The pictures a stored prompt names, taken from the composition it was written from. */
+function picturesOf(generation: GenerationRecord, directory: string): ExportPicture[] {
+  return (generation.composition?.frames ?? []).map((frame) => ({
+    role: frame.role,
+    sourcePath: join(projectImagesPath(directory), frame.fileName),
+    extension: pictureExtension(frame.fileName),
+  }))
 }
 
 /** What is kept beside an exported prompt, so a file can be traced back to what made it. */
@@ -415,6 +430,7 @@ export const promptsRouter = router({
         baseName,
         rendered: generation.rendered,
         meta: exportMeta(generation),
+        pictures: picturesOf(generation, project.directory),
       })
     }),
 
@@ -422,8 +438,8 @@ export const promptsRouter = router({
   exportToFile: publicProcedure
     .input(z.object({ generationId: z.number().int() }))
     .mutation(async ({ ctx, input }) => {
-      const db = requireProject(ctx)
-      const { generation, baseName } = readForExport(db, input.generationId)
+      const project = requireOpenProject(ctx)
+      const { generation, baseName } = readForExport(project.db, input.generationId)
       const chosen = await ctx.dialogs.saveFile({
         title: "Save prompt",
         defaultPath: `${baseName}.txt`,
@@ -436,6 +452,7 @@ export const promptsRouter = router({
         baseName: basename(chosen).replace(/\.txt$/i, ""),
         rendered: generation.rendered,
         meta: exportMeta(generation),
+        pictures: picturesOf(generation, project.directory),
       })
     }),
 

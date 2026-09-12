@@ -5,6 +5,15 @@ import type { GenerationRecord } from "@renderer/lib/trpc"
 /** How long the Copy button says it has copied. */
 const COPIED_MS = 2000
 
+/** The shortest body the guide asks of a generation task. */
+const SHORTEST_BODY = 350
+
+/** How many words the model wrote in the part that carries the scene. */
+function bodyWords(generation: GenerationRecord): number {
+  const body = generation.fields.integrated_multimodal_description ?? ""
+  return body.split(/\s+/).filter(Boolean).length
+}
+
 /** What can be done to any finished prompt, wherever it is shown. */
 export interface PromptActionProps {
   isEditing: boolean
@@ -54,6 +63,20 @@ export function PromptResult({
           </p>
           {generation.editInstruction && (
             <p className="text-xs text-muted-foreground">Edited: {generation.editInstruction}</p>
+          )}
+          {bodyWords(generation) > 0 && (
+            <p
+              className={
+                bodyWords(generation) < SHORTEST_BODY
+                  ? "text-xs text-destructive"
+                  : "text-xs text-muted-foreground"
+              }
+            >
+              {bodyWords(generation)} words
+              {bodyWords(generation) < SHORTEST_BODY
+                ? `, short of the ${SHORTEST_BODY} a generation wants`
+                : ""}
+            </p>
           )}
         </div>
         <div className="flex shrink-0 gap-2">

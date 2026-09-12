@@ -9,7 +9,7 @@ const generation: GenerationRecord = {
   composer: "prose",
   clipId: 1,
   brief: "A keeper lights the lamp.",
-  fields: {},
+  fields: { integrated_multimodal_description: "one two three" },
   composition: null,
   prose: null,
   rendered: "integrated_multimodal_description: [Shot 1] ...",
@@ -91,6 +91,23 @@ describe("PromptResult", () => {
 
     expect(screen.getByLabelText("Change to make to prompt 7")).toBeDisabled()
     expect(screen.getByRole("button", { name: "Editing…" })).toBeDisabled()
+  })
+
+  it("says how long the body is, and when it is short", () => {
+    renderResult()
+
+    expect(screen.getByText(/3 words, short of the 350 a generation wants/)).toBeInTheDocument()
+  })
+
+  it("says nothing about length when the body is long enough", () => {
+    renderResult({
+      generation: {
+        ...generation,
+        fields: { integrated_multimodal_description: "word ".repeat(400) },
+      },
+    })
+
+    expect(screen.getByText("400 words")).toBeInTheDocument()
   })
 
   it("says what change made an edited prompt", () => {

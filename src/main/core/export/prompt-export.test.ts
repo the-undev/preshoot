@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, rmSync } from "node:fs"
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
@@ -35,12 +35,35 @@ describe("writePromptFiles", () => {
       baseName: "lighthouse",
       rendered: "integrated_multimodal_description: [Shot 1] ...",
       meta: { model: "Qwen3.5-9B" },
+      pictures: [],
     })
 
     expect(readFileSync(written.textPath, "utf8")).toBe(
       "integrated_multimodal_description: [Shot 1] ...\n"
     )
-    expect(JSON.parse(readFileSync(written.metaPath, "utf8"))).toEqual({ model: "Qwen3.5-9B" })
+    expect(JSON.parse(readFileSync(written.metaPath, "utf8"))).toEqual({
+      model: "Qwen3.5-9B",
+      pictures: [],
+    })
+  })
+
+  it("copies the pictures the prompt names beside it, and lists them", () => {
+    const source = join(dir, "keeper.png")
+    writeFileSync(source, "not really a picture", "utf8")
+
+    const written = writePromptFiles({
+      directory: join(dir, "exports"),
+      baseName: "lighthouse",
+      rendered: "a prompt",
+      meta: {},
+      pictures: [{ role: "first", sourcePath: source, extension: ".png" }],
+    })
+
+    expect(written.picturePaths).toEqual([join(dir, "exports", "lighthouse-first.png")])
+    expect(existsSync(written.picturePaths[0])).toBe(true)
+    expect(JSON.parse(readFileSync(written.metaPath, "utf8")).pictures).toEqual([
+      "lighthouse-first.png",
+    ])
   })
 
   it("makes the directory when it is not there yet", () => {
@@ -49,6 +72,7 @@ describe("writePromptFiles", () => {
       baseName: "lighthouse",
       rendered: "a prompt",
       meta: {},
+      pictures: [],
     })
 
     expect(written.textPath).toBe(join(dir, "deep", "down", "lighthouse.txt"))
