@@ -10,11 +10,6 @@ says so.
 
 ## Bugs
 
-- A verdict and its note are written together, so marking a comparison
-  result good or bad also writes whatever the note box holds at that moment,
-  including an empty box.
-- A generation that runs past the two minute timeout is reported as a server
-  that could not be reached, which is not what happened.
 - Everything milestone 2 generated before clips existed has no clip, and the
   history is read per clip, so those prompts cannot be reached from the app.
 - An edit can rewrite dialogue. Asked to make a character happier as a bus
@@ -23,9 +18,6 @@ says so.
   prompt, but the two now disagree. The built-in edit prompt says spoken
   words stay word for word; tightening it is a copy and an edit in the
   Prompts tab rather than a code change.
-- A comparison run stops at the first way of writing that fails. What
-  already landed is kept under the run and shown as a short row of results,
-  with nothing saying the run was cut short.
 - The recent projects list drops an entry whose folder is missing when the
   list is read, so a project on an unmounted drive is forgotten rather than
   hidden.
@@ -36,8 +28,6 @@ says so.
 
 - Only one project is open at a time, for the app rather than per window. A
   second window would need a session per window.
-- Only the newest comparison run is shown, and only inside the clip it
-  belongs to. Older runs are in the database and out of reach.
 - Export writes one prompt at a time. There is no way to write out a whole
   clip or a whole project at once.
 - An edit is made from the prompt as it was, not from the clip as it is now,
@@ -48,8 +38,6 @@ says so.
 - The shot editor saves as it is changed, so there is no undo.
 - Nothing checks that the prose the model returns holds the camera motion it
   was given, only that it holds the dialogue.
-- Deleting a library thing, a shot or a speaker happens without asking. Only
-  deleting a clip asks first.
 - The save dialog offers no file type filter, and appends nothing when a
   name is typed without an extension.
 - Streaming tokens to the renderer as they arrive needs a subscription link
@@ -62,6 +50,8 @@ says so.
   pressing space again, which nothing on screen says.
 - The history and the compare panel share one scrolling pane, so reaching the
   comparison still means scrolling past every prompt the clip has.
+- A comparison run is listed by the time it ran, so telling two runs of the
+  same minute apart means reading their results.
 - Every entry in the history carries its own edit box, Export and Save, so a
   long history is a long column of controls. The actions may belong behind
   one control per entry.

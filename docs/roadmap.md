@@ -94,19 +94,22 @@ at Q2 or Q3 with the Lightning LoRA.
 5. Editing and export: a finished prompt is rewritten from a change asked
    for in words, edits chain under what they came from, and a prompt can be
    written into the project or saved where the user chooses.
+6. Closing the loop: comparison runs are kept and read back, a run that
+   fails part way says where it stopped, a verdict and a note are written
+   apart, and nothing is deleted without asking.
 
 ## Milestones
 
-6. Asset images: reference images and RefMod files attached to library
+7. Asset images: reference images and RefMod files attached to library
    things, with descriptions drafted from them by the local vision model.
    The reference image forms of the H3 prompt arrive with them.
-7. Storyboard editor: clips in order across a film, chained by last frame
+8. Storyboard editor: clips in order across a film, chained by last frame
    to first frame, with prompts versioned per clip.
-8. Runpod link: connect to a pod, pull outputs into the project, show each
+9. Runpod link: connect to a pod, pull outputs into the project, show each
    take next to its shot, mark good or bad with notes, export chosen takes.
-9. ComfyUI templates: API-format workflow JSON per target with named slots,
-   filled and submitted by the app.
-10. Local ComfyUI management: model downloads, start and stop, RefMod
+10. ComfyUI templates: API-format workflow JSON per target with named slots,
+    filled and submitted by the app.
+11. Local ComfyUI management: model downloads, start and stop, RefMod
     creation if the H3 VAE fits in 8GB with offload (TBD).
 
 ## Open questions
