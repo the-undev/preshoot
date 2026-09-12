@@ -92,6 +92,11 @@ been written from memory of the guide rather than from the guide.
 
 ## Environment and tooling
 
+- Nothing exercises the main process's start-up. Registering a second
+  scheme broke every request the renderer makes and no test noticed, because
+  the window, the protocol handlers and the context are wired together in
+  `index.ts` where nothing can reach them.
+
 - The multimodal projector has to stay off the GPU on this card. Loaded onto
   it, an image encode aborted inside CUDA while another model held VRAM.
   Whether it fits on the GPU with nothing else loaded is untested.
