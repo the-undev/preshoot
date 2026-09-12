@@ -33,6 +33,11 @@ const clipId = z.number().int()
 const shotId = z.number().int()
 const description = z.string().trim().min(1)
 
+/**
+ * Nothing the editor writes as it is typed is trimmed. Trimming runs on every keystroke, so a
+ * space typed at the end of a word never survives the round trip and cannot be typed at all.
+ * What is written is trimmed where it is used instead.
+ */
 const shotInput = z.object({
   shotId,
   durationMs: z.number().int().min(100).max(60_000),
@@ -41,14 +46,14 @@ const shotInput = z.object({
   speed: z.string().nullable(),
   transition: z.string().nullable(),
   lighting: z.string().nullable(),
-  action: z.string().trim(),
-  soundNote: z.string().trim(),
+  action: z.string(),
+  soundNote: z.string(),
   things: z.array(z.number().int()),
   dialogue: z.array(
     z.object({
       speakerId: z.number().int(),
-      language: z.string().trim(),
-      text: z.string().trim(),
+      language: z.string(),
+      text: z.string(),
     })
   ),
 })
@@ -93,10 +98,10 @@ export const clipsRouter = router({
     .input(
       z.object({
         id: clipId,
-        name: z.string().trim(),
-        style: z.string().trim(),
-        note: z.string().trim(),
-        musicNote: z.string().trim(),
+        name: z.string(),
+        style: z.string(),
+        note: z.string(),
+        musicNote: z.string(),
       })
     )
     .mutation(({ ctx, input }) => {
@@ -215,7 +220,7 @@ export const clipsRouter = router({
 
   /** Rewrites how a voice is described. It may be emptied while it is being retyped. */
   updateSpeaker: publicProcedure
-    .input(z.object({ speakerId: z.number().int(), description: z.string().trim() }))
+    .input(z.object({ speakerId: z.number().int(), description: z.string() }))
     .mutation(({ ctx, input }) => {
       const db = requireProject(ctx)
       try {

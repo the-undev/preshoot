@@ -23,6 +23,9 @@ import type { ShotFields } from "./use-clip"
 /** Stands for "nothing chosen", since a picker cannot hold an empty value. */
 const NOT_SET = "not-set"
 
+/** The shortest a shot can be, which is what the router accepts. */
+const MIN_SHOT_MS = 100
+
 interface ShotRowProps {
   shot: ShotComposition
   index: number
@@ -57,6 +60,7 @@ export function ShotRow({
 }: ShotRowProps): React.JSX.Element {
   const [action, setAction] = useState(shot.action)
   const [soundNote, setSoundNote] = useState(shot.soundNote)
+  const [seconds, setSeconds] = useState(String(shot.durationMs / 1000))
 
   /** The whole shot as it stands, with `over` applied, which is what the router expects back. */
   function commit(over: Partial<ShotFields>): void {
@@ -128,10 +132,18 @@ export function ShotRow({
             type="number"
             min={0.1}
             step={0.1}
-            value={shot.durationMs / 1000}
-            onChange={(event) =>
-              commit({ durationMs: Math.round(Number(event.target.value) * 1000) })
-            }
+            value={seconds}
+            onChange={(event) => setSeconds(event.target.value)}
+            onBlur={() => {
+              // An emptied or nonsense box is not a length, so the shot keeps the one it had.
+              const typed = Number(seconds)
+              const durationMs = Number.isFinite(typed) ? Math.round(typed * 1000) : 0
+              if (durationMs < MIN_SHOT_MS) {
+                setSeconds(String(shot.durationMs / 1000))
+                return
+              }
+              commit({ durationMs })
+            }}
           />
         </div>
 

@@ -70,14 +70,28 @@ describe("ShotRow", () => {
     expect(screen.getByLabelText("What happens")).toHaveValue("climbs the last steps")
   })
 
-  it("reports the whole shot when its length changes", () => {
+  it("reports the whole shot once the length box is left", () => {
     const { onChange } = renderRow()
 
-    fireEvent.change(screen.getByLabelText("Seconds"), { target: { value: "6" } })
+    const seconds = screen.getByLabelText("Seconds")
+    fireEvent.change(seconds, { target: { value: "6" } })
+    expect(onChange).not.toHaveBeenCalled()
 
+    fireEvent.blur(seconds)
     expect(onChange).toHaveBeenCalledWith(
       expect.objectContaining({ durationMs: 6000, cameraMotion: "push in", things: [] })
     )
+  })
+
+  it("keeps the length it had when the box is emptied", () => {
+    const { onChange } = renderRow()
+
+    const seconds = screen.getByLabelText("Seconds")
+    fireEvent.change(seconds, { target: { value: "" } })
+    fireEvent.blur(seconds)
+
+    expect(onChange).not.toHaveBeenCalled()
+    expect(seconds).toHaveValue(4.5)
   })
 
   it("reports what happens once the field is left", () => {
