@@ -10,6 +10,21 @@ export interface ChatRequest {
   maxTokens: number
 }
 
+/** One picture to look at, as the bytes and what they are. */
+export interface ImageAttachment {
+  mediaType: string
+  base64: string
+}
+
+/** Asking the model to look at pictures and write prose. There is no schema: an answer is words. */
+export interface DescribeRequest {
+  model: string
+  system: string
+  user: string
+  images: ImageAttachment[]
+  maxTokens: number
+}
+
 /** The answer text and the model that wrote it. */
 export interface ChatResult {
   content: string
@@ -135,6 +150,50 @@ export class LlamaServerClient {
       }),
       signal: AbortSignal.timeout(CHAT_TIMEOUT_MS),
     })
+    if (response.status === 503) {
+      throw PromptServiceError.loading()
+    }
+    if (!response.ok) {
+      throw PromptServiceError.badResponse()
+    }
+    const body = chatResponseSchema.safeParse(await this.readJson(response))
+    const choice = body.success ? body.data.choices[0] : undefined
+    if (!body.success || !choice) {
+      throw PromptServiceError.badResponse()
+    }
+    return { content: choice.message.content, model: body.data.model }
+  }
+
+  /**
+   * Asks for prose about pictures. Separate from `chat` because a vision answer is not JSON, and
+   * because the shape of the request that already writes prompts must not change underneath it.
+   */
+  async describe(request: DescribeRequest): Promise<ChatResult> {
+    const response = await this.send("/v1/chat/completions", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        model: request.model,
+        messages: [
+          { role: "system", content: request.system },
+          {
+            role: "user",
+            content: [
+              { type: "text", text: request.user },
+              ...request.images.map((image) => ({
+                type: "image_url",
+                image_url: { url: `data:${image.mediaType};base64,${image.base64}` },
+              })),
+            ],
+          },
+        ],
+        chat_template_kwargs: { enable_thinking: false },
+        max_tokens: request.maxTokens,
+        temperature: 0.3,
+      }),
+      signal: AbortSignal.timeout(CHAT_TIMEOUT_MS),
+    })
+
     if (response.status === 503) {
       throw PromptServiceError.loading()
     }
