@@ -50,6 +50,16 @@ at Q2 or Q3 with the Lightning LoRA.
 - Local services (llama-server, ComfyUI) are attached by URL first. Managed
   mode, where the app starts them and downloads models, comes per service
   later, llama-server first.
+- A target owns one model's vocabularies, system prompts and formatting; a
+  composer owns how the model is asked. Both are looked up by id, so another
+  target or another way of writing a prompt is one file and one line in an
+  index. Every stored generation records which composer wrote it and the
+  composition it was given, so two ways can be compared on the same clip.
+- The app writes the mechanical parts of a prompt itself: shot markers, cut
+  times, transition phrases and the dialogue tags. The model writes only the
+  prose, in one request per clip so a look or a voice carries across a cut.
+- The workspace is a centred band no wider than 1400px, on the ultrawide as
+  everywhere else.
 - Runpod: manual copy of prompts first. Then rsync of the project bundle
   over SSH plus ComfyUI HTTP for queueing jobs and pulling outputs. Then
   pod start and stop through the Runpod API.
@@ -60,22 +70,22 @@ at Q2 or Q3 with the Lightning LoRA.
    project workspace.
 2. Prompt generation: a brief becomes a MiniMax H3 text-to-video prompt
    through llama-server, kept in the project and listed in the workspace.
+3. Shot composition: a text library of people, places and objects, clips
+   built from shots with camera moves, cuts, timings and dialogue, and
+   three ways of turning one into a prompt.
 
 ## Milestones
 
-3. Asset library: people, places, objects, plus picklists for camera
-   angle, movement, transition, lighting and style. Reference images and
-   RefMod files attached to assets. Description drafted from images by the
-   local vision model.
-4. Storyboard editor: ordered shots referencing assets and picklists, with
-   duration, dialogue and sound notes. Split into clips under 15 seconds,
-   chained by last frame to first frame. Prompts generated per clip per
-   target model, edited, regenerated and versioned.
-5. Runpod link: connect to a pod, pull outputs into the project, show each
+4. Asset images: reference images and RefMod files attached to library
+   things, with descriptions drafted from them by the local vision model.
+   The reference image forms of the H3 prompt arrive with them.
+5. Storyboard editor: clips in order across a film, chained by last frame
+   to first frame, with prompts versioned per clip.
+6. Runpod link: connect to a pod, pull outputs into the project, show each
    take next to its shot, mark good or bad with notes, export chosen takes.
-6. ComfyUI templates: API-format workflow JSON per target with named slots,
+7. ComfyUI templates: API-format workflow JSON per target with named slots,
    filled and submitted by the app.
-7. Local ComfyUI management: model downloads, start and stop, RefMod
+8. Local ComfyUI management: model downloads, start and stop, RefMod
    creation if the H3 VAE fits in 8GB with offload (TBD).
 
 ## Open items
@@ -101,8 +111,20 @@ at Q2 or Q3 with the Lightning LoRA.
 - Streaming tokens to the renderer needs a subscription link over the
   `trpc://` scheme.
 - The reference image forms of the H3 prompt (I2VA, FL2VA, L2VA) need the
-  alignment line and arrive with the asset library.
+  alignment line and arrive with the asset images.
 - A generation that runs past the two minute timeout is reported as a
   server that could not be reached, which is not what happened.
 - Nothing records which system prompt wrote a stored generation, so
   prompts from before a change cannot be told from prompts after it.
+- Nothing checks that the prose the model returns holds the camera motion it
+  was given, only that it holds the dialogue.
+- A clip has one style for every shot, so it cannot change style at a cut.
+- The language of a line of dialogue is free text rather than a picklist.
+- The editor saves a shot as it is changed, so there is no undo.
+- Deleting a clip leaves what was generated for it with no clip, and the
+  history is read per clip, so those prompts can no longer be reached. The
+  same is true of everything milestone 2 generated before clips existed.
+- drizzle-kit generated a table rebuild that read columns added in the same
+  migration, which would have failed on a fresh database. The change was
+  split into two migrations. Check the generated SQL whenever a column
+  changes and columns are added together.
