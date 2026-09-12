@@ -1,17 +1,7 @@
 import { useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
-import {
-  Alert,
-  AlertDescription,
-  Button,
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@renderer/design-system"
+import { Alert, AlertDescription, Button, ConfirmDialog } from "@renderer/design-system"
 import { useAssets } from "@renderer/features/assets/use-assets"
 import { ClipEditor } from "@renderer/features/clips/clip-editor"
 import { ClipList } from "@renderer/features/clips/clip-list"
@@ -54,32 +44,21 @@ function Clips(): React.JSX.Element {
       </section>
 
       {removing && (
-        <Dialog open onOpenChange={(open) => !open && setRemoving(null)}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Delete {removing.name}?</DialogTitle>
-              <DialogDescription>
-                {removing.prompts === 0
-                  ? "Its shots go with it. Nothing has been generated for it."
-                  : `Its shots and the ${removing.prompts} prompts written for it go with it.`}
-              </DialogDescription>
-            </DialogHeader>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setRemoving(null)}>
-                Cancel
-              </Button>
-              <Button
-                onClick={() => {
-                  clips.remove(removing.id)
-                  if (chosenId === removing.id) setChosenId(null)
-                  setRemoving(null)
-                }}
-              >
-                Delete
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        <ConfirmDialog
+          title={`Delete ${removing.name}?`}
+          description={
+            removing.prompts === 0
+              ? "Its shots go with it. Nothing has been generated for it."
+              : `Its shots and the ${removing.prompts} prompts written for it go with it.`
+          }
+          confirmLabel="Delete"
+          onCancel={() => setRemoving(null)}
+          onConfirm={() => {
+            clips.remove(removing.id)
+            if (chosenId === removing.id) setChosenId(null)
+            setRemoving(null)
+          }}
+        />
       )}
 
       {clipId === null ? (
@@ -168,6 +147,12 @@ function OpenClip({ clipId, targetId }: OpenClipProps): React.JSX.Element {
         {actions.exportedTo && (
           <p className="text-xs text-muted-foreground">Written to {actions.exportedTo}</p>
         )}
+
+        <div>
+          <Button variant="outline" size="sm" onClick={actions.openExports}>
+            Open exports folder
+          </Button>
+        </div>
 
         {actions.errorMessage && (
           <Alert variant="destructive">

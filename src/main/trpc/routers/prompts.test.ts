@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, rmSync } from "node:fs"
+import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
@@ -41,6 +41,7 @@ describe("prompts router", () => {
   let requests: ChatRequest[]
   let saveTo: string | null
   let savePrompts: { title: string; defaultPath: string }[]
+  let opened: string[]
   let caller: ReturnType<typeof appRouter.createCaller>
 
   beforeEach(async () => {
@@ -49,6 +50,7 @@ describe("prompts router", () => {
     requests = []
     saveTo = null
     savePrompts = []
+    opened = []
     chat = vi.fn(async () => ({ content: proseAnswer(2), model: "Qwen3.5-9B" }))
     const ctx: Context = {
       versions: { app: "0.0.0", electron: "0", chrome: "0", node: "0" },
@@ -61,6 +63,9 @@ describe("prompts router", () => {
           savePrompts.push(options)
           return saveTo
         },
+      },
+      openPath: async (path: string) => {
+        opened.push(path)
       },
       promptClient: () =>
         ({
@@ -521,6 +526,16 @@ describe("prompts router", () => {
     })
 
     expect(await caller.prompts.exportToFile({ generationId: generated.id })).toBeNull()
+  })
+
+  it("makes the exports folder and asks the system to open it", async () => {
+    await openProject()
+
+    const { directory } = await caller.prompts.openExports()
+
+    expect(directory).toBe(join(dir, "film", "exports", "prompts"))
+    expect(existsSync(directory)).toBe(true)
+    expect(opened).toEqual([directory])
   })
 
   it("refuses to export a prompt that is not in the project", async () => {

@@ -13,6 +13,8 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable"
+import { useState } from "react"
+import { ConfirmDialog } from "@renderer/design-system"
 import type { Asset, ShotComposition, SpeakerComposition, Vocabularies } from "@renderer/lib/trpc"
 import { ShotRow } from "./shot-row"
 import type { ShotFields } from "./use-clip"
@@ -43,6 +45,7 @@ export function ShotList({
   onRemove,
   onRegenerate,
 }: ShotListProps): React.JSX.Element {
+  const [removing, setRemoving] = useState<{ id: number; number: number } | null>(null)
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
@@ -64,6 +67,10 @@ export function ShotList({
     >
       <SortableContext items={shots.map((shot) => shot.id)} strategy={verticalListSortingStrategy}>
         <div className="flex flex-col gap-3">
+          <p className="text-xs text-muted-foreground">
+            Drag a shot by its handle to reorder it. From the keyboard, focus the handle, press
+            space, move with the arrows and press space again.
+          </p>
           {shots.map((shot, index) => (
             <ShotRow
               key={shot.id}
@@ -75,10 +82,22 @@ export function ShotList({
               canRegenerate={canRegenerate}
               isBusy={isBusy}
               onChange={(fields) => onChange(shot.id, fields)}
-              onRemove={() => onRemove(shot.id)}
+              onRemove={() => setRemoving({ id: shot.id, number: index + 1 })}
               onRegenerate={() => onRegenerate(shot.id)}
             />
           ))}
+          {removing && (
+            <ConfirmDialog
+              title={`Delete shot ${removing.number}?`}
+              description="What it shows, what happens in it and anything said in it go with it."
+              confirmLabel="Delete"
+              onCancel={() => setRemoving(null)}
+              onConfirm={() => {
+                onRemove(removing.id)
+                setRemoving(null)
+              }}
+            />
+          )}
         </div>
       </SortableContext>
     </DndContext>

@@ -1,6 +1,7 @@
 // Curated surface of the design system. App code imports from here, never from ui/ directly.
 export { Alert, AlertAction, AlertDescription, AlertTitle } from "./ui/alert"
 export { Button, buttonVariants } from "./ui/button"
+export { ConfirmDialog } from "./confirm-dialog"
 export {
   Card,
   CardAction,

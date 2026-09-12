@@ -1,6 +1,6 @@
 import { useState } from "react"
 import { createFileRoute } from "@tanstack/react-router"
-import { Alert, AlertDescription, Button } from "@renderer/design-system"
+import { Alert, AlertDescription, Button, ConfirmDialog } from "@renderer/design-system"
 import { AssetForm } from "@renderer/features/assets/asset-form"
 import { AssetList } from "@renderer/features/assets/asset-list"
 import { useAssets } from "@renderer/features/assets/use-assets"
@@ -16,6 +16,7 @@ type Editing = { kind: "none" } | { kind: "new" } | { kind: "existing"; asset: A
 function Library(): React.JSX.Element {
   const library = useAssets()
   const [editing, setEditing] = useState<Editing>({ kind: "none" })
+  const [removing, setRemoving] = useState<Asset | null>(null)
 
   const close = (): void => setEditing({ kind: "none" })
 
@@ -59,9 +60,22 @@ function Library(): React.JSX.Element {
         <AssetList
           assets={library.assets}
           onEdit={(asset) => setEditing({ kind: "existing", asset })}
-          onRemove={library.remove}
+          onRemove={(id) => setRemoving(library.assets.find((asset) => asset.id === id) ?? null)}
         />
       </section>
+
+      {removing && (
+        <ConfirmDialog
+          title={`Delete ${removing.name}?`}
+          description="A shot that still shows it will refuse to let it go."
+          confirmLabel="Delete"
+          onCancel={() => setRemoving(null)}
+          onConfirm={() => {
+            library.remove(removing.id)
+            setRemoving(null)
+          }}
+        />
+      )}
     </main>
   )
 }

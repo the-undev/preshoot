@@ -23,6 +23,7 @@ describe("assets router", () => {
       settings: new AppSettingsStore(join(dir, "settings.json")),
       migrationsFolder,
       dialogs: { pickDirectory: async () => null, saveFile: async () => null },
+      openPath: async () => {},
       promptClient: () => {
         throw new Error("the assets router does not generate prompts")
       },

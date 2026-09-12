@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { Button, Input } from "@renderer/design-system"
+import { Button, ConfirmDialog, Input } from "@renderer/design-system"
 import type { SpeakerComposition } from "@renderer/lib/trpc"
 
 interface ClipSpeakersProps {
@@ -17,12 +17,13 @@ export function ClipSpeakers({
   onRemove,
 }: ClipSpeakersProps): React.JSX.Element {
   const [description, setDescription] = useState("")
+  const [removing, setRemoving] = useState<SpeakerComposition | null>(null)
   const trimmed = description.trim()
 
   return (
     <div className="flex flex-col gap-2">
       {speakers.map((speaker) => (
-        <SpeakerRow key={speaker.id} speaker={speaker} onUpdate={onUpdate} onRemove={onRemove} />
+        <SpeakerRow key={speaker.id} speaker={speaker} onUpdate={onUpdate} onRemove={setRemoving} />
       ))}
 
       <form
@@ -44,6 +45,19 @@ export function ClipSpeakers({
           Add speaker
         </Button>
       </form>
+
+      {removing && (
+        <ConfirmDialog
+          title={`Delete ${removing.label}?`}
+          description="Everything this voice says goes with it, and the voices after it are renumbered."
+          confirmLabel="Delete"
+          onCancel={() => setRemoving(null)}
+          onConfirm={() => {
+            onRemove(removing.id)
+            setRemoving(null)
+          }}
+        />
+      )}
     </div>
   )
 }
@@ -51,7 +65,7 @@ export function ClipSpeakers({
 interface SpeakerRowProps {
   speaker: SpeakerComposition
   onUpdate: (speakerId: number, description: string) => void
-  onRemove: (speakerId: number) => void
+  onRemove: (speaker: SpeakerComposition) => void
 }
 
 function SpeakerRow({ speaker, onUpdate, onRemove }: SpeakerRowProps): React.JSX.Element {
@@ -66,7 +80,7 @@ function SpeakerRow({ speaker, onUpdate, onRemove }: SpeakerRowProps): React.JSX
         onChange={(event) => setDescription(event.target.value)}
         onBlur={() => onUpdate(speaker.id, description)}
       />
-      <Button variant="ghost" size="sm" onClick={() => onRemove(speaker.id)}>
+      <Button variant="ghost" size="sm" onClick={() => onRemove(speaker)}>
         Remove
       </Button>
     </div>

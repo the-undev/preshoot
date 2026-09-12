@@ -36,6 +36,9 @@ function createContext(window: BrowserWindow): () => Context {
     dialogs: createDialogs(window),
     // Built per request, so a URL saved in settings applies to the next generation without a restart.
     promptClient: (baseUrl) => new LlamaServerClient({ baseUrl, fetch: globalThis.fetch }),
+    openPath: async (path) => {
+      await shell.openPath(path)
+    },
   }
   return () => context
 }

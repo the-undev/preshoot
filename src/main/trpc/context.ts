@@ -10,6 +10,7 @@ export interface Context {
   migrationsFolder: string
   dialogs: Dialogs
   promptClient(baseUrl: string): LlamaServerClient
+  openPath(path: string): Promise<void>
 }
 
 /** Runtime versions shown on the welcome screen and in bug reports. */

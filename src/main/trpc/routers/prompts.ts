@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto"
+import { mkdirSync } from "node:fs"
 import { basename, dirname } from "node:path"
 import { TRPCError } from "@trpc/server"
 import { z } from "zod"
@@ -429,6 +430,18 @@ export const promptsRouter = router({
         meta: exportMeta(generation),
       })
     }),
+
+  /** Opens the folder exported prompts go to, making it first so there is something to open. */
+  openExports: publicProcedure.mutation(async ({ ctx }) => {
+    const project = ctx.projects.current()
+    if (!project) {
+      throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Open a project first." })
+    }
+    const directory = projectPromptExportsPath(project.directory)
+    mkdirSync(directory, { recursive: true })
+    await ctx.openPath(directory)
+    return { directory }
+  }),
 
   /** Marks a result good or bad, leaving its note alone. */
   setVerdict: publicProcedure
