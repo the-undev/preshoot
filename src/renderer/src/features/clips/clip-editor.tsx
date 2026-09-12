@@ -125,9 +125,9 @@ export function ClipEditor({
   }
 
   return (
-    <div className="flex flex-col gap-6" onKeyDown={onKeyDown}>
-      <div className="grid gap-3 sm:grid-cols-2">
-        <div className="flex flex-col gap-1">
+    <div className="flex min-w-0 flex-col gap-6" onKeyDown={onKeyDown}>
+      <div className="grid min-w-0 gap-3 sm:grid-cols-2">
+        <div className="flex min-w-0 flex-col gap-1">
           <Label htmlFor="clip-name">Clip</Label>
           <Input
             id="clip-name"
@@ -136,7 +136,7 @@ export function ClipEditor({
             onBlur={() => commit({ name })}
           />
         </div>
-        <div className="flex flex-col gap-1">
+        <div className="flex min-w-0 flex-col gap-1">
           <Label htmlFor="clip-style">Style</Label>
           <Input
             id="clip-style"
@@ -154,7 +154,7 @@ export function ClipEditor({
       </div>
 
       <div className="flex flex-wrap gap-3 sm:items-end">
-        <div className="flex flex-col gap-1">
+        <div className="flex min-w-0 flex-col gap-1">
           <Label htmlFor="clip-form">Written for</Label>
           <Select
             value={composition.form}
@@ -320,9 +320,9 @@ interface ClipFrameProps {
 /** The picture one end of the clip is anchored to, chosen from the library's pictures. */
 function ClipFrame({ role, label, frame, library, onChoose }: ClipFrameProps): React.JSX.Element {
   return (
-    <div className="flex flex-col gap-1">
+    <div className="flex min-w-0 flex-col gap-1">
       <Label htmlFor={`clip-frame-${role}`}>{label}</Label>
-      <div className="flex items-center gap-2">
+      <div className="flex min-w-0 items-center gap-2">
         {frame && (
           <img
             src={assetImageUrl(frame.imageId)}
@@ -334,7 +334,7 @@ function ClipFrame({ role, label, frame, library, onChoose }: ClipFrameProps): R
           value={frame ? String(frame.imageId) : ""}
           onValueChange={(value) => onChoose(value === NO_FRAME ? null : Number(value))}
         >
-          <SelectTrigger id={`clip-frame-${role}`} className="w-44">
+          <SelectTrigger id={`clip-frame-${role}`} className="w-44 min-w-0">
             <SelectValue placeholder="Choose a picture" />
           </SelectTrigger>
           <SelectContent>

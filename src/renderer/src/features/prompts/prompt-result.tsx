@@ -54,8 +54,8 @@ export function PromptResult({
   const trimmedInstruction = instruction.trim()
 
   return (
-    <article className="flex flex-col gap-3 rounded-lg border p-4">
-      <header className="flex items-start justify-between gap-4">
+    <article className="flex min-w-0 flex-col gap-3 rounded-lg border p-4">
+      <header className="flex min-w-0 flex-wrap items-start justify-between gap-4">
         <div className="flex min-w-0 flex-col gap-1">
           <p className="text-sm font-medium">{generation.brief}</p>
           <p className="text-xs text-muted-foreground">
@@ -110,7 +110,7 @@ export function PromptResult({
       <pre className="text-sm whitespace-pre-wrap text-muted-foreground">{generation.rendered}</pre>
 
       <form
-        className="flex gap-2"
+        className="flex min-w-0 gap-2"
         onSubmit={(event) => {
           event.preventDefault()
           if (trimmedInstruction.length === 0) return
@@ -119,6 +119,7 @@ export function PromptResult({
         }}
       >
         <Input
+          className="min-w-0"
           aria-label={`Change to make to prompt ${generation.id}`}
           placeholder="She is happier, and the whole scene is faster"
           value={instruction}

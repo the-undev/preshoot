@@ -38,7 +38,7 @@ function Clips(): React.JSX.Element {
 
   return (
     <main className="mx-auto grid h-full w-full max-w-[1400px] gap-8 p-8 lg:grid-cols-[16rem_1fr]">
-      <section className="flex min-h-0 flex-col gap-4 overflow-y-auto pr-1">
+      <section className="flex min-h-0 min-w-0 flex-col gap-4 overflow-y-auto pr-1">
         <ClipList
           clips={clips.clips}
           selectedId={clipId}
@@ -109,8 +109,8 @@ function OpenClip({ clipId, targetId }: OpenClipProps): React.JSX.Element {
   const [latest, ...earlier] = writing.generations
 
   return (
-    <div className="grid h-full min-h-0 gap-8 xl:grid-cols-2">
-      <section className="flex min-h-0 flex-col gap-4 overflow-y-auto pr-2">
+    <div className="grid h-full min-h-0 min-w-0 gap-8 xl:grid-cols-2">
+      <section className="flex min-h-0 min-w-0 flex-col gap-4 overflow-y-auto pr-2">
         <ClipEditor
           composition={clip.composition}
           vocabularies={clip.vocabularies}
@@ -147,7 +147,7 @@ function OpenClip({ clipId, targetId }: OpenClipProps): React.JSX.Element {
         )}
       </section>
 
-      <Tabs defaultValue="result" className="flex min-h-0 flex-col gap-3">
+      <Tabs defaultValue="result" className="flex min-h-0 min-w-0 flex-col gap-3">
         <TabsList>
           <TabsTrigger value="result">Result</TabsTrigger>
           <TabsTrigger value="history">History ({writing.generations.length})</TabsTrigger>

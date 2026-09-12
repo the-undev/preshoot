@@ -56,8 +56,8 @@ export function ShotDialogue({
   return (
     <div className="flex flex-col gap-3">
       {shown.map((line, index) => (
-        <div key={index} className="flex flex-col gap-2 rounded border p-2">
-          <div className="flex items-center gap-2">
+        <div key={index} className="flex min-w-0 flex-col gap-2 rounded border p-2">
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
             <div className="flex shrink-0 gap-1">
               {speakers.map((speaker) => {
                 const speaking = line.speakerIds.includes(speaker.id)
@@ -91,6 +91,7 @@ export function ShotDialogue({
               onBlur={commit}
             />
             <Input
+              className="min-w-40 flex-1"
               aria-label={`Line ${index + 1} of shot ${shotId}`}
               value={line.text}
               onChange={(event) => replace(index, { ...line, text: event.target.value })}

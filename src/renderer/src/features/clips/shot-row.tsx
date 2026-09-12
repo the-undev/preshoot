@@ -89,7 +89,7 @@ export function ShotRow({
     <article
       ref={setNodeRef}
       style={{ transform: CSS.Translate.toString(transform), transition }}
-      className={`flex flex-col gap-4 rounded-lg border p-4 ${isDragging ? "opacity-60" : ""}`}
+      className={`flex min-w-0 flex-col gap-4 rounded-lg border p-4 ${isDragging ? "opacity-60" : ""}`}
     >
       <Collapsible open={open} onOpenChange={setOpen}>
         <header className="flex items-center justify-between gap-2">
@@ -135,7 +135,7 @@ export function ShotRow({
         </header>
 
         <CollapsibleContent className="flex flex-col gap-4 pt-4">
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid min-w-0 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             <div className="flex flex-col gap-1">
               <Label htmlFor={id("duration")}>Seconds</Label>
               <Input
@@ -285,14 +285,14 @@ interface PickerProps {
 /** One word from the target's vocabulary, or nothing at all. */
 function Picker({ id, label, value, options, onChange }: PickerProps): React.JSX.Element {
   return (
-    <div className="flex flex-col gap-1">
+    <div className="flex min-w-0 flex-col gap-1">
       <Label htmlFor={id}>{label}</Label>
       <Select
         value={value ?? NOT_SET}
         onValueChange={(next) => onChange(next === NOT_SET ? null : next)}
       >
-        <SelectTrigger id={id}>
-          <SelectValue />
+        <SelectTrigger id={id} className="w-full min-w-0">
+          <SelectValue className="truncate" />
         </SelectTrigger>
         <SelectContent>
           <SelectItem value={NOT_SET}>Not set</SelectItem>

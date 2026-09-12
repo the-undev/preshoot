@@ -59,11 +59,11 @@ export function ComparePanel({
     <section className="flex flex-col gap-4">
       <h2 className="font-heading text-sm font-semibold text-muted-foreground">Compare</h2>
 
-      <div className="flex flex-wrap items-end gap-2">
-        <div className="flex flex-col gap-1">
+      <div className="flex min-w-0 flex-wrap items-end gap-2">
+        <div className="flex min-w-40 flex-1 flex-col gap-1">
           <Label htmlFor="compare-composer">Way</Label>
           <Select value={composerId} onValueChange={setComposerId}>
-            <SelectTrigger id="compare-composer" className="w-56">
+            <SelectTrigger id="compare-composer" className="w-full min-w-0">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -75,10 +75,10 @@ export function ComparePanel({
             </SelectContent>
           </Select>
         </div>
-        <div className="flex flex-col gap-1">
+        <div className="flex min-w-40 flex-1 flex-col gap-1">
           <Label htmlFor="compare-variant">Prompt</Label>
           <Select value={variantId} onValueChange={setVariantId}>
-            <SelectTrigger id="compare-variant" className="w-56">
+            <SelectTrigger id="compare-variant" className="w-full min-w-0">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -193,7 +193,7 @@ function CompareResult({
   const [note, setNote] = useState(result.note)
 
   return (
-    <article className="flex flex-col gap-2 rounded-lg border p-4">
+    <article className="flex min-w-0 flex-col gap-2 rounded-lg border p-4">
       <header className="flex flex-col gap-1">
         <span className="text-sm font-medium">{composerName}</span>
         <span className="text-xs text-muted-foreground">{variantName}</span>
@@ -203,7 +203,7 @@ function CompareResult({
         {result.rendered}
       </pre>
 
-      <div className="flex items-center gap-2">
+      <div className="flex min-w-0 flex-wrap items-center gap-2">
         <Button
           variant={result.verdict === "good" ? "secondary" : "outline"}
           size="sm"
