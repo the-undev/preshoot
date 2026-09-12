@@ -1,19 +1,8 @@
 import { useState } from "react"
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router"
 import { Settings } from "lucide-react"
-import {
-  Alert,
-  AlertDescription,
-  Button,
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@renderer/design-system"
-import { BriefForm } from "@renderer/features/prompts/brief-form"
-import { GenerationHistory } from "@renderer/features/prompts/generation-history"
-import { PromptResult } from "@renderer/features/prompts/prompt-result"
-import { useGeneratePrompt } from "@renderer/features/prompts/use-generate-prompt"
+import { Button, Tooltip, TooltipContent, TooltipTrigger } from "@renderer/design-system"
 import { SettingsDialog } from "@renderer/features/settings/settings-dialog"
 import { useTRPC } from "@renderer/lib/trpc"
 
@@ -36,9 +25,6 @@ function ProjectWorkspace(): React.JSX.Element {
   const navigate = useNavigate()
   const [settingsOpen, setSettingsOpen] = useState(false)
 
-  const generations = useQuery(trpc.prompts.list.queryOptions())
-  const generate = useGeneratePrompt()
-
   const close = useMutation(
     trpc.projects.close.mutationOptions({
       onSuccess: async () => {
@@ -47,8 +33,6 @@ function ProjectWorkspace(): React.JSX.Element {
       },
     })
   )
-
-  const [latest, ...earlier] = generations.data ?? []
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -77,21 +61,8 @@ function ProjectWorkspace(): React.JSX.Element {
         </div>
       </header>
 
-      <main className="mx-auto grid w-full max-w-[1400px] gap-8 p-8 lg:grid-cols-2">
-        <section className="flex flex-col gap-4">
-          <BriefForm onGenerate={generate.generate} isPending={generate.isPending} />
-          {generate.errorMessage && (
-            <Alert variant="destructive">
-              <AlertDescription>{generate.errorMessage}</AlertDescription>
-            </Alert>
-          )}
-          {latest && <PromptResult generation={latest} />}
-        </section>
-
-        <section className="flex flex-col gap-4">
-          <h2 className="font-heading text-sm font-semibold text-muted-foreground">History</h2>
-          <GenerationHistory generations={earlier} />
-        </section>
+      <main className="mx-auto flex w-full max-w-[1400px] flex-1 items-center justify-center p-8">
+        <p className="text-sm text-muted-foreground">The clip editor arrives next.</p>
       </main>
 
       {settingsOpen && <SettingsDialog onClose={() => setSettingsOpen(false)} />}

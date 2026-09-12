@@ -1,20 +1,8 @@
 import type { ClipComposition } from "../composition/clip"
+import type { ClipProse } from "../composition/prose"
 
 /** The fields one target's prompt is made of, ready to render. */
 export type TargetFields = Record<string, string>
-
-/** The prose a model wrote for a clip: one piece per shot, plus the two clip-level fields. */
-export interface ClipProse {
-  shots: ShotProse[]
-  soundscape: string
-  music: string
-}
-
-/** What a model wrote for one shot, without any of the markers the app adds. */
-export interface ShotProse {
-  shotId: number
-  prose: string
-}
 
 /** Which shots a composer is writing: all of them, or one with the rest already written. */
 export type ComposeScope = { kind: "all" } | { kind: "shot"; shotId: number; previous: ClipProse }

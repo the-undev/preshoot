@@ -49,6 +49,15 @@ export function listClips(db: ProjectDatabase): ClipSummary[] {
     .map(toSummary)
 }
 
+/** One clip's own fields, without its shots. */
+export function readClip(db: ProjectDatabase, clipId: number): ClipSummary {
+  const row = db.select().from(schema.clips).where(eq(schema.clips.id, clipId)).get()
+  if (!row) {
+    throw CompositionError.notFound(`Clip ${clipId}`)
+  }
+  return toSummary(row)
+}
+
 /** Starts a clip with no shots. */
 export function insertClip(
   db: ProjectDatabase,
@@ -304,6 +313,20 @@ export function deleteSpeaker(db: ProjectDatabase, speakerId: number): void {
       tx.update(schema.speakers).set({ position }).where(eq(schema.speakers.id, id)).run()
     })
   })
+}
+
+/** Which clip a shot belongs to. */
+export function clipIdOfShot(db: ProjectDatabase, shotId: number): number {
+  return clipOfShot(db, shotId)
+}
+
+/** Which clip a speaker belongs to. */
+export function clipIdOfSpeaker(db: ProjectDatabase, speakerId: number): number {
+  const speaker = db.select().from(schema.speakers).where(eq(schema.speakers.id, speakerId)).get()
+  if (!speaker) {
+    throw CompositionError.notFound(`Speaker ${speakerId}`)
+  }
+  return speaker.clipId
 }
 
 /** What the prompt calls the speaker sitting at `position`. */

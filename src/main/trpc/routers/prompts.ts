@@ -1,77 +1,128 @@
 import { TRPCError } from "@trpc/server"
 import { z } from "zod"
+import { readClip, readComposition } from "../../core/composition/clip-store"
+import type { ClipProse } from "../../core/composition/prose"
 import type { ProjectDatabase } from "../../core/db"
-import { briefComposer } from "../../core/prompting/composers/brief"
-import { PromptServiceError } from "../../core/prompting/errors"
-import { insertGeneration, listGenerations } from "../../core/prompting/generation-store"
-import { minimaxH3 } from "../../core/prompting/targets/minimax-h3"
+import { COMPOSERS, composerById, DEFAULT_COMPOSER_ID } from "../../core/prompting/composers"
+import type { ComposedPrompt } from "../../core/prompting/composers/composer"
+import {
+  insertGeneration,
+  listGenerations,
+  readGeneration,
+  type GenerationRecord,
+} from "../../core/prompting/generation-store"
+import type { ComposeScope } from "../../core/prompting/target"
+import { targetById } from "../../core/prompting/targets"
+import { asClientError } from "../client-errors"
 import type { Context } from "../context"
+import { requireProject } from "../project"
 import { publicProcedure, router } from "../trpc"
 
-/** Which target these prompts are written for. Reference image forms arrive with the asset library. */
-const TARGET = "minimax-h3"
+/** Writes one clip and keeps what came back. */
+async function writeClip(
+  ctx: Context,
+  db: ProjectDatabase,
+  input: { clipId: number; composerId: string; scope: ComposeScope }
+): Promise<GenerationRecord> {
+  const clip = readClip(db, input.clipId)
+  const composition = readComposition(db, input.clipId)
+  const composer = composerById(input.composerId)
 
-/** The open project's database, or a refusal the renderer can show. */
-function requireProject(ctx: Context): ProjectDatabase {
-  const project = ctx.projects.current()
-  if (!project) {
-    throw new TRPCError({
-      code: "PRECONDITION_FAILED",
-      message: "Open a project before generating a prompt.",
-    })
-  }
-  return project.db
+  const composed: ComposedPrompt = await composer.compose({
+    composition,
+    target: targetById(clip.target),
+    client: ctx.promptClient(ctx.settings.llamaServerUrl()),
+    scope: input.scope,
+  })
+
+  return insertGeneration(db, {
+    target: clip.target,
+    composer: composer.id,
+    clipId: clip.id,
+    brief: composition.note,
+    fields: composed.fields,
+    composition,
+    prose: composed.prose,
+    rendered: composed.rendered,
+    model: composed.model,
+  })
 }
 
-/** Rethrows a prompt server failure with its message, since the message already says what to do. */
-function asClientError(error: unknown): never {
-  if (error instanceof PromptServiceError) {
+/** The prose of every shot but `shotId`, or a refusal when the clip has moved on since. */
+function proseToKeep(previous: GenerationRecord, shotId: number, shotIds: number[]): ClipProse {
+  if (!previous.prose) {
     throw new TRPCError({
-      code: error.code === "bad-response" ? "BAD_GATEWAY" : "SERVICE_UNAVAILABLE",
-      message: error.message,
-      cause: error,
+      code: "BAD_REQUEST",
+      message: "Generate the whole clip before rewriting one shot of it.",
     })
   }
-  throw error
+  const missing = shotIds
+    .filter((id) => id !== shotId)
+    .filter((id) => !previous.prose?.shots.some((written) => written.shotId === id))
+  if (missing.length > 0) {
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message: "This clip has shots the last generation did not cover. Generate the whole clip.",
+    })
+  }
+  return previous.prose
 }
 
 export const promptsRouter = router({
-  /** Writes a prompt for `brief` and keeps it in the project. */
+  /** Every way of writing a clip, for the picker beside Generate. */
+  composers: publicProcedure.query(() => ({
+    composers: Object.values(COMPOSERS).map(({ id, name }) => ({ id, name })),
+    defaultId: DEFAULT_COMPOSER_ID,
+  })),
+
+  /** Writes a whole clip and stores the result. */
   generate: publicProcedure
-    .input(z.object({ brief: z.string().trim().min(1) }))
+    .input(z.object({ clipId: z.number().int(), composerId: z.string().min(1) }))
     .mutation(async ({ ctx, input }) => {
       const db = requireProject(ctx)
       try {
-        // Clips arrive in step 5; until then the brief stands in for a clip with nothing but a note.
-        const composed = await briefComposer.compose({
-          composition: {
-            id: 0,
-            name: "",
-            style: "",
-            note: input.brief,
-            musicNote: "",
-            speakers: [],
-            shots: [],
-          },
-          target: minimaxH3,
-          client: ctx.promptClient(ctx.settings.llamaServerUrl()),
-          scope: { kind: "all" },
-        })
-        return insertGeneration(db, {
-          target: TARGET,
-          composer: briefComposer.id,
-          clipId: null,
-          brief: input.brief,
-          fields: composed.fields,
-          composition: null,
-          rendered: composed.rendered,
-          model: composed.model,
+        return await writeClip(ctx, db, { ...input, scope: { kind: "all" } })
+      } catch (error) {
+        asClientError(error)
+      }
+    }),
+
+  /** Writes one shot again, keeping what the last generation wrote for the others. */
+  regenerateShot: publicProcedure
+    .input(z.object({ generationId: z.number().int(), shotId: z.number().int() }))
+    .mutation(async ({ ctx, input }) => {
+      const db = requireProject(ctx)
+      try {
+        const previous = readGeneration(db, input.generationId)
+        if (!previous?.clipId) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message:
+              "This prompt was not written from a clip, so a shot of it cannot be rewritten.",
+          })
+        }
+        const composition = readComposition(db, previous.clipId)
+        const scope: ComposeScope = {
+          kind: "shot",
+          shotId: input.shotId,
+          previous: proseToKeep(
+            previous,
+            input.shotId,
+            composition.shots.map((shot) => shot.id)
+          ),
+        }
+        return await writeClip(ctx, db, {
+          clipId: previous.clipId,
+          composerId: previous.composer,
+          scope,
         })
       } catch (error) {
         asClientError(error)
       }
     }),
 
-  /** Every prompt generated in the open project, newest first. */
-  list: publicProcedure.query(({ ctx }) => listGenerations(requireProject(ctx), null)),
+  /** What has been generated for one clip, newest first. */
+  list: publicProcedure
+    .input(z.object({ clipId: z.number().int() }))
+    .query(({ ctx, input }) => listGenerations(requireProject(ctx), input.clipId)),
 })

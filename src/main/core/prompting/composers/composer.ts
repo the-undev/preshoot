@@ -1,6 +1,7 @@
 import type { ClipComposition } from "../../composition/clip"
+import type { ClipProse } from "../../composition/prose"
 import type { LlamaServerClient } from "../llama-server-client"
-import type { ClipProse, ComposeScope, PromptTarget, TargetFields } from "../target"
+import type { ComposeScope, PromptTarget, TargetFields } from "../target"
 
 /** Everything a composer needs: what to write, for which target, through which server, and how much. */
 export interface ComposeInput {

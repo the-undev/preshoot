@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 import type { ClipComposition, ShotComposition } from "../../composition/clip"
-import type { ClipProse } from "../target"
+import type { ClipProse } from "../../composition/prose"
 import { dialogueTag, formatCutTime, minimaxH3, renderH3Prompt } from "./minimax-h3"
 
 const fields = {

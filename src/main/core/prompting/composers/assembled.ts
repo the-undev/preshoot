@@ -1,5 +1,5 @@
 import { CompositionError } from "../../composition/errors"
-import type { ClipProse } from "../target"
+import type { ClipProse } from "../../composition/prose"
 import type { ComposeInput, ComposedPrompt, PromptComposer } from "./composer"
 
 /**

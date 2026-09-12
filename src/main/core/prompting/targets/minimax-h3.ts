@@ -1,7 +1,8 @@
 import { z } from "zod"
 import { shotStartMs, type ClipComposition, type ShotComposition } from "../../composition/clip"
+import type { ClipProse } from "../../composition/prose"
 import { PromptServiceError } from "../errors"
-import type { ClipProse, ComposeScope, PromptTarget, TargetFields, Vocabularies } from "../target"
+import type { ComposeScope, PromptTarget, TargetFields, Vocabularies } from "../target"
 
 /** The three fields of a MiniMax H3 text-to-video prompt, in the order they are written. */
 const H3_FIELDS = [

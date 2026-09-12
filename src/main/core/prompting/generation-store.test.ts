@@ -35,6 +35,7 @@ describe("generation store", () => {
       brief,
       fields,
       composition: null,
+      prose: null,
       rendered: "integrated_multimodal_description: ...",
       model: "Qwen3.5-9B",
     })
