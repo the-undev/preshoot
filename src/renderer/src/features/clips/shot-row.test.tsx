@@ -40,8 +40,10 @@ const shot: ShotComposition = {
 
 function renderRow(over: Partial<React.ComponentProps<typeof ShotRow>> = {}): {
   onChange: ReturnType<typeof vi.fn>
+  onAddPeople: ReturnType<typeof vi.fn>
 } {
   const onChange = vi.fn()
+  const onAddPeople = vi.fn()
   render(
     <DndContext>
       <SortableContext items={[11]}>
@@ -56,12 +58,13 @@ function renderRow(over: Partial<React.ComponentProps<typeof ShotRow>> = {}): {
           onChange={onChange}
           onRemove={vi.fn()}
           onRegenerate={vi.fn()}
+          onAddPeople={onAddPeople}
           {...over}
         />
       </SortableContext>
     </DndContext>
   )
-  return { onChange }
+  return { onChange, onAddPeople }
 }
 
 describe("ShotRow", () => {
@@ -169,6 +172,15 @@ describe("ShotRow", () => {
     renderRow()
 
     expect(screen.getByRole("button", { name: "Write shot 1 again" })).toBeDisabled()
+  })
+
+  it("says where people come from, and offers to go there", () => {
+    const { onAddPeople } = renderRow({ library: [] })
+
+    expect(screen.getByText(/People, places and objects live in the library/)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole("button", { name: "Open the library" }))
+
+    expect(onAddPeople).toHaveBeenCalled()
   })
 
   it("asks for dialogue only once the clip has a speaker", () => {

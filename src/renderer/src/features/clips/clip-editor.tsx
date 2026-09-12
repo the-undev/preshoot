@@ -73,6 +73,7 @@ interface ClipEditorProps {
   onChooseVariant: (variantId: string) => void
   onSetFrame: (role: "first" | "last", imageId: number | null) => void
   onOpenSettings: () => void
+  onAddPeople: () => void
   onGenerate: () => void
   onRegenerateShot: (shotId: number) => void
 }
@@ -104,6 +105,7 @@ export function ClipEditor({
   onChooseVariant,
   onSetFrame,
   onOpenSettings,
+  onAddPeople,
   onGenerate,
   onRegenerateShot,
 }: ClipEditorProps): React.JSX.Element {
@@ -331,6 +333,7 @@ export function ClipEditor({
           onMove={onMoveShot}
           onRemove={onRemoveShot}
           onRegenerate={onRegenerateShot}
+          onAddPeople={onAddPeople}
         />
 
         <div>

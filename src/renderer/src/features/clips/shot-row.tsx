@@ -43,6 +43,7 @@ interface ShotRowProps {
   onChange: (fields: ShotFields) => void
   onRemove: () => void
   onRegenerate: () => void
+  onAddPeople: () => void
 }
 
 /** One shot of the clip: how long it runs, how it is shot, what it shows and what is said. */
@@ -57,6 +58,7 @@ export function ShotRow({
   onChange,
   onRemove,
   onRegenerate,
+  onAddPeople,
 }: ShotRowProps): React.JSX.Element {
   const [open, setOpen] = useState(index === 0)
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
@@ -232,9 +234,15 @@ export function ShotRow({
           <div className="flex flex-col gap-2">
             <span className="text-sm font-medium">Shows</span>
             {library.length === 0 ? (
-              <p className="text-xs text-muted-foreground">
-                The library is empty, so this shot has nothing to show yet.
-              </p>
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="text-xs text-muted-foreground">
+                  People, places and objects live in the library. Add them there and they can be
+                  shown here.
+                </p>
+                <Button type="button" variant="outline" size="sm" onClick={onAddPeople}>
+                  Open the library
+                </Button>
+              </div>
             ) : (
               <div className="flex flex-wrap gap-2">
                 {library.map((asset) => {

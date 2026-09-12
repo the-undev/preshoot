@@ -30,6 +30,7 @@ interface ShotListProps {
   onMove: (shotId: number, toPosition: number) => void
   onRemove: (shotId: number) => void
   onRegenerate: (shotId: number) => void
+  onAddPeople: () => void
 }
 
 /** The clip's shots in order, each collapsible, and draggable into another order. */
@@ -44,6 +45,7 @@ export function ShotList({
   onMove,
   onRemove,
   onRegenerate,
+  onAddPeople,
 }: ShotListProps): React.JSX.Element {
   const [removing, setRemoving] = useState<{ id: number; number: number } | null>(null)
   const sensors = useSensors(
@@ -84,6 +86,7 @@ export function ShotList({
               onChange={(fields) => onChange(shot.id, fields)}
               onRemove={() => setRemoving({ id: shot.id, number: index + 1 })}
               onRegenerate={() => onRegenerate(shot.id)}
+              onAddPeople={onAddPeople}
             />
           ))}
           {removing && (

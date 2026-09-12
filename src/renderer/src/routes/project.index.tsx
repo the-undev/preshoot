@@ -1,6 +1,6 @@
 import { useState } from "react"
 import { useQuery } from "@tanstack/react-query"
-import { createFileRoute } from "@tanstack/react-router"
+import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import {
   Alert,
   AlertDescription,
@@ -98,6 +98,7 @@ function OpenClip({ clipId, targetId }: OpenClipProps): React.JSX.Element {
   const comparison = useCompare(clipId)
   const actions = usePromptActions()
   const openSettings = useOpenSettings()
+  const navigate = useNavigate()
   const trpc = useTRPC()
   const shapes = useQuery(trpc.clips.aspectRatios.queryOptions())
   const settings = useQuery(trpc.settings.get.queryOptions())
@@ -138,6 +139,7 @@ function OpenClip({ clipId, targetId }: OpenClipProps): React.JSX.Element {
           onChooseVariant={writing.chooseVariant}
           onSetFrame={clip.setFrame}
           onOpenSettings={openSettings}
+          onAddPeople={() => void navigate({ to: "/project/library" })}
           onGenerate={writing.generate}
           onRegenerateShot={writing.regenerateShot}
         />

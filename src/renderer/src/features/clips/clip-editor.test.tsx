@@ -93,6 +93,7 @@ function renderEditor(over: Partial<React.ComponentProps<typeof ClipEditor>> = {
       onChooseVariant={vi.fn()}
       onSetFrame={vi.fn()}
       onOpenSettings={vi.fn()}
+      onAddPeople={vi.fn()}
       onGenerate={onGenerate}
       onRegenerateShot={vi.fn()}
       {...over}
