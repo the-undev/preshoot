@@ -48,9 +48,9 @@ describe("GenerationHistory", () => {
     expect(briefs[1]).toContain("First brief.")
   })
 
-  it("says so when the project has generated nothing", () => {
+  it("says where earlier prompts will go when there are none", () => {
     render(<GenerationHistory generations={[]} />)
 
-    expect(screen.getByText("Nothing generated in this project yet.")).toBeInTheDocument()
+    expect(screen.getByText("Earlier prompts appear here.")).toBeInTheDocument()
   })
 })

@@ -8,7 +8,7 @@ interface GenerationHistoryProps {
 /** Prompts generated in this project before, in the order given. */
 export function GenerationHistory({ generations }: GenerationHistoryProps): React.JSX.Element {
   if (generations.length === 0) {
-    return <p className="text-sm text-muted-foreground">Nothing generated in this project yet.</p>
+    return <p className="text-sm text-muted-foreground">Earlier prompts appear here.</p>
   }
 
   return (
