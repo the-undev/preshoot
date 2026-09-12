@@ -52,7 +52,7 @@ describe("assembledComposer", () => {
 
     expect(composed.model).toBeNull()
     expect(composed.fields.integrated_multimodal_description).toContain(
-      "[Shot 1] Live-action, cinematic, Shot 11 happens."
+      "[Shot 1] Live-action, cinematic. Shot 11 happens."
     )
     expect(composed.fields.integrated_multimodal_description).toContain(
       "[Shot 2] At 00:04.000, the shot cuts to"

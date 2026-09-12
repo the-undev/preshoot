@@ -18,6 +18,8 @@ export const assembledComposer: PromptComposer = {
     const sounds = composition.shots
       .map((shot) => shot.soundNote.trim())
       .filter((note) => note.length > 0)
+      .map((note) => (/[.!?]$/.test(note) ? note : `${note}.`))
+      .map((note) => `${note[0].toUpperCase()}${note.slice(1)}`)
 
     const prose: ClipProse = {
       shots: composition.shots.map((shot) => ({

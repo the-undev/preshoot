@@ -141,6 +141,11 @@ export function dialogueTag(language: string, text: string): string {
   return `<d>[${language}] ${text}</d>`
 }
 
+/** `text` with its first letter raised, for a fragment that has to start a sentence. */
+function capitalise(text: string): string {
+  return text.length > 0 ? `${text[0].toUpperCase()}${text.slice(1)}` : text
+}
+
 /** `text` ending in a full stop, so joined sentences do not run together or double up. */
 function sentence(text: string): string {
   const trimmed = text.trim()
@@ -281,6 +286,37 @@ function readProse(content: string, composition: ClipComposition, scope: Compose
   }
 }
 
+/** A marker, a cut time or a transition the model wrote anyway, which the app puts in itself. */
+const LEAD_INS = [
+  /^\s*\[shot\s*\d+\]\s*/i,
+  /^\s*at\s+\d{2}:\d{2}\.\d{3}\s*,?\s*/i,
+  ...H3_VOCABULARIES.transitions.map(
+    (phrase) => new RegExp(`^\\s*the\\s+${phrase.replace(/^the\s+/, "")}\\s*`, "i")
+  ),
+]
+
+/** The prose with anything the app writes for itself taken off the front. */
+function stripLeadIn(prose: string): string {
+  let text = prose.trim()
+  let cut = true
+  while (cut) {
+    cut = false
+    for (const leadIn of LEAD_INS) {
+      const shorter = text.replace(leadIn, "")
+      if (shorter !== text) {
+        text = shorter
+        cut = true
+      }
+    }
+  }
+  return text
+}
+
+/** Lowers an opening article so the prose reads on from the phrase the app put before it. */
+function lowerOpeningArticle(text: string): string {
+  return text.replace(/^(The|A|An|His|Her|Its|Their)\b/, (word) => word.toLowerCase())
+}
+
 /** Puts the markers, the cut times and the transitions around prose that covers every shot. */
 function assemble(composition: ClipComposition, prose: ClipProse): TargetFields {
   const body = composition.shots.map((shot, index) => {
@@ -288,11 +324,13 @@ function assemble(composition: ClipComposition, prose: ClipProse): TargetFields 
     if (!written) {
       throw new Error(`Shot ${shot.id} of clip ${composition.id} has no prose`)
     }
+    const text = stripLeadIn(written.prose)
     if (index === 0) {
-      return `[Shot 1] ${composition.style}, ${written.prose}`
+      return `[Shot 1] ${sentence(composition.style)} ${text}`
     }
     const start = formatCutTime(shotStartMs(composition, shot.id))
-    return `[Shot ${index + 1}] At ${start}, ${shot.transition ?? DEFAULT_TRANSITION} ${written.prose}`
+    const transition = shot.transition ?? DEFAULT_TRANSITION
+    return `[Shot ${index + 1}] At ${start}, ${transition} ${lowerOpeningArticle(text)}`
   })
 
   return {
@@ -316,7 +354,7 @@ function describeShot(composition: ClipComposition, shotId: number): string {
   for (const thing of shot.things) {
     sentences.push(sentence(`${thing.name}: ${thing.description}`))
   }
-  sentences.push(sentence(shot.action))
+  sentences.push(sentence(capitalise(shot.action)))
   if (shot.cameraMotion) {
     // The vocabulary mixes verb phrases with nouns, so this way states the move rather than conjugating it.
     sentences.push(sentence(`Camera: ${cameraPhrase(shot)}`))

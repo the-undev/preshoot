@@ -206,11 +206,31 @@ describe("assembling the prompt", () => {
     const assembled = minimaxH3.prose.assemble(composition, prose)
 
     expect(assembled.integrated_multimodal_description).toBe(
-      `[Shot 1] Live-action, cinematic, The keeper climbs. ${dialogueTag("English", "Almost there.")} ` +
-        "[Shot 2] At 00:04.500, the shot cuts to The lamp turns and catches."
+      `[Shot 1] Live-action, cinematic. The keeper climbs. ${dialogueTag("English", "Almost there.")} ` +
+        "[Shot 2] At 00:04.500, the shot cuts to the lamp turns and catches."
     )
     expect(assembled.overall_soundscape).toBe("Wind batters the glass.")
     expect(assembled.non_diegetic_music).toBe("N/A")
+  })
+
+  it("takes off a marker, a cut time or a transition the model wrote anyway", () => {
+    const wordy: ClipProse = {
+      ...prose,
+      shots: [
+        { shotId: 11, prose: "[Shot 1] The keeper climbs." },
+        { shotId: 12, prose: "[Shot 2] At 00:04.500, the shot cuts to The lamp turns." },
+      ],
+    }
+
+    const assembled = minimaxH3.prose.assemble(
+      { ...composition, shots: [composition.shots[0], composition.shots[1]] },
+      wordy
+    )
+
+    expect(assembled.integrated_multimodal_description).toBe(
+      "[Shot 1] Live-action, cinematic. The keeper climbs. " +
+        "[Shot 2] At 00:04.500, the shot cuts to the lamp turns."
+    )
   })
 
   it("cuts with a plain camera cut when the shot names no transition", () => {
@@ -233,7 +253,7 @@ describe("describing a shot without the model", () => {
 
     expect(described).toContain("The lighting is night.")
     expect(described).toContain("Keeper: an elderly man in oilskins.")
-    expect(described).toContain("climbs the last steps of the tower.")
+    expect(described).toContain("Climbs the last steps of the tower.")
     expect(described).toContain("Camera: push in with small amplitude at slow speed.")
     expect(described).toContain(
       `The elderly keeper, low and weathered (S1) says: ${dialogueTag("English", "Almost there.")}`

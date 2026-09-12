@@ -92,7 +92,7 @@ describe("proseComposer", () => {
 
     expect(composed.model).toBe("Qwen3.5-9B")
     expect(composed.fields.integrated_multimodal_description).toBe(
-      "[Shot 1] Live-action, cinematic, The keeper climbs. [Shot 2] At 00:04.500, the shot cuts to The lamp catches."
+      "[Shot 1] Live-action, cinematic. The keeper climbs. [Shot 2] At 00:04.500, the shot cuts to the lamp catches."
     )
     expect(composed.rendered).toContain("overall_soundscape: Wind batters the glass.")
     expect(composed.prose?.shots).toEqual([

@@ -96,7 +96,7 @@ describe("prompts router", () => {
     expect(generated.model).toBe("Qwen3.5-9B")
     expect(generated.composition?.shots).toHaveLength(2)
     expect(generated.prose?.shots).toHaveLength(2)
-    expect(generated.rendered).toContain("[Shot 1] Live-action, cinematic, Shot 1 as written.")
+    expect(generated.rendered).toContain("[Shot 1] Live-action, cinematic. Shot 1 as written.")
     expect(generated.rendered).toContain("[Shot 2] At 00:04.000, the camera cuts to")
   })
 
