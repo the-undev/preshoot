@@ -71,6 +71,12 @@ export type ClipSummary = RouterOutputs["clips"]["list"][number]
 /** A whole clip: its speakers, its shots, what they show and what is said. */
 export type ClipComposition = RouterOutputs["clips"]["composition"]
 
+/** A shape a clip can be generated at. */
+export type AspectRatio = RouterOutputs["clips"]["aspectRatios"][number]
+
+/** Everything a generation of a clip needs, the prompt being one field of it. */
+export type GenerationRequest = NonNullable<GenerationRecord["request"]>
+
 /** A picture a clip is anchored to. */
 export type FrameComposition = ClipComposition["frames"][number]
 

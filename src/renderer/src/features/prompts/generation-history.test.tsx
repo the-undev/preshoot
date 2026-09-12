@@ -18,6 +18,7 @@ function generation(over: Partial<GenerationRecord>): GenerationRecord {
     brief: "A brief.",
     fields,
     composition: null,
+    request: null,
     prose: null,
     rendered: "integrated_multimodal_description: a prompt",
     model: "Qwen3.5-9B",

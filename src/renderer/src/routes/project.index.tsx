@@ -99,6 +99,7 @@ function OpenClip({ clipId, targetId }: OpenClipProps): React.JSX.Element {
   const actions = usePromptActions()
   const openSettings = useOpenSettings()
   const trpc = useTRPC()
+  const shapes = useQuery(trpc.clips.aspectRatios.queryOptions())
   const settings = useQuery(trpc.settings.get.queryOptions())
   const [pairs, setPairs] = useState<ComparePair[]>([])
 
@@ -116,6 +117,7 @@ function OpenClip({ clipId, targetId }: OpenClipProps): React.JSX.Element {
           vocabularies={clip.vocabularies}
           library={library.assets}
           libraryImages={pictures.images}
+          aspectRatios={shapes.data ?? []}
           composers={writing.composers}
           composerId={writing.composerId}
           variants={prompts.variants}

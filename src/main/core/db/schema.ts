@@ -1,6 +1,7 @@
 import { integer, primaryKey, sqliteTable, text } from "drizzle-orm/sqlite-core"
 import type { ClipComposition } from "../composition/clip"
 import type { ClipProse } from "../composition/prose"
+import type { GenerationRequest } from "../composition/request"
 
 /** Project-level key/value settings such as default target model and clip length. */
 export const projectSettings = sqliteTable("project_settings", {
@@ -39,6 +40,9 @@ export const clips = sqliteTable("clips", {
   note: text("note").notNull(),
   musicNote: text("music_note").notNull(),
   form: text("form").notNull().default("t2v"),
+  shortEdge: integer("short_edge").notNull().default(768),
+  aspectRatio: text("aspect_ratio").notNull().default("auto"),
+  seed: integer("seed").notNull().default(0),
   createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
 })
 
@@ -135,6 +139,7 @@ export const generations = sqliteTable("generations", {
   brief: text("brief").notNull(),
   fields: text("fields", { mode: "json" }).$type<Record<string, string>>().notNull(),
   composition: text("composition", { mode: "json" }).$type<ClipComposition>(),
+  request: text("request", { mode: "json" }).$type<GenerationRequest>(),
   prose: text("prose", { mode: "json" }).$type<ClipProse>(),
   rendered: text("rendered").notNull(),
   model: text("model"),

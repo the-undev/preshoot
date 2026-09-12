@@ -10,8 +10,10 @@ import {
   SelectValue,
   Textarea,
 } from "@renderer/design-system"
+import { SHORT_EDGES } from "./short-edges"
 import {
   assetImageUrl,
+  type AspectRatio,
   type Asset,
   type AssetImage,
   type ClipComposition,
@@ -33,10 +35,10 @@ const NO_FRAME = "none"
 
 /** What each form is called on screen. */
 const FORM_NAMES = [
-  { id: "t2v", name: "Text to video" },
-  { id: "i2v", name: "Image to video" },
-  { id: "fl2v", name: "First and last frame" },
-  { id: "l2v", name: "Last frame" },
+  { id: "t2v", name: "Text to video (t2va)" },
+  { id: "i2v", name: "Image to video (i2va)" },
+  { id: "fl2v", name: "First and last frame (fl2va)" },
+  { id: "l2v", name: "Last frame (l2va)" },
 ] as const
 
 /** Which forms anchor to a picture at which end. */
@@ -50,6 +52,7 @@ interface ClipEditorProps {
   vocabularies: Vocabularies
   library: Asset[]
   libraryImages: AssetImage[]
+  aspectRatios: AspectRatio[]
   composers: ComposerOption[]
   composerId: string
   variants: PromptVariant[]
@@ -80,6 +83,7 @@ export function ClipEditor({
   vocabularies,
   library,
   libraryImages,
+  aspectRatios,
   composers,
   composerId,
   variants,
@@ -107,6 +111,8 @@ export function ClipEditor({
   const [style, setStyle] = useState(composition.style)
   const [note, setNote] = useState(composition.note)
   const [musicNote, setMusicNote] = useState(composition.musicNote)
+  const [shortEdge, setShortEdge] = useState(String(composition.shortEdge))
+  const [seed, setSeed] = useState(String(composition.seed))
 
   const seconds = composition.shots.reduce((total, shot) => total + shot.durationMs, 0) / 1000
   const tooLong = seconds > MAX_CLIP_SECONDS
@@ -121,7 +127,17 @@ export function ClipEditor({
   }
 
   function commit(over: Partial<ClipFields>): void {
-    onClipChange({ name, style, note, musicNote, form: composition.form, ...over })
+    onClipChange({
+      name,
+      style,
+      note,
+      musicNote,
+      form: composition.form,
+      shortEdge: composition.shortEdge,
+      aspectRatio: composition.aspectRatio,
+      seed: composition.seed,
+      ...over,
+    })
   }
 
   return (
@@ -155,7 +171,7 @@ export function ClipEditor({
 
       <div className="flex flex-wrap gap-3 sm:items-end">
         <div className="flex min-w-0 flex-col gap-1">
-          <Label htmlFor="clip-form">Written for</Label>
+          <Label htmlFor="clip-form">Generation type</Label>
           <Select
             value={composition.form}
             onValueChange={(value) => commit({ form: value as ClipFields["form"] })}
@@ -183,6 +199,71 @@ export function ClipEditor({
             onChoose={(imageId) => onSetFrame(role.role, imageId)}
           />
         ))}
+      </div>
+
+      <div className="flex flex-wrap gap-3 sm:items-end">
+        <div className="flex min-w-0 flex-col gap-1">
+          <Label htmlFor="clip-shape">Shape</Label>
+          <Select
+            value={composition.aspectRatio}
+            onValueChange={(aspectRatio) => commit({ aspectRatio })}
+          >
+            <SelectTrigger id="clip-shape" className="w-52 min-w-0">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {aspectRatios.map((shape) => (
+                <SelectItem key={shape.value} value={shape.value}>
+                  {shape.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="flex min-w-0 flex-col gap-1">
+          <Label htmlFor="clip-short-edge">Short edge</Label>
+          <Input
+            id="clip-short-edge"
+            className="w-28"
+            type="number"
+            list="clip-short-edges"
+            value={shortEdge}
+            onChange={(event) => setShortEdge(event.target.value)}
+            onBlur={() => {
+              const typed = Number(shortEdge)
+              if (!Number.isFinite(typed) || typed < 128) {
+                setShortEdge(String(composition.shortEdge))
+                return
+              }
+              commit({ shortEdge: Math.round(typed) })
+            }}
+          />
+          <datalist id="clip-short-edges">
+            {SHORT_EDGES.map((edge) => (
+              <option key={edge} value={edge} />
+            ))}
+          </datalist>
+        </div>
+
+        <div className="flex min-w-0 flex-col gap-1">
+          <Label htmlFor="clip-seed">Seed</Label>
+          <Input
+            id="clip-seed"
+            className="w-28"
+            type="number"
+            value={seed}
+            onChange={(event) => setSeed(event.target.value)}
+            onBlur={() => {
+              const typed = Number(seed)
+              if (!Number.isFinite(typed) || typed < 0) {
+                setSeed(String(composition.seed))
+                return
+              }
+              commit({ seed: Math.round(typed) })
+            }}
+          />
+        </div>
       </div>
 
       <div className="flex flex-col gap-1">

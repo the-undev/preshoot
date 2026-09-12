@@ -1,5 +1,6 @@
 import { TRPCError } from "@trpc/server"
 import { z } from "zod"
+import { ASPECT_RATIOS } from "../../core/composition/aspect"
 import { CLIP_FORMS, type ClipForm } from "../../core/composition/clip"
 import {
   clearClipFrame,
@@ -113,6 +114,9 @@ export const clipsRouter = router({
         note: z.string(),
         musicNote: z.string(),
         form: z.enum(CLIP_FORMS as [ClipForm, ...ClipForm[]]),
+        shortEdge: z.number().int().min(128).max(4096),
+        aspectRatio: z.enum(ASPECT_RATIOS.map((entry) => entry.value) as [string, ...string[]]),
+        seed: z.number().int().min(0),
       })
     )
     .mutation(({ ctx, input }) => {
@@ -140,6 +144,9 @@ export const clipsRouter = router({
       asClientError(error)
     }
   }),
+
+  /** The shapes a clip can be generated at, for the picker in the editor. */
+  aspectRatios: publicProcedure.query(() => ASPECT_RATIOS),
 
   /** The words this clip's target accepts, for the pickers in the editor. */
   vocabularies: publicProcedure.input(z.object({ clipId })).query(({ ctx, input }) => {

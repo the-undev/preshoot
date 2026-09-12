@@ -11,6 +11,7 @@ const generation: GenerationRecord = {
   brief: "A keeper lights the lamp.",
   fields: { integrated_multimodal_description: "one two three" },
   composition: null,
+  request: null,
   prose: null,
   rendered: "integrated_multimodal_description: [Shot 1] ...",
   model: "Qwen3.5-9B",

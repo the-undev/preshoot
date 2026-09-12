@@ -15,6 +15,9 @@ export interface ClipSummary {
   note: string
   musicNote: string
   form: ClipForm
+  shortEdge: number
+  aspectRatio: string
+  seed: number
   shots: number
   durationMs: number
   prompts: number
@@ -118,6 +121,9 @@ export function updateClip(
     note: string
     musicNote: string
     form: ClipForm
+    shortEdge: number
+    aspectRatio: string
+    seed: number
   }
 ): ClipSummary {
   const [row] = db
@@ -128,6 +134,9 @@ export function updateClip(
       note: input.note,
       musicNote: input.musicNote,
       form: input.form,
+      shortEdge: input.shortEdge,
+      aspectRatio: input.aspectRatio,
+      seed: input.seed,
     })
     .where(eq(schema.clips.id, input.id))
     .returning()
@@ -238,6 +247,9 @@ export function readComposition(db: ProjectDatabase, clipId: number): ClipCompos
     id: clip.id,
     name: clip.name,
     form: clip.form as ClipForm,
+    shortEdge: clip.shortEdge,
+    aspectRatio: clip.aspectRatio,
+    seed: clip.seed,
     frames: readFrames(db, clipId),
     style: clip.style,
     note: clip.note,

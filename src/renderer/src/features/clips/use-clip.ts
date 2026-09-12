@@ -27,6 +27,9 @@ export interface ClipFields {
   note: string
   musicNote: string
   form: ClipComposition["form"]
+  shortEdge: number
+  aspectRatio: string
+  seed: number
 }
 
 /** One open clip and every call that changes it. */

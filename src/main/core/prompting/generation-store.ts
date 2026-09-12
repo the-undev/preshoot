@@ -2,6 +2,7 @@ import { desc, eq, isNull } from "drizzle-orm"
 import type { ClipComposition } from "../composition/clip"
 import { CompositionError } from "../composition/errors"
 import type { ClipProse } from "../composition/prose"
+import type { GenerationRequest } from "../composition/request"
 import { schema, type ProjectDatabase } from "../db"
 
 /** One stored generation. `createdAt` is an ISO string because the record crosses to the renderer. */
@@ -13,6 +14,7 @@ export interface GenerationRecord {
   brief: string
   fields: Record<string, string>
   composition: ClipComposition | null
+  request: GenerationRequest | null
   prose: ClipProse | null
   rendered: string
   model: string | null

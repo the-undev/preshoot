@@ -68,6 +68,9 @@ export interface ClipComposition {
   id: number
   name: string
   form: ClipForm
+  shortEdge: number
+  aspectRatio: string
+  seed: number
   frames: FrameComposition[]
   style: string
   note: string

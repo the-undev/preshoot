@@ -28,6 +28,7 @@ function result(id: number, composer: string, verdict: string | null): Generatio
     brief: "A keeper lights the lamp.",
     fields: {},
     composition: null,
+    request: null,
     prose: null,
     rendered: `Prompt ${id}`,
     model: "Qwen3.5-9B",

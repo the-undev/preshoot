@@ -65,6 +65,9 @@ describe("clip store", () => {
       note: "A keeper lights the lamp.",
       musicNote: "A slow piano figure.",
       form: "t2v",
+      shortEdge: 768,
+      aspectRatio: "auto",
+      seed: 0,
     })
 
     const composition = readComposition(handle.db, clipId)

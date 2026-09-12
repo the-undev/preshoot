@@ -32,6 +32,9 @@ const composition: ClipComposition = {
   id: 1,
   name: "Lighthouse",
   form: "t2v",
+  shortEdge: 768,
+  aspectRatio: "auto",
+  seed: 0,
   frames: [],
   style: "Live-action, cinematic",
   note: "A keeper lights the lamp.",
@@ -54,6 +57,10 @@ function renderEditor(over: Partial<React.ComponentProps<typeof ClipEditor>> = {
       vocabularies={vocabularies}
       library={[]}
       libraryImages={[]}
+      aspectRatios={[
+        { value: "auto", name: "Whatever suits (auto)" },
+        { value: "16:9", name: "Landscape 16:9" },
+      ]}
       composers={[
         { id: "prose", name: "Model prose per shot" },
         { id: "assembled", name: "Assembled without the model" },
@@ -178,6 +185,33 @@ describe("ClipEditor", () => {
     expect(onGenerate).toHaveBeenCalled()
   })
 
+  it("says what kind of generation the clip is for", () => {
+    renderEditor()
+
+    expect(screen.getByLabelText("Generation type")).toHaveTextContent("Text to video (t2va)")
+  })
+
+  it("holds the shape, the short edge and the seed it is generated at", () => {
+    renderEditor({
+      composition: { ...composition, aspectRatio: "16:9", shortEdge: 1080, seed: 42 },
+    })
+
+    expect(screen.getByLabelText("Shape")).toHaveTextContent("Landscape 16:9")
+    expect(screen.getByLabelText("Short edge")).toHaveValue(1080)
+    expect(screen.getByLabelText("Seed")).toHaveValue(42)
+  })
+
+  it("keeps the short edge it had when the box is emptied", () => {
+    const { onClipChange } = renderEditor()
+
+    const edge = screen.getByLabelText("Short edge")
+    fireEvent.change(edge, { target: { value: "" } })
+    fireEvent.blur(edge)
+
+    expect(onClipChange).not.toHaveBeenCalled()
+    expect(edge).toHaveValue(768)
+  })
+
   it("asks for a picture when the form needs one", () => {
     renderEditor({ composition: { ...composition, form: "i2v" } })
 
@@ -189,7 +223,7 @@ describe("ClipEditor", () => {
     renderEditor()
 
     expect(screen.queryByLabelText("Opens on")).not.toBeInTheDocument()
-    expect(screen.getByLabelText("Written for")).toHaveTextContent("Text to video")
+    expect(screen.getByLabelText("Generation type")).toHaveTextContent("Text to video")
   })
 
   it("will not write a clip with no shots", () => {

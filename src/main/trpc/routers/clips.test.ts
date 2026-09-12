@@ -174,6 +174,9 @@ describe("clips router", () => {
       note: "",
       musicNote: "",
       form: "t2v",
+      shortEdge: 768,
+      aspectRatio: "auto",
+      seed: 0,
     })
 
     expect(emptied.name).toBe("")

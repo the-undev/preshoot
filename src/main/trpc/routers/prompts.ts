@@ -4,6 +4,7 @@ import { basename, dirname, join } from "node:path"
 import { TRPCError } from "@trpc/server"
 import { z } from "zod"
 import { readClip, readComposition } from "../../core/composition/clip-store"
+import { buildRequest } from "../../core/composition/request"
 import {
   pictureExtension,
   promptFileName,
@@ -92,6 +93,7 @@ async function writeClip(
     brief: composition.note,
     fields: composed.fields,
     composition,
+    request: buildRequest(composition, composed.rendered),
     prose: composed.prose,
     rendered: composed.rendered,
     model: composed.model,
@@ -170,6 +172,7 @@ function exportMeta(generation: GenerationRecord): Record<string, unknown> {
   return {
     target: generation.target,
     composer: generation.composer,
+    request: generation.request,
     promptVariantId: generation.promptVariantId,
     model: generation.model,
     brief: generation.brief,
@@ -364,6 +367,7 @@ export const promptsRouter = router({
           brief: previous.brief,
           fields: edited.fields,
           composition: previous.composition,
+          request: buildRequest(previous.composition, edited.rendered),
           prose: null,
           rendered: edited.rendered,
           model: edited.model,
