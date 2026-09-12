@@ -21,6 +21,7 @@ import { useClips } from "@renderer/features/clips/use-clips"
 import type { ClipSummary } from "@renderer/lib/trpc"
 import { useGenerateClip } from "@renderer/features/clips/use-generate-clip"
 import { GenerationHistory } from "@renderer/features/prompts/generation-history"
+import { usePromptActions } from "@renderer/features/prompts/use-prompt-actions"
 import { useVariants } from "@renderer/features/prompts/use-variants"
 import { PromptResult } from "@renderer/features/prompts/prompt-result"
 
@@ -104,6 +105,7 @@ function OpenClip({ clipId, targetId }: OpenClipProps): React.JSX.Element {
   const writing = useGenerateClip(clipId)
   const prompts = useVariants(targetId)
   const comparison = useCompare(clipId)
+  const actions = usePromptActions()
   const [pairs, setPairs] = useState<ComparePair[]>([])
 
   if (!clip.composition || !clip.vocabularies) {
@@ -148,9 +150,35 @@ function OpenClip({ clipId, targetId }: OpenClipProps): React.JSX.Element {
       </section>
 
       <section className="flex flex-col gap-4">
-        {latest && <PromptResult generation={latest} />}
+        {latest && (
+          <PromptResult
+            generation={latest}
+            isEditing={actions.isEditing}
+            isExporting={actions.isExporting}
+            onEdit={actions.edit}
+            onExport={actions.exportToProject}
+            onSave={actions.save}
+          />
+        )}
+
+        {actions.exportedTo && (
+          <p className="text-xs text-muted-foreground">Written to {actions.exportedTo}</p>
+        )}
+
+        {actions.errorMessage && (
+          <Alert variant="destructive">
+            <AlertDescription>{actions.errorMessage}</AlertDescription>
+          </Alert>
+        )}
         <h2 className="font-heading text-sm font-semibold text-muted-foreground">History</h2>
-        <GenerationHistory generations={earlier} />
+        <GenerationHistory
+          generations={earlier}
+          isEditing={actions.isEditing}
+          isExporting={actions.isExporting}
+          onEdit={actions.edit}
+          onExport={actions.exportToProject}
+          onSave={actions.save}
+        />
 
         <ComparePanel
           composers={writing.composers}

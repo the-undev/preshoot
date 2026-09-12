@@ -1,17 +1,34 @@
 import { useEffect, useState } from "react"
-import { Button } from "@renderer/design-system"
+import { Button, Input } from "@renderer/design-system"
 import type { GenerationRecord } from "@renderer/lib/trpc"
 
 /** How long the Copy button says it has copied. */
 const COPIED_MS = 2000
 
-interface PromptResultProps {
+/** What can be done to any finished prompt, wherever it is shown. */
+export interface PromptActionProps {
+  isEditing: boolean
+  isExporting: boolean
+  onEdit: (generationId: number, instruction: string) => void
+  onExport: (generationId: number) => void
+  onSave: (generationId: number) => void
+}
+
+interface PromptResultProps extends PromptActionProps {
   generation: GenerationRecord
 }
 
-/** One generated prompt with the brief it came from, ready to copy into the H3 web form. */
-export function PromptResult({ generation }: PromptResultProps): React.JSX.Element {
+/** One generated prompt, ready to copy, to edit into another, or to write out to a file. */
+export function PromptResult({
+  generation,
+  isEditing,
+  isExporting,
+  onEdit,
+  onExport,
+  onSave,
+}: PromptResultProps): React.JSX.Element {
   const [copied, setCopied] = useState(false)
+  const [instruction, setInstruction] = useState("")
 
   useEffect(() => {
     const timer = copied ? setTimeout(() => setCopied(false), COPIED_MS) : undefined
@@ -23,6 +40,8 @@ export function PromptResult({ generation }: PromptResultProps): React.JSX.Eleme
     setCopied(true)
   }
 
+  const trimmedInstruction = instruction.trim()
+
   return (
     <article className="flex flex-col gap-3 rounded-lg border p-4">
       <header className="flex items-start justify-between gap-4">
@@ -33,12 +52,55 @@ export function PromptResult({ generation }: PromptResultProps): React.JSX.Eleme
               .filter(Boolean)
               .join(" · ")}
           </p>
+          {generation.editInstruction && (
+            <p className="text-xs text-muted-foreground">Edited: {generation.editInstruction}</p>
+          )}
         </div>
-        <Button variant="outline" size="sm" onClick={() => void copy()}>
-          {copied ? "Copied" : "Copy"}
-        </Button>
+        <div className="flex shrink-0 gap-2">
+          <Button variant="outline" size="sm" onClick={() => void copy()}>
+            {copied ? "Copied" : "Copy"}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={isExporting}
+            onClick={() => onExport(generation.id)}
+          >
+            Export
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={isExporting}
+            onClick={() => onSave(generation.id)}
+          >
+            Save
+          </Button>
+        </div>
       </header>
+
       <pre className="text-sm whitespace-pre-wrap text-muted-foreground">{generation.rendered}</pre>
+
+      <form
+        className="flex gap-2"
+        onSubmit={(event) => {
+          event.preventDefault()
+          if (trimmedInstruction.length === 0) return
+          onEdit(generation.id, trimmedInstruction)
+          setInstruction("")
+        }}
+      >
+        <Input
+          aria-label={`Change to make to prompt ${generation.id}`}
+          placeholder="She is happier, and the whole scene is faster"
+          value={instruction}
+          disabled={isEditing}
+          onChange={(event) => setInstruction(event.target.value)}
+        />
+        <Button type="submit" disabled={isEditing || trimmedInstruction.length === 0}>
+          {isEditing ? "Editing…" : "Edit"}
+        </Button>
+      </form>
     </article>
   )
 }

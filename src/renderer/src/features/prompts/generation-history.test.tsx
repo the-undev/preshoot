@@ -1,5 +1,5 @@
 import { render, screen } from "@testing-library/react"
-import { describe, expect, it } from "vitest"
+import { describe, expect, it, vi } from "vitest"
 import type { GenerationRecord } from "@renderer/lib/trpc"
 import { GenerationHistory } from "./generation-history"
 
@@ -9,17 +9,17 @@ const fields = {
   non_diegetic_music: "A soft acoustic-guitar pattern at a moderate tempo.",
 }
 
-const generations: GenerationRecord[] = [
-  {
-    id: 2,
+function generation(over: Partial<GenerationRecord>): GenerationRecord {
+  return {
+    id: 1,
     target: "minimax-h3",
-    composer: "brief",
-    clipId: null,
+    composer: "prose",
+    clipId: 1,
+    brief: "A brief.",
+    fields,
     composition: null,
     prose: null,
-    brief: "Second brief.",
-    fields,
-    rendered: "integrated_multimodal_description: second",
+    rendered: "integrated_multimodal_description: a prompt",
     model: "Qwen3.5-9B",
     runId: null,
     promptVariantId: null,
@@ -29,49 +29,85 @@ const generations: GenerationRecord[] = [
     parentId: null,
     editInstruction: null,
     createdAt: "2026-09-12T08:00:00.000Z",
-  },
-  {
-    id: 1,
-    target: "minimax-h3",
-    composer: "brief",
-    clipId: null,
-    composition: null,
-    prose: null,
-    brief: "First brief.",
-    fields,
-    rendered: "integrated_multimodal_description: first",
-    model: "Qwen3.5-9B",
-    runId: null,
-    promptVariantId: null,
-    systemPrompt: null,
-    verdict: null,
-    note: "",
-    parentId: null,
-    editInstruction: null,
-    createdAt: "2026-09-11T08:00:00.000Z",
-  },
-]
+    ...over,
+  }
+}
+
+function renderHistory(generations: GenerationRecord[]): void {
+  render(
+    <GenerationHistory
+      generations={generations}
+      isEditing={false}
+      isExporting={false}
+      onEdit={vi.fn()}
+      onExport={vi.fn()}
+      onSave={vi.fn()}
+    />
+  )
+}
 
 describe("GenerationHistory", () => {
   it("shows the brief and the prompt of every generation", () => {
-    render(<GenerationHistory generations={generations} />)
+    renderHistory([
+      generation({ id: 2, brief: "Second brief.", rendered: "second" }),
+      generation({ id: 1, brief: "First brief.", rendered: "first" }),
+    ])
 
     expect(screen.getByText("Second brief.")).toBeInTheDocument()
-    expect(screen.getByText("integrated_multimodal_description: second")).toBeInTheDocument()
+    expect(screen.getByText("second")).toBeInTheDocument()
     expect(screen.getByText("First brief.")).toBeInTheDocument()
-    expect(screen.getByText("integrated_multimodal_description: first")).toBeInTheDocument()
+    expect(screen.getByText("first")).toBeInTheDocument()
   })
 
   it("keeps the order it is given", () => {
-    render(<GenerationHistory generations={generations} />)
+    renderHistory([
+      generation({ id: 2, brief: "Second brief." }),
+      generation({ id: 1, brief: "First brief." }),
+    ])
 
-    const briefs = screen.getAllByRole("listitem").map((item) => item.textContent)
-    expect(briefs[0]).toContain("Second brief.")
-    expect(briefs[1]).toContain("First brief.")
+    const entries = screen.getAllByRole("listitem").map((item) => item.textContent)
+    expect(entries[0]).toContain("Second brief.")
+    expect(entries[1]).toContain("First brief.")
+  })
+
+  it("puts an edit under the prompt it came from", () => {
+    renderHistory([
+      generation({
+        id: 2,
+        parentId: 1,
+        composer: "edit",
+        editInstruction: "She is happier.",
+        rendered: "edited",
+      }),
+      generation({ id: 1, rendered: "original" }),
+    ])
+
+    const [top] = screen.getAllByRole("listitem")
+    expect(top.textContent).toContain("original")
+    expect(top.textContent).toContain("edited")
+    expect(screen.getByText("Edited: She is happier.")).toBeInTheDocument()
+  })
+
+  it("nests a chain of edits as deep as it goes", () => {
+    renderHistory([
+      generation({ id: 3, parentId: 2, composer: "edit", editInstruction: "Faster." }),
+      generation({ id: 2, parentId: 1, composer: "edit", editInstruction: "Happier." }),
+      generation({ id: 1 }),
+    ])
+
+    expect(screen.getAllByRole("list")).toHaveLength(3)
+  })
+
+  it("shows an edit whose parent is not in the list on its own", () => {
+    renderHistory([
+      generation({ id: 5, parentId: 99, composer: "edit", editInstruction: "Faster." }),
+    ])
+
+    expect(screen.getByText("Edited: Faster.")).toBeInTheDocument()
   })
 
   it("says where earlier prompts will go when there are none", () => {
-    render(<GenerationHistory generations={[]} />)
+    renderHistory([])
 
     expect(screen.getByText("Earlier prompts appear here.")).toBeInTheDocument()
   })
