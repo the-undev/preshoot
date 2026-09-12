@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react"
 import { Button, Input } from "@renderer/design-system"
 import type { GenerationRecord } from "@renderer/lib/trpc"
+import { GenerationFields } from "./generation-fields"
 
 /** How long the Copy button says it has copied. */
 const COPIED_MS = 2000
@@ -106,6 +107,8 @@ export function PromptResult({
           </Button>
         </div>
       </header>
+
+      <GenerationFields generation={generation} />
 
       <pre className="text-sm whitespace-pre-wrap text-muted-foreground">{generation.rendered}</pre>
 
