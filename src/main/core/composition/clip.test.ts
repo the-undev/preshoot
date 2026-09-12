@@ -34,7 +34,9 @@ const composition: ClipComposition = {
   style: "Live-action, cinematic",
   note: "A keeper lights the lamp.",
   musicNote: "",
-  speakers: [{ id: 7, label: "S1", description: "The keeper, weathered and low." }],
+  speakers: [
+    { id: 7, label: "S1", description: "The keeper, weathered and low.", subjectName: null },
+  ],
   shots: [shot(1, 4500), shot(2, 3000), shot(3, 2500)],
 }
 

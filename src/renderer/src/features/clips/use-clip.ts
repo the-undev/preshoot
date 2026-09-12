@@ -44,8 +44,8 @@ export interface ClipPanel {
   updateShot(shotId: number, fields: ShotFields): void
   moveShot(shotId: number, toPosition: number): void
   removeShot(shotId: number): void
-  addSpeaker(description: string): void
-  updateSpeaker(speakerId: number, description: string): void
+  addSpeaker(fields: { assetId: number | null; description: string }): void
+  updateSpeaker(speakerId: number, fields: { assetId: number | null; description: string }): void
   removeSpeaker(speakerId: number): void
 }
 
@@ -108,8 +108,8 @@ export function useClip(clipId: number): ClipPanel {
     updateShot: (shotId, fields) => updateShot.mutate({ shotId, ...fields }),
     moveShot: (shotId, toPosition) => moveShot.mutate({ shotId, toPosition }),
     removeShot: (shotId) => removeShot.mutate({ shotId }),
-    addSpeaker: (description) => addSpeaker.mutate({ clipId, description }),
-    updateSpeaker: (speakerId, description) => updateSpeaker.mutate({ speakerId, description }),
+    addSpeaker: (fields) => addSpeaker.mutate({ clipId, ...fields }),
+    updateSpeaker: (speakerId, fields) => updateSpeaker.mutate({ speakerId, ...fields }),
     removeSpeaker: (speakerId) => removeSpeaker.mutate({ speakerId }),
   }
 }

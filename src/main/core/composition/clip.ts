@@ -9,11 +9,15 @@ export interface ThingComposition {
   description: string
 }
 
-/** A voice in the clip. The label is what the prompt calls it, such as "S1". */
+/**
+ * A voice in the clip. The label is what the prompt calls it, such as "S1". A voice that belongs
+ * to one of the clip's subjects carries its name, so the prompt can say they are the same person.
+ */
 export interface SpeakerComposition {
   id: number
   label: string
   description: string
+  subjectName: string | null
 }
 
 /**

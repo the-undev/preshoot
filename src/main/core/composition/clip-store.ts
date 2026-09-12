@@ -174,8 +174,15 @@ export function readComposition(db: ProjectDatabase, clipId: number): ClipCompos
   }
 
   const speakerRows = db
-    .select()
+    .select({
+      id: schema.speakers.id,
+      position: schema.speakers.position,
+      description: schema.speakers.description,
+      subjectName: schema.assets.name,
+      subjectDescription: schema.assets.description,
+    })
     .from(schema.speakers)
+    .leftJoin(schema.assets, eq(schema.assets.id, schema.speakers.assetId))
     .where(eq(schema.speakers.clipId, clipId))
     .orderBy(asc(schema.speakers.position))
     .all()
@@ -257,7 +264,9 @@ export function readComposition(db: ProjectDatabase, clipId: number): ClipCompos
     speakers: speakerRows.map((speaker) => ({
       id: speaker.id,
       label: speakerLabel(speaker.position),
-      description: speaker.description,
+      // A voice that is a subject is described by that subject, so the two cannot drift apart.
+      description: speaker.subjectDescription ?? speaker.description,
+      subjectName: speaker.subjectName,
     })),
     shots,
   }
@@ -403,7 +412,11 @@ export function setShotDialogue(db: ProjectDatabase, shotId: number, lines: Dial
 }
 
 /** Adds a voice to the clip. Its label follows from its place in the list. */
-export function insertSpeaker(db: ProjectDatabase, clipId: number, description: string): number {
+export function insertSpeaker(
+  db: ProjectDatabase,
+  clipId: number,
+  input: { assetId: number | null; description: string }
+): number {
   const clip = db.select().from(schema.clips).where(eq(schema.clips.id, clipId)).get()
   if (!clip) {
     throw CompositionError.notFound(`Clip ${clipId}`)
@@ -411,17 +424,26 @@ export function insertSpeaker(db: ProjectDatabase, clipId: number, description: 
 
   const [row] = db
     .insert(schema.speakers)
-    .values({ clipId, position: speakerIdsInOrder(db, clipId).length, description })
+    .values({
+      clipId,
+      position: speakerIdsInOrder(db, clipId).length,
+      assetId: input.assetId,
+      description: input.description,
+    })
     .returning()
     .all()
   return row.id
 }
 
-/** Rewrites how a voice is described. */
-export function updateSpeaker(db: ProjectDatabase, speakerId: number, description: string): void {
+/** Rewrites a voice: which subject it belongs to, or how it is described on its own. */
+export function updateSpeaker(
+  db: ProjectDatabase,
+  speakerId: number,
+  input: { assetId: number | null; description: string }
+): void {
   const changed = db
     .update(schema.speakers)
-    .set({ description })
+    .set({ assetId: input.assetId, description: input.description })
     .where(eq(schema.speakers.id, speakerId))
     .returning()
     .all()

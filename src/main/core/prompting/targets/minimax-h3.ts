@@ -269,9 +269,14 @@ function proseInstruction(composition: ClipComposition, scope: ComposeScope): st
 
   if (composition.speakers.length > 0) {
     parts.push(
-      ["Speakers:", ...composition.speakers.map((s) => `  (${s.label}) ${s.description}`)].join(
-        "\n"
-      )
+      [
+        "Speakers:",
+        ...composition.speakers.map((speaker) =>
+          speaker.subjectName
+            ? `  (${speaker.label}) is the subject ${speaker.subjectName}: ${speaker.description}`
+            : `  (${speaker.label}) ${speaker.description}`
+        ),
+      ].join("\n")
     )
   }
 

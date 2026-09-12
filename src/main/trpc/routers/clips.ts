@@ -35,7 +35,6 @@ const DEFAULT_STYLE = "Live-action, cinematic"
 
 const clipId = z.number().int()
 const shotId = z.number().int()
-const description = z.string().trim().min(1)
 
 /**
  * Nothing the editor writes as it is typed is trimmed. Trimming runs on every keystroke, so a
@@ -248,11 +247,14 @@ export const clipsRouter = router({
 
   /** Adds a voice to the clip. */
   addSpeaker: publicProcedure
-    .input(z.object({ clipId, description }))
+    .input(z.object({ clipId, assetId: z.number().int().nullable(), description: z.string() }))
     .mutation(({ ctx, input }) => {
       const db = requireProject(ctx)
       try {
-        insertSpeaker(db, input.clipId, input.description)
+        insertSpeaker(db, input.clipId, {
+          assetId: input.assetId,
+          description: input.description,
+        })
         return readComposition(db, input.clipId)
       } catch (error) {
         asClientError(error)
@@ -261,12 +263,21 @@ export const clipsRouter = router({
 
   /** Rewrites how a voice is described. It may be emptied while it is being retyped. */
   updateSpeaker: publicProcedure
-    .input(z.object({ speakerId: z.number().int(), description: z.string() }))
+    .input(
+      z.object({
+        speakerId: z.number().int(),
+        assetId: z.number().int().nullable(),
+        description: z.string(),
+      })
+    )
     .mutation(({ ctx, input }) => {
       const db = requireProject(ctx)
       try {
         const id = clipIdOfSpeaker(db, input.speakerId)
-        updateSpeaker(db, input.speakerId, input.description)
+        updateSpeaker(db, input.speakerId, {
+          assetId: input.assetId,
+          description: input.description,
+        })
         return readComposition(db, id)
       } catch (error) {
         asClientError(error)

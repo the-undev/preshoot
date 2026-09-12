@@ -22,7 +22,7 @@ import {
   type Vocabularies,
 } from "@renderer/lib/trpc"
 import { clipReadiness } from "./readiness"
-import { ClipSpeakers } from "./clip-speakers"
+import { ClipSpeakers, type SpeakerFields } from "./clip-speakers"
 import { ShotList } from "./shot-list"
 import type { ClipFields, ShotFields } from "./use-clip"
 import type { ComposerOption } from "./use-generate-clip"
@@ -66,8 +66,8 @@ interface ClipEditorProps {
   onShotChange: (shotId: number, fields: ShotFields) => void
   onMoveShot: (shotId: number, toPosition: number) => void
   onRemoveShot: (shotId: number) => void
-  onAddSpeaker: (description: string) => void
-  onUpdateSpeaker: (speakerId: number, description: string) => void
+  onAddSpeaker: (fields: SpeakerFields) => void
+  onUpdateSpeaker: (speakerId: number, fields: SpeakerFields) => void
   onRemoveSpeaker: (speakerId: number) => void
   onChooseComposer: (composerId: string) => void
   onChooseVariant: (variantId: string) => void
@@ -310,6 +310,7 @@ export function ClipEditor({
         </p>
         <ClipSpeakers
           speakers={composition.speakers}
+          library={library}
           onAdd={onAddSpeaker}
           onUpdate={onUpdateSpeaker}
           onRemove={onRemoveSpeaker}

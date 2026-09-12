@@ -163,7 +163,10 @@ describe("clip store", () => {
 
   it("keeps dialogue against its speaker", () => {
     const shotId = insertShot(handle.db, clipId)
-    const speakerId = insertSpeaker(handle.db, clipId, "The keeper, low and weathered")
+    const speakerId = insertSpeaker(handle.db, clipId, {
+      assetId: null,
+      description: "The keeper, low and weathered",
+    })
 
     setShotDialogue(handle.db, shotId, [
       {
@@ -178,7 +181,12 @@ describe("clip store", () => {
 
     const composition = readComposition(handle.db, clipId)
     expect(composition.speakers).toEqual([
-      { id: speakerId, label: "S1", description: "The keeper, low and weathered" },
+      {
+        id: speakerId,
+        label: "S1",
+        description: "The keeper, low and weathered",
+        subjectName: null,
+      },
     ])
     expect(composition.shots[0].dialogue).toEqual([
       {
@@ -194,8 +202,11 @@ describe("clip store", () => {
 
   it("takes a speaker's lines with it and renumbers the rest", () => {
     const shotId = insertShot(handle.db, clipId)
-    const first = insertSpeaker(handle.db, clipId, "The keeper")
-    const second = insertSpeaker(handle.db, clipId, "The radio operator")
+    const first = insertSpeaker(handle.db, clipId, { assetId: null, description: "The keeper" })
+    const second = insertSpeaker(handle.db, clipId, {
+      assetId: null,
+      description: "The radio operator",
+    })
     setShotDialogue(handle.db, shotId, [
       {
         speakerIds: [first],
@@ -219,7 +230,7 @@ describe("clip store", () => {
 
     const composition = readComposition(handle.db, clipId)
     expect(composition.speakers).toEqual([
-      { id: second, label: "S1", description: "The radio operator" },
+      { id: second, label: "S1", description: "The radio operator", subjectName: null },
     ])
     expect(composition.shots[0].dialogue).toEqual([
       {
@@ -239,7 +250,7 @@ describe("clip store", () => {
 
   it("takes the shots and their dialogue when the clip goes", () => {
     const shotId = insertShot(handle.db, clipId)
-    const speakerId = insertSpeaker(handle.db, clipId, "The keeper")
+    const speakerId = insertSpeaker(handle.db, clipId, { assetId: null, description: "The keeper" })
     setShotDialogue(handle.db, shotId, [
       {
         speakerIds: [speakerId],

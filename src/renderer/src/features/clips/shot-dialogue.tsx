@@ -65,9 +65,14 @@ export function ShotDialogue({
                   <Button
                     key={speaker.id}
                     type="button"
-                    variant={speaking ? "secondary" : "outline"}
+                    variant="outline"
                     size="sm"
                     aria-pressed={speaking}
+                    className={
+                      speaking
+                        ? "border-chosen bg-chosen text-chosen-foreground hover:bg-chosen"
+                        : ""
+                    }
                     aria-label={`${speaker.label} speaks line ${index + 1}`}
                     onClick={() =>
                       write(index, {

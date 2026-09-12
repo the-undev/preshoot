@@ -50,7 +50,9 @@ const composition: ClipComposition = {
   style: "Live-action, cinematic",
   note: "A keeper lights the lamp during a storm.",
   musicNote: "",
-  speakers: [{ id: 7, label: "S1", description: "The elderly keeper, low and weathered" }],
+  speakers: [
+    { id: 7, label: "S1", description: "The elderly keeper, low and weathered", subjectName: null },
+  ],
   shots: [
     shot(11, 4500, {
       cameraMotion: "push in",
@@ -156,6 +158,20 @@ describe("the prose instruction", () => {
     expect(instruction).toContain("Subject (person) Keeper: an elderly man in oilskins")
   })
 
+  it("says when a voice is one of the subjects", () => {
+    const instruction = minimaxH3.prose.instruction(
+      {
+        ...composition,
+        speakers: [
+          { id: 7, label: "S1", description: "an elderly man in oilskins", subjectName: "Keeper" },
+        ],
+      },
+      { kind: "all" }
+    )
+
+    expect(instruction).toContain("(S1) is the subject Keeper: an elderly man in oilskins")
+  })
+
   it("carries the speakers and the dialogue word for word", () => {
     const instruction = minimaxH3.prose.instruction(composition, { kind: "all" })
 
@@ -182,7 +198,12 @@ describe("what a line can say", () => {
       ...composition,
       speakers: [
         ...composition.speakers,
-        { id: 8, label: "S2", description: "The radio operator, clipped and flat" },
+        {
+          id: 8,
+          label: "S2",
+          description: "The radio operator, clipped and flat",
+          subjectName: null,
+        },
       ],
       shots: [{ ...composition.shots[0], dialogue: [{ ...line, ...over }] }, composition.shots[1]],
     }

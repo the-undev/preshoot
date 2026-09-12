@@ -4,8 +4,8 @@ import type { DialogueLine, SpeakerComposition } from "@renderer/lib/trpc"
 import { ShotDialogue } from "./shot-dialogue"
 
 const speakers: SpeakerComposition[] = [
-  { id: 7, label: "S1", description: "The keeper" },
-  { id: 8, label: "S2", description: "The operator" },
+  { id: 7, label: "S1", description: "The keeper", subjectName: null },
+  { id: 8, label: "S2", description: "The operator", subjectName: null },
 ]
 
 const lines: DialogueLine[] = [

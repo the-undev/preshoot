@@ -96,6 +96,7 @@ describe("clips router", () => {
     })
     const withSpeaker = await caller.clips.addSpeaker({
       clipId,
+      assetId: null,
       description: "The keeper, low and weathered",
     })
 
@@ -134,7 +135,11 @@ describe("clips router", () => {
 
   it("keeps a dialogue line that has not been typed into yet", async () => {
     const { clipId, shotId } = await clipWithShot()
-    const withSpeaker = await caller.clips.addSpeaker({ clipId, description: "The keeper" })
+    const withSpeaker = await caller.clips.addSpeaker({
+      clipId,
+      assetId: null,
+      description: "The keeper",
+    })
 
     const composition = await caller.clips.updateShot({
       shotId,
@@ -235,15 +240,43 @@ describe("clips router", () => {
     expect(removed.shots.map((shot) => shot.id)).toEqual([ids[2], ids[1]])
   })
 
+  it("gives one of the subjects a voice, and describes it by that subject", async () => {
+    const clip = await caller.clips.create({ name: "Lighthouse" })
+    const keeper = await caller.assets.create({
+      kind: "person",
+      name: "Keeper",
+      description: "an elderly man in oilskins",
+    })
+
+    const composition = await caller.clips.addSpeaker({
+      clipId: clip.id,
+      assetId: keeper.id,
+      description: "",
+    })
+
+    expect(composition.speakers).toEqual([
+      {
+        id: composition.speakers[0].id,
+        label: "S1",
+        description: "an elderly man in oilskins",
+        subjectName: "Keeper",
+      },
+    ])
+  })
+
   it("renumbers the speakers when one goes", async () => {
     const clip = await caller.clips.create({ name: "Lighthouse" })
-    await caller.clips.addSpeaker({ clipId: clip.id, description: "The keeper" })
-    const both = await caller.clips.addSpeaker({ clipId: clip.id, description: "The operator" })
+    await caller.clips.addSpeaker({ clipId: clip.id, assetId: null, description: "The keeper" })
+    const both = await caller.clips.addSpeaker({
+      clipId: clip.id,
+      assetId: null,
+      description: "The operator",
+    })
 
     const left = await caller.clips.removeSpeaker({ speakerId: both.speakers[0].id })
 
     expect(left.speakers).toEqual([
-      { id: both.speakers[1].id, label: "S1", description: "The operator" },
+      { id: both.speakers[1].id, label: "S1", description: "The operator", subjectName: null },
     ])
   })
 

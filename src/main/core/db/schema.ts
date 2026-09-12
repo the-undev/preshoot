@@ -65,6 +65,8 @@ export const speakers = sqliteTable("speakers", {
     .notNull()
     .references(() => clips.id, { onDelete: "cascade" }),
   position: integer("position").notNull(),
+  // A voice is either one of the library's subjects or somebody described here and nowhere else.
+  assetId: integer("asset_id").references(() => assets.id, { onDelete: "set null" }),
   description: text("description").notNull(),
 })
 
