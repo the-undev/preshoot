@@ -24,5 +24,6 @@ export interface RuntimeVersions {
 /** Native pickers the renderer drives through the router. */
 export interface Dialogs {
   pickDirectory(options: { title: string; allowCreate: boolean }): Promise<string | null>
+  pickFiles(options: { title: string; extensions: string[] }): Promise<string[]>
   saveFile(options: { title: string; defaultPath: string }): Promise<string | null>
 }

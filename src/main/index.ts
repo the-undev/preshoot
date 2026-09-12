@@ -6,10 +6,12 @@ import { LlamaServerClient } from "./core/prompting/llama-server-client"
 import { ProjectSession } from "./core/projects/session"
 import { AppSettingsStore } from "./core/settings/app-settings"
 import { createDialogs } from "./dialogs"
+import { handleAssetRequests, registerAssetScheme } from "./images/protocol"
 import { handleTrpcRequests, registerTrpcScheme } from "./trpc/protocol"
 import type { Context } from "./trpc/context"
 
 registerTrpcScheme()
+registerAssetScheme()
 
 const projects = new ProjectSession()
 
@@ -92,6 +94,7 @@ app.whenReady().then(() => {
   // The window exists before the page loads so the protocol handler is ready for its first request.
   const mainWindow = createWindow()
   handleTrpcRequests(createContext(mainWindow))
+  handleAssetRequests(projects)
   loadRenderer(mainWindow)
 
   app.on("activate", function () {

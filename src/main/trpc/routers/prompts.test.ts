@@ -59,6 +59,7 @@ describe("prompts router", () => {
       migrationsFolder,
       dialogs: {
         pickDirectory: async () => null,
+        pickFiles: async () => [],
         saveFile: async (options) => {
           savePrompts.push(options)
           return saveTo

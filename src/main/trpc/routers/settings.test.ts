@@ -35,7 +35,11 @@ describe("settings router", () => {
       projects: session,
       settings: new AppSettingsStore(join(dir, "settings.json")),
       migrationsFolder,
-      dialogs: { pickDirectory: async () => null, saveFile: async () => null },
+      dialogs: {
+        pickDirectory: async () => null,
+        pickFiles: async () => [],
+        saveFile: async () => null,
+      },
       openPath: async () => {},
       promptClient: (baseUrl) => {
         checkedUrl = baseUrl
