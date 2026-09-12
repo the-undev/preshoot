@@ -23,6 +23,9 @@ says so.
   hidden.
 - `app.getVersion()` reports the Electron version when the app runs from
   `out/` unpackaged. It is right once packaged.
+- A project made before the schema was squashed to one migration will not
+  open. The squash dropped the migrations that would carry it forward, so
+  the folder has to be made again.
 
 ## Limitations
 
