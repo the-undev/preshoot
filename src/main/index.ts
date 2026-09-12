@@ -1,4 +1,4 @@
-import { app, shell, BrowserWindow, nativeTheme } from "electron"
+import { app, protocol, shell, BrowserWindow, nativeTheme } from "electron"
 import { join } from "path"
 import { electronApp, optimizer, is } from "@electron-toolkit/utils"
 import icon from "../../resources/icon.png?asset"
@@ -6,12 +6,13 @@ import { LlamaServerClient } from "./core/prompting/llama-server-client"
 import { ProjectSession } from "./core/projects/session"
 import { AppSettingsStore } from "./core/settings/app-settings"
 import { createDialogs } from "./dialogs"
-import { handleAssetRequests, registerAssetScheme } from "./images/protocol"
-import { handleTrpcRequests, registerTrpcScheme } from "./trpc/protocol"
+import { handleAssetRequests } from "./images/protocol"
+import { PRIVILEGED_SCHEMES } from "./schemes"
+import { handleTrpcRequests } from "./trpc/protocol"
 import type { Context } from "./trpc/context"
 
-registerTrpcScheme()
-registerAssetScheme()
+// Once, before app ready: a second registration would replace these rather than add to them.
+protocol.registerSchemesAsPrivileged(PRIVILEGED_SCHEMES)
 
 const projects = new ProjectSession()
 

@@ -1,20 +1,8 @@
 import { readFileSync } from "node:fs"
 import { protocol } from "electron"
 import { readImage } from "../core/composition/image-store"
+import { ASSET_SCHEME } from "../schemes"
 import type { ProjectSession } from "../core/projects/session"
-
-/** Scheme the renderer reads pictures through; a picture's URL is `asset://<id>`. */
-export const ASSET_SCHEME = "asset"
-
-/** Must run before app ready, the same as the trpc scheme. */
-export function registerAssetScheme(): void {
-  protocol.registerSchemesAsPrivileged([
-    {
-      scheme: ASSET_SCHEME,
-      privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true },
-    },
-  ])
-}
 
 /**
  * Serves a picture out of the open project. Nothing outside it can be read: the id is looked up in
