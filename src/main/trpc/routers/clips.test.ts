@@ -109,7 +109,9 @@ describe("clips router", () => {
     const [shot] = composition.shots
     expect(shot.durationMs).toBe(4500)
     expect(shot.cameraMotion).toBe("push in")
-    expect(shot.things).toEqual([{ kind: "person", name: "Keeper", description: "an elderly man" }])
+    expect(shot.things).toEqual([
+      { id: keeper.id, kind: "person", name: "Keeper", description: "an elderly man" },
+    ])
     expect(shot.dialogue[0].text).toBe("Almost there.")
     expect(composition.speakers[0].label).toBe("S1")
   })

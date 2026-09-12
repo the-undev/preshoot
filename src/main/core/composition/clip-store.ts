@@ -120,6 +120,7 @@ export function readComposition(db: ProjectDatabase, clipId: number): ClipCompos
   const thingRows = db
     .select({
       shotId: schema.shotAssets.shotId,
+      id: schema.assets.id,
       kind: schema.assets.kind,
       name: schema.assets.name,
       description: schema.assets.description,
@@ -154,7 +155,7 @@ export function readComposition(db: ProjectDatabase, clipId: number): ClipCompos
     lighting: shot.lighting,
     things: thingRows
       .filter((thing) => thing.shotId === shot.id)
-      .map(({ kind, name, description }) => ({ kind, name, description })),
+      .map(({ id, kind, name, description }) => ({ id, kind, name, description })),
     action: shot.action,
     dialogue: dialogueRows
       .filter((line) => line.shotId === shot.id)

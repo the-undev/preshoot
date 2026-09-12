@@ -3,6 +3,7 @@ export const MAX_CLIP_MS = 15_000
 
 /** One thing a shot shows, copied from the library so a stored composition stands on its own. */
 export interface ThingComposition {
+  id: number
   kind: string
   name: string
   description: string

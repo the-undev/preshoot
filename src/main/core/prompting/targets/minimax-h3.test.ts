@@ -45,7 +45,9 @@ const composition: ClipComposition = {
       amplitude: "with small amplitude",
       speed: "at slow speed",
       lighting: "night",
-      things: [{ kind: "person", name: "Keeper", description: "an elderly man in oilskins" }],
+      things: [
+        { id: 5, kind: "person", name: "Keeper", description: "an elderly man in oilskins" },
+      ],
       action: "climbs the last steps of the tower",
       dialogue: [line],
       soundNote: "wind battering the glass",

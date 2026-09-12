@@ -153,6 +153,7 @@ describe("clip store", () => {
 
     const [shot] = readComposition(handle.db, clipId).shots
     expect(shot.things.map((thing) => thing.name)).toEqual(["Keeper", "Lamp"])
+    expect(shot.things.map((thing) => thing.id)).toEqual([keeper.id, lamp.id])
     expect(shot.things[0].description).toBe("an elderly man")
   })
 
