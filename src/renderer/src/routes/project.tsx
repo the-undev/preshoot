@@ -1,4 +1,3 @@
-import { useState } from "react"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { createFileRoute, Link, Outlet, redirect, useNavigate } from "@tanstack/react-router"
 import { Settings } from "lucide-react"
@@ -9,7 +8,8 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@renderer/design-system"
-import { SettingsDialog } from "@renderer/features/settings/settings-dialog"
+import { useOpenSettings } from "@renderer/features/settings/settings-dialog-context"
+import { SettingsDialogProvider } from "@renderer/features/settings/use-settings-dialog"
 import { useTRPC } from "@renderer/lib/trpc"
 
 export const Route = createFileRoute("/project")({
@@ -29,12 +29,19 @@ const tabClass = buttonVariants({ variant: "ghost", size: "sm" })
 const activeTab = { className: "bg-accent text-accent-foreground" }
 
 function ProjectWorkspace(): React.JSX.Element {
+  return (
+    <SettingsDialogProvider>
+      <Workspace />
+    </SettingsDialogProvider>
+  )
+}
+
+function Workspace(): React.JSX.Element {
   const { project } = Route.useRouteContext()
+  const openSettings = useOpenSettings()
   const trpc = useTRPC()
   const queryClient = useQueryClient()
   const navigate = useNavigate()
-  const [settingsOpen, setSettingsOpen] = useState(false)
-
   const close = useMutation(
     trpc.projects.close.mutationOptions({
       onSuccess: async () => {
@@ -72,12 +79,7 @@ function ProjectWorkspace(): React.JSX.Element {
         <div className="flex items-center gap-2">
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                aria-label="Settings"
-                onClick={() => setSettingsOpen(true)}
-              >
+              <Button variant="ghost" size="icon" aria-label="Settings" onClick={openSettings}>
                 <Settings />
               </Button>
             </TooltipTrigger>
@@ -92,8 +94,6 @@ function ProjectWorkspace(): React.JSX.Element {
       <div className="min-h-0 flex-1 overflow-hidden">
         <Outlet />
       </div>
-
-      {settingsOpen && <SettingsDialog onClose={() => setSettingsOpen(false)} />}
     </div>
   )
 }

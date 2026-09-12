@@ -37,7 +37,7 @@ describe("clipReadiness", () => {
 
   it("asks for a model", () => {
     expect(clipReadiness(composition, false)).toEqual([
-      "No model chosen. Open settings, press Check, and pick one.",
+      "No model chosen. Settings hold one model for the whole app.",
     ])
   })
 

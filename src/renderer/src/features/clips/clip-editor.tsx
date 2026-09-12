@@ -69,6 +69,7 @@ interface ClipEditorProps {
   onChooseComposer: (composerId: string) => void
   onChooseVariant: (variantId: string) => void
   onSetFrame: (role: "first" | "last", imageId: number | null) => void
+  onOpenSettings: () => void
   onGenerate: () => void
   onRegenerateShot: (shotId: number) => void
 }
@@ -98,6 +99,7 @@ export function ClipEditor({
   onChooseComposer,
   onChooseVariant,
   onSetFrame,
+  onOpenSettings,
   onGenerate,
   onRegenerateShot,
 }: ClipEditorProps): React.JSX.Element {
@@ -151,14 +153,14 @@ export function ClipEditor({
         </div>
       </div>
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+      <div className="flex flex-wrap gap-3 sm:items-end">
         <div className="flex flex-col gap-1">
           <Label htmlFor="clip-form">Written for</Label>
           <Select
             value={composition.form}
             onValueChange={(value) => commit({ form: value as ClipFields["form"] })}
           >
-            <SelectTrigger id="clip-form" className="w-64">
+            <SelectTrigger id="clip-form" className="w-48">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -248,20 +250,25 @@ export function ClipEditor({
 
       <section className="sticky bottom-0 -mx-1 flex flex-col gap-2 border-t bg-background px-1 pt-3 pb-1">
         {missing.length > 0 && (
-          <ul className="flex flex-col gap-0.5">
+          <ul className="flex flex-col gap-1">
             {missing.map((reason) => (
-              <li key={reason} className="text-xs text-destructive">
-                {reason}
+              <li key={reason} className="flex flex-wrap items-center gap-2">
+                <span className="text-xs text-destructive">{reason}</span>
+                {reason.startsWith("No model") && (
+                  <Button type="button" variant="outline" size="sm" onClick={onOpenSettings}>
+                    Open settings
+                  </Button>
+                )}
               </li>
             ))}
           </ul>
         )}
 
-        <div className="flex items-end gap-2">
-          <div className="flex flex-col gap-1">
+        <div className="flex flex-wrap items-end gap-2">
+          <div className="flex min-w-40 flex-1 flex-col gap-1">
             <Label htmlFor="clip-composer">Written by</Label>
             <Select value={composerId} onValueChange={onChooseComposer}>
-              <SelectTrigger id="clip-composer" className="w-56">
+              <SelectTrigger id="clip-composer" className="w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -273,10 +280,10 @@ export function ClipEditor({
               </SelectContent>
             </Select>
           </div>
-          <div className="flex flex-col gap-1">
+          <div className="flex min-w-40 flex-1 flex-col gap-1">
             <Label htmlFor="clip-variant">Prompt</Label>
             <Select value={variantId ?? variants[0]?.id ?? ""} onValueChange={onChooseVariant}>
-              <SelectTrigger id="clip-variant" className="w-56">
+              <SelectTrigger id="clip-variant" className="w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -288,10 +295,14 @@ export function ClipEditor({
               </SelectContent>
             </Select>
           </div>
-          <Button onClick={onGenerate} disabled={isGenerating || composition.shots.length === 0}>
+          <Button
+            className="shrink-0"
+            onClick={onGenerate}
+            disabled={isGenerating || composition.shots.length === 0}
+            title="Ctrl and Enter"
+          >
             {isGenerating ? "Generating…" : "Generate"}
           </Button>
-          <span className="pb-2 text-xs text-muted-foreground">Ctrl and Enter</span>
         </div>
       </section>
     </div>
@@ -323,7 +334,7 @@ function ClipFrame({ role, label, frame, library, onChoose }: ClipFrameProps): R
           value={frame ? String(frame.imageId) : ""}
           onValueChange={(value) => onChoose(value === NO_FRAME ? null : Number(value))}
         >
-          <SelectTrigger id={`clip-frame-${role}`} className="w-56">
+          <SelectTrigger id={`clip-frame-${role}`} className="w-44">
             <SelectValue placeholder="Choose a picture" />
           </SelectTrigger>
           <SelectContent>

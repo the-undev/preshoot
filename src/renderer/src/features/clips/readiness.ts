@@ -19,7 +19,7 @@ export function clipReadiness(composition: ClipComposition, hasModel: boolean): 
   const missing: string[] = []
 
   if (!hasModel) {
-    missing.push("No model chosen. Open settings, press Check, and pick one.")
+    missing.push("No model chosen. Settings hold one model for the whole app.")
   }
   if (composition.shots.length === 0) {
     missing.push("This clip has no shots.")

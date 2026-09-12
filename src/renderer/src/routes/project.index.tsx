@@ -11,6 +11,7 @@ import {
   TabsTrigger,
 } from "@renderer/design-system"
 import { useAssetImages } from "@renderer/features/assets/use-asset-images"
+import { useOpenSettings } from "@renderer/features/settings/settings-dialog-context"
 import { useAssets } from "@renderer/features/assets/use-assets"
 import { ClipEditor } from "@renderer/features/clips/clip-editor"
 import { ClipList } from "@renderer/features/clips/clip-list"
@@ -96,6 +97,7 @@ function OpenClip({ clipId, targetId }: OpenClipProps): React.JSX.Element {
   const prompts = useVariants(targetId)
   const comparison = useCompare(clipId)
   const actions = usePromptActions()
+  const openSettings = useOpenSettings()
   const trpc = useTRPC()
   const settings = useQuery(trpc.settings.get.queryOptions())
   const [pairs, setPairs] = useState<ComparePair[]>([])
@@ -133,6 +135,7 @@ function OpenClip({ clipId, targetId }: OpenClipProps): React.JSX.Element {
           onChooseComposer={writing.chooseComposer}
           onChooseVariant={writing.chooseVariant}
           onSetFrame={clip.setFrame}
+          onOpenSettings={openSettings}
           onGenerate={writing.generate}
           onRegenerateShot={writing.regenerateShot}
         />

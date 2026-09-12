@@ -85,6 +85,7 @@ function renderEditor(over: Partial<React.ComponentProps<typeof ClipEditor>> = {
       onChooseComposer={vi.fn()}
       onChooseVariant={vi.fn()}
       onSetFrame={vi.fn()}
+      onOpenSettings={vi.fn()}
       onGenerate={onGenerate}
       onRegenerateShot={vi.fn()}
       {...over}
@@ -156,8 +157,9 @@ describe("ClipEditor", () => {
     renderEditor({ hasModel: false })
 
     expect(
-      screen.getByText("No model chosen. Open settings, press Check, and pick one.")
+      screen.getByText("No model chosen. Settings hold one model for the whole app.")
     ).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Open settings" })).toBeInTheDocument()
   })
 
   it("names a shot with nothing happening in it before Generate is pressed", () => {

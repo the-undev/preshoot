@@ -45,8 +45,10 @@ export function SettingsDialog({ onClose }: SettingsDialogProps): React.JSX.Elem
     >
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Settings</DialogTitle>
-          <DialogDescription>Where the app writes prompts.</DialogDescription>
+          <DialogTitle>App settings</DialogTitle>
+          <DialogDescription>
+            Where the app writes prompts, and which model it asks for. These apply to every project.
+          </DialogDescription>
         </DialogHeader>
         {settings.data ? (
           <SettingsForm
