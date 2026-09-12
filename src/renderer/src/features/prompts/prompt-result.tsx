@@ -59,7 +59,7 @@ export function PromptResult({
     <article className="flex min-w-0 flex-col gap-3 rounded-lg border p-4">
       <header className="flex min-w-0 flex-wrap items-start justify-between gap-4">
         <div className="flex min-w-0 flex-col gap-1">
-          <p className="text-sm font-medium">{generation.brief}</p>
+          <p className="text-sm font-medium">{generation.clipNote}</p>
           <p className="text-xs text-muted-foreground">
             {[new Date(generation.createdAt).toLocaleString(), generation.model]
               .filter(Boolean)

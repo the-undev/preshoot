@@ -1,1 +1,0 @@
-ALTER TABLE `speakers` ADD `asset_id` integer REFERENCES assets(id);

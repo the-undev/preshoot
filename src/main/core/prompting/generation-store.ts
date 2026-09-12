@@ -11,7 +11,7 @@ export interface GenerationRecord {
   target: string
   composer: string
   clipId: number | null
-  brief: string
+  clipNote: string
   fields: Record<string, string>
   composition: ClipComposition | null
   request: GenerationRequest | null

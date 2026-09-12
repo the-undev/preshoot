@@ -354,7 +354,6 @@ export function insertShot(db: ProjectDatabase, clipId: number): number {
       speed: null,
       transition: null,
       lighting: null,
-      action: "",
       soundNote: "",
     })
     .returning()

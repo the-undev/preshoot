@@ -83,7 +83,6 @@ export const shots = sqliteTable("shots", {
   speed: text("speed"),
   transition: text("transition"),
   lighting: text("lighting"),
-  action: text("action").notNull(),
   soundNote: text("sound_note").notNull(),
 })
 
@@ -152,7 +151,7 @@ export const generations = sqliteTable("generations", {
   target: text("target").notNull(),
   composer: text("composer").notNull().default("brief"),
   clipId: integer("clip_id").references(() => clips.id, { onDelete: "set null" }),
-  brief: text("brief").notNull(),
+  clipNote: text("clip_note").notNull(),
   fields: text("fields", { mode: "json" }).$type<Record<string, string>>().notNull(),
   composition: text("composition", { mode: "json" }).$type<ClipComposition>(),
   request: text("request", { mode: "json" }).$type<GenerationRequest>(),

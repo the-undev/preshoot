@@ -25,7 +25,7 @@ function result(id: number, composer: string, verdict: string | null): Generatio
     target: "minimax-h3",
     composer,
     clipId: 1,
-    brief: "A keeper lights the lamp.",
+    clipNote: "A keeper lights the lamp.",
     fields: {},
     composition: null,
     request: null,

@@ -27,12 +27,12 @@ describe("generation store", () => {
     rmSync(dir, { recursive: true, force: true })
   })
 
-  function store(brief: string): ReturnType<typeof insertGeneration> {
+  function store(clipNote: string): ReturnType<typeof insertGeneration> {
     return insertGeneration(handle.db, {
       target: "minimax-h3",
       composer: "brief",
       clipId: null,
-      brief,
+      clipNote,
       fields,
       composition: null,
       request: null,
@@ -57,7 +57,7 @@ describe("generation store", () => {
     const stored = store("A baker opens the shutters.")
 
     expect(stored.id).toBeGreaterThan(0)
-    expect(stored.brief).toBe("A baker opens the shutters.")
+    expect(stored.clipNote).toBe("A baker opens the shutters.")
     expect(stored.fields).toEqual(fields)
     expect(Date.parse(stored.createdAt)).not.toBeNaN()
   })
@@ -66,7 +66,7 @@ describe("generation store", () => {
     store("First brief.")
     store("Second brief.")
 
-    expect(listGenerations(handle.db, null).map((entry) => entry.brief)).toEqual([
+    expect(listGenerations(handle.db, null).map((entry) => entry.clipNote)).toEqual([
       "Second brief.",
       "First brief.",
     ])

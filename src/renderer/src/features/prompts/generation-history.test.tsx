@@ -15,7 +15,7 @@ function generation(over: Partial<GenerationRecord>): GenerationRecord {
     target: "minimax-h3",
     composer: "prose",
     clipId: 1,
-    brief: "A brief.",
+    clipNote: "A brief.",
     fields,
     composition: null,
     request: null,
@@ -51,8 +51,8 @@ function renderHistory(generations: GenerationRecord[]): void {
 describe("GenerationHistory", () => {
   it("shows a line for every generation, folded away", () => {
     renderHistory([
-      generation({ id: 2, brief: "Second brief.", rendered: "second" }),
-      generation({ id: 1, brief: "First brief.", rendered: "first" }),
+      generation({ id: 2, clipNote: "Second brief.", rendered: "second" }),
+      generation({ id: 1, clipNote: "First brief.", rendered: "first" }),
     ])
 
     expect(screen.getByText("Second brief.")).toBeInTheDocument()
@@ -61,7 +61,7 @@ describe("GenerationHistory", () => {
   })
 
   it("opens an entry to the whole prompt", () => {
-    renderHistory([generation({ id: 2, brief: "Second brief.", rendered: "second" })])
+    renderHistory([generation({ id: 2, clipNote: "Second brief.", rendered: "second" })])
 
     fireEvent.click(screen.getByRole("button", { name: /Second brief./ }))
 
@@ -70,8 +70,8 @@ describe("GenerationHistory", () => {
 
   it("keeps the order it is given", () => {
     renderHistory([
-      generation({ id: 2, brief: "Second brief." }),
-      generation({ id: 1, brief: "First brief." }),
+      generation({ id: 2, clipNote: "Second brief." }),
+      generation({ id: 1, clipNote: "First brief." }),
     ])
 
     const entries = screen.getAllByRole("listitem").map((item) => item.textContent)
@@ -88,7 +88,7 @@ describe("GenerationHistory", () => {
         editInstruction: "She is happier.",
         rendered: "edited",
       }),
-      generation({ id: 1, brief: "A brief.", rendered: "original" }),
+      generation({ id: 1, clipNote: "A brief.", rendered: "original" }),
     ])
 
     const [top] = screen.getAllByRole("listitem")

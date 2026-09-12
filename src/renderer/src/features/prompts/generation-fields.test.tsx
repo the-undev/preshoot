@@ -34,7 +34,7 @@ const generation: GenerationRecord = {
   target: "minimax-h3",
   composer: "prose",
   clipId: 1,
-  brief: "A keeper lights the lamp.",
+  clipNote: "A keeper lights the lamp.",
   fields: {},
   composition: null,
   request,

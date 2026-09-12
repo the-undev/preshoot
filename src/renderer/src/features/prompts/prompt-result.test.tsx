@@ -8,7 +8,7 @@ const generation: GenerationRecord = {
   target: "minimax-h3",
   composer: "prose",
   clipId: 1,
-  brief: "A keeper lights the lamp.",
+  clipNote: "A keeper lights the lamp.",
   fields: { integrated_multimodal_description: "one two three" },
   composition: null,
   request: null,

@@ -76,7 +76,7 @@ function Entry({ generation, ...actions }: EntryProps): React.JSX.Element {
           )}
           <span className="flex min-w-0 flex-1 flex-col">
             <span className="truncate text-sm font-medium">
-              {generation.editInstruction ?? generation.brief}
+              {generation.editInstruction ?? generation.clipNote}
             </span>
             <span className="text-xs font-normal text-muted-foreground">
               {new Date(generation.createdAt).toLocaleString()} · {generation.composer}

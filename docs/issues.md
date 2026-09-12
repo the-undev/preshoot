@@ -87,8 +87,6 @@ been written from memory of the guide rather than from the guide.
 - A library thing cannot be added without leaving the clip that needs it.
 - Ctrl and enter writes the clip, and only a line of grey text beside the
   button says so. Nothing else in the app has a shortcut.
-- The `brief` column on `generations` holds the clip's note, and an edit
-  copies its parent's, so the name no longer says what the column holds.
 - `readVariant` lists every variant of a target to find one of them.
 - The prompt that describes a picture is a constant, not a variant, so it
   cannot be tuned in the app the way the prompts that write clips can.
@@ -99,6 +97,15 @@ been written from memory of the guide rather than from the guide.
 - Image editing (Qwen Image Edit) as a shot type that edits a library image.
 
 ## Environment and tooling
+
+- The migrations were squashed to one while the app had no users, so a
+  project made before that will not open. Whenever that is done again, the
+  old ones have to be kept.
+- drizzle-kit will generate a table rebuild that reads columns added in the
+  same migration, which fails on a fresh database, and it asks an
+  interactive question when a column is dropped and another added together.
+  Neither can be answered from a script, so a change like that goes in two
+  passes.
 
 - Nothing exercises the main process's start-up. Registering a second
   scheme broke every request the renderer makes and no test noticed, because
@@ -114,10 +121,6 @@ been written from memory of the guide rather than from the guide.
   with several pictures.
 - A vision request needs `enable_thinking` off as much as a text one does,
   or the answer is spent on reasoning before the image is described.
-- drizzle-kit generated a table rebuild that read columns added in the same
-  migration, which would have failed on a fresh database. The change was
-  split into two migrations. Read the generated SQL whenever a column
-  changes and columns are added together.
 - The Electron postinstall silently skipped extracting the binary in this
   environment; the zip was cached and extracted by hand. Check whether a
   clean `pnpm install` on this machine reproduces it.
