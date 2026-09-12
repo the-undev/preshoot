@@ -47,9 +47,16 @@ at Q2 or Q3 with the Lightning LoRA.
 - Domain code lives in `src/main/core` and never imports Electron. A lint
   rule enforces it. Tests run under Vitest with a `main` project (Node) and a
   `renderer` project (jsdom).
-- Local services (llama-server, ComfyUI) are attached by URL first. Managed
-  mode, where the app starts them and downloads models, comes per service
-  later, llama-server first.
+- Local services (llama-server, ComfyUI) are attached by URL. The app starts
+  and stops nothing: llama-server's router mode already hosts every model it
+  can find from one process, loads one on demand when a request names it, and
+  frees it again on `POST /models/unload`. So the app names its model, shows
+  what is loaded, and can hand the card back. Start it once with
+  `llama-server --models-dir <dir> --models-max 1 --mmproj-device none`.
+- System prompts are data, not constants. Each target ships with one per way
+  of writing, a project can hold its own, and every generation keeps the
+  prompt it used and that prompt's text, so editing a prompt does not rewrite
+  what earlier ones were made with.
 - A target owns one model's vocabularies, system prompts and formatting; a
   composer owns how the model is asked. Both are looked up by id, so another
   target or another way of writing a prompt is one file and one line in an
@@ -73,19 +80,22 @@ at Q2 or Q3 with the Lightning LoRA.
 3. Shot composition: a text library of people, places and objects, clips
    built from shots with camera moves, cuts, timings and dialogue, and
    three ways of turning one into a prompt.
+4. Models and iteration: the model is named per request and chosen from
+   what the server offers, system prompts are editable data, and one clip
+   can be written several ways at once and the results judged side by side.
 
 ## Milestones
 
-4. Asset images: reference images and RefMod files attached to library
+5. Asset images: reference images and RefMod files attached to library
    things, with descriptions drafted from them by the local vision model.
    The reference image forms of the H3 prompt arrive with them.
-5. Storyboard editor: clips in order across a film, chained by last frame
+6. Storyboard editor: clips in order across a film, chained by last frame
    to first frame, with prompts versioned per clip.
-6. Runpod link: connect to a pod, pull outputs into the project, show each
+7. Runpod link: connect to a pod, pull outputs into the project, show each
    take next to its shot, mark good or bad with notes, export chosen takes.
-7. ComfyUI templates: API-format workflow JSON per target with named slots,
+8. ComfyUI templates: API-format workflow JSON per target with named slots,
    filled and submitted by the app.
-8. Local ComfyUI management: model downloads, start and stop, RefMod
+9. Local ComfyUI management: model downloads, start and stop, RefMod
    creation if the H3 VAE fits in 8GB with offload (TBD).
 
 ## Open items
@@ -114,17 +124,26 @@ at Q2 or Q3 with the Lightning LoRA.
   alignment line and arrive with the asset images.
 - A generation that runs past the two minute timeout is reported as a
   server that could not be reached, which is not what happened.
-- Nothing records which system prompt wrote a stored generation, so
-  prompts from before a change cannot be told from prompts after it.
 - Nothing checks that the prose the model returns holds the camera motion it
   was given, only that it holds the dialogue.
 - A clip has one style for every shot, so it cannot change style at a cut.
 - The language of a line of dialogue is free text rather than a picklist.
 - The editor saves a shot as it is changed, so there is no undo.
-- Deleting a clip leaves what was generated for it with no clip, and the
-  history is read per clip, so those prompts can no longer be reached. The
-  same is true of everything milestone 2 generated before clips existed.
+- Everything milestone 2 generated before clips existed has no clip, and the
+  history is read per clip, so those prompts cannot be reached.
 - drizzle-kit generated a table rebuild that read columns added in the same
   migration, which would have failed on a fresh database. The change was
   split into two migrations. Check the generated SQL whenever a column
   changes and columns are added together.
+- The multimodal projector has to stay off the GPU on this card. Loaded onto
+  it, an image encode aborted inside CUDA while another model held VRAM.
+  Whether it fits on the GPU alone is untested.
+- A vision request needs `enable_thinking` off as much as a text one does, or
+  the answer is spent on reasoning.
+- A comparison run stops at the first way of writing that fails and leaves
+  the ones already written, which are kept under the run but shown as a
+  short row of results.
+- Only the newest comparison run is shown, and only in the clip it belongs
+  to. Older runs are in the database and out of reach.
+- A verdict and its note are written together, so marking a result good
+  rewrites whatever note the box holds at that moment.
