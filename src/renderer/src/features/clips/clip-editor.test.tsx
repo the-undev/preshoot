@@ -212,6 +212,17 @@ describe("ClipEditor", () => {
     expect(edge).toHaveValue(768)
   })
 
+  it("says what auto will do, which depends on the generation type", () => {
+    renderEditor()
+    expect(screen.getByText("The model chooses the shape.")).toBeInTheDocument()
+  })
+
+  it("says auto follows the picture when the clip has one", () => {
+    renderEditor({ composition: { ...composition, form: "i2v" } })
+
+    expect(screen.getByText("The shape follows the reference picture.")).toBeInTheDocument()
+  })
+
   it("asks for a picture when the form needs one", () => {
     renderEditor({ composition: { ...composition, form: "i2v" } })
 

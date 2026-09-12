@@ -219,6 +219,13 @@ export function ClipEditor({
               ))}
             </SelectContent>
           </Select>
+          {composition.aspectRatio === "auto" && (
+            <p className="text-xs text-muted-foreground">
+              {composition.form === "t2v"
+                ? "The model chooses the shape."
+                : "The shape follows the reference picture."}
+            </p>
+          )}
         </div>
 
         <div className="flex min-w-0 flex-col gap-1">
