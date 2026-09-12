@@ -14,6 +14,7 @@ import {
   listClips,
   moveShot,
   readComposition,
+  setShotBeats,
   setShotDialogue,
   setShotThings,
   updateClip,
@@ -100,15 +101,34 @@ describe("clip store", () => {
       speed: "at slow speed",
       transition: null,
       lighting: "night",
-      action: "climbs the last steps",
       soundNote: "wind on the glass",
     })
+    setShotBeats(handle.db, shotId, [{ assetId: null, text: "climbs the last steps" }])
 
     const [shot] = readComposition(handle.db, clipId).shots
     expect(shot.durationMs).toBe(6000)
     expect(shot.cameraMotion).toBe("push in")
     expect(shot.lighting).toBe("night")
-    expect(shot.action).toBe("climbs the last steps")
+    expect(shot.beats).toEqual([{ subjectName: null, text: "climbs the last steps" }])
+  })
+
+  it("keeps what happens in the order it was given, with who does it", () => {
+    const shotId = insertShot(handle.db, clipId)
+    const keeper = insertAsset(handle.db, {
+      kind: "person",
+      name: "Keeper",
+      description: "an elderly man",
+    })
+
+    setShotBeats(handle.db, shotId, [
+      { assetId: keeper.id, text: "climbs the last steps" },
+      { assetId: null, text: "rain runs off the rail" },
+    ])
+
+    expect(readComposition(handle.db, clipId).shots[0].beats).toEqual([
+      { subjectName: "Keeper", text: "climbs the last steps" },
+      { subjectName: null, text: "rain runs off the rail" },
+    ])
   })
 
   it("moves a shot and renumbers the rest", () => {

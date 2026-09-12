@@ -16,6 +16,7 @@ import {
   moveShot,
   readClip,
   readComposition,
+  setShotBeats,
   setShotDialogue,
   setShotThings,
   updateClip,
@@ -49,8 +50,8 @@ const shotInput = z.object({
   speed: z.string().nullable(),
   transition: z.string().nullable(),
   lighting: z.string().nullable(),
-  action: z.string(),
   soundNote: z.string(),
+  beats: z.array(z.object({ assetId: z.number().int().nullable(), text: z.string() })),
   things: z.array(z.number().int()),
   dialogue: z.array(
     z.object({
@@ -208,9 +209,9 @@ export const clipsRouter = router({
         speed: fromVocabulary(vocabularies.speeds, input.speed, "camera speed"),
         transition: fromVocabulary(vocabularies.transitions, input.transition, "transition"),
         lighting: input.lighting,
-        action: input.action,
         soundNote: input.soundNote,
       })
+      setShotBeats(db, input.shotId, input.beats)
       setShotThings(db, input.shotId, input.things)
       setShotDialogue(db, input.shotId, input.dialogue)
       return readComposition(db, id)

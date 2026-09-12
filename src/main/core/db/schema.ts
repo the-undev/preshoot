@@ -87,6 +87,20 @@ export const shots = sqliteTable("shots", {
   soundNote: text("sound_note").notNull(),
 })
 
+/**
+ * What happens in a shot, in order. A beat belongs to one of the shot's subjects, or to nobody
+ * when it is about the scene rather than a person.
+ */
+export const shotBeats = sqliteTable("shot_beats", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  shotId: integer("shot_id")
+    .notNull()
+    .references(() => shots.id, { onDelete: "cascade" }),
+  assetId: integer("asset_id").references(() => assets.id, { onDelete: "set null" }),
+  position: integer("position").notNull(),
+  text: text("text").notNull(),
+})
+
 /** Which library things a shot shows. Restricted, so a thing in use cannot vanish under a clip. */
 export const shotAssets = sqliteTable(
   "shot_assets",

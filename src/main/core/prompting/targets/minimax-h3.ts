@@ -233,27 +233,39 @@ function shotBlock(composition: ClipComposition, shot: ShotComposition, index: n
     `Shot ${index + 1} (starts at ${formatCutTime(start)}, runs ${(shot.durationMs / 1000).toFixed(1)} seconds):`,
     `  Camera: ${cameraPhrase(shot)}`,
   ]
-  if (index > 0) {
-    lines.push(
-      `  Begin this shot with exactly "${shot.transition ?? DEFAULT_TRANSITION}" and carry straight on with what the cut lands on`
-    )
-  }
+
   if (shot.lighting) {
     lines.push(`  Lighting: ${shot.lighting}`)
   }
   for (const thing of shot.things) {
     lines.push(`  Subject (${thing.kind}) ${thing.name}: ${thing.description}`)
   }
-  lines.push(`  Happens: ${sentence(shot.action)}`)
+  const beats = shot.beats.filter((beat) => beat.text.trim().length > 0)
+  if (beats.length > 0) {
+    lines.push("  Happens, in this order:")
+    beats.forEach((beat, at) => {
+      const who = beat.subjectName ? `${beat.subjectName}: ` : ""
+      lines.push(`    ${at + 1}. ${who}${sentence(beat.text)}`)
+    })
+  }
   if (shot.soundNote.trim().length > 0) {
     lines.push(`  Sound: ${sentence(shot.soundNote)}`)
   }
   for (const line of spokenLines(shot)) {
     const rules = lineRules(line)
     lines.push(
-      `  Says ${speakerLabel(composition, line)}, reproduce exactly: ${dialogueTag(line.language, line.text)}` +
+      `  Says ${speakerLabel(composition, line)}: ${dialogueTag(line.language, line.text)}` +
         (rules.length > 0 ? `\n    This line is ${rules.join("; ")}.` : "")
     )
+  }
+
+  // The last thing said about a shot is the thing its answer is checked against, word for word.
+  if (index > 0) {
+    lines.push(`  Begin shot ${index + 1} with exactly: ${shot.transition ?? DEFAULT_TRANSITION}`)
+  }
+  const held = [...dialogueTags(shot), ...dialogueOpeners(shot), ...speakersOf(composition, shot)]
+  if (held.length > 0) {
+    lines.push(`  Shot ${index + 1} must hold, word for word: ${held.join("  ")}`)
   }
   return lines.join("\n")
 }
@@ -311,8 +323,12 @@ function proseInstruction(composition: ClipComposition, scope: ComposeScope): st
  */
 function requiredIn(composition: ClipComposition, shot: ShotComposition, number: number): string[] {
   const cut = number > 1 ? [shot.transition ?? DEFAULT_TRANSITION] : []
-  const speakers = spokenLines(shot).map((line) => speakerLabel(composition, line))
-  return [...cut, ...dialogueTags(shot), ...dialogueOpeners(shot), ...speakers]
+  return [...cut, ...dialogueTags(shot), ...dialogueOpeners(shot), ...speakersOf(composition, shot)]
+}
+
+/** The id of everyone who speaks in `shot`. */
+function speakersOf(composition: ClipComposition, shot: ShotComposition): string[] {
+  return spokenLines(shot).map((line) => speakerLabel(composition, line))
 }
 
 /** Which shot numbers an answer has to carry for `scope`. */
@@ -459,7 +475,10 @@ function describeShot(composition: ClipComposition, shotId: number): string {
   for (const thing of shot.things) {
     sentences.push(sentence(`${thing.name}: ${thing.description}`))
   }
-  sentences.push(sentence(capitalise(shot.action)))
+  for (const beat of shot.beats.filter((entry) => entry.text.trim().length > 0)) {
+    const who = beat.subjectName ? `${beat.subjectName} ` : ""
+    sentences.push(sentence(capitalise(`${who}${beat.text}`)))
+  }
   if (shot.cameraMotion) {
     // The vocabulary mixes verb phrases with nouns, so this way states the move rather than conjugating it.
     sentences.push(sentence(`Camera: ${cameraPhrase(shot)}`))

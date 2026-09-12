@@ -23,7 +23,7 @@ function shot(
     transition: null,
     lighting: null,
     things: [],
-    action: `Something happens in shot ${id}`,
+    beats: [{ subjectName: null, text: `Something happens in shot ${id}` }],
     dialogue: [],
     soundNote: "",
     ...over,
@@ -62,11 +62,14 @@ const composition: ClipComposition = {
       things: [
         { id: 5, kind: "person", name: "Keeper", description: "an elderly man in oilskins" },
       ],
-      action: "climbs the last steps of the tower",
+      beats: [{ subjectName: null, text: "climbs the last steps of the tower" }],
       dialogue: [line],
       soundNote: "wind battering the glass",
     }),
-    shot(12, 3000, { transition: "the shot cuts to", action: "the lamp turns and catches" }),
+    shot(12, 3000, {
+      transition: "the shot cuts to",
+      beats: [{ subjectName: null, text: "the lamp turns and catches" }],
+    }),
   ],
 }
 
@@ -154,7 +157,7 @@ describe("the prose instruction", () => {
     expect(instruction).toContain("Shot 1 (starts at 00:00.000, runs 4.5 seconds)")
     expect(instruction).toContain("Shot 2 (starts at 00:04.500, runs 3.0 seconds)")
     expect(instruction).toContain("push in with small amplitude at slow speed")
-    expect(instruction).toContain('Begin this shot with exactly "the shot cuts to"')
+    expect(instruction).toContain("Begin shot 2 with exactly: the shot cuts to")
     expect(instruction).toContain("Subject (person) Keeper: an elderly man in oilskins")
   })
 
@@ -170,6 +173,28 @@ describe("the prose instruction", () => {
     )
 
     expect(instruction).toContain("(S1) is the subject Keeper: an elderly man in oilskins")
+  })
+
+  it("lists what happens in order, saying who does each thing", () => {
+    const withBeats = {
+      ...composition,
+      shots: [
+        {
+          ...composition.shots[0],
+          beats: [
+            { subjectName: "Keeper", text: "climbs the last steps" },
+            { subjectName: null, text: "rain runs off the rail" },
+          ],
+        },
+        composition.shots[1],
+      ],
+    }
+
+    const instruction = minimaxH3.prose.instruction(withBeats, { kind: "all" })
+
+    expect(instruction).toContain("Happens, in this order:")
+    expect(instruction).toContain("1. Keeper: climbs the last steps.")
+    expect(instruction).toContain("2. Rain runs off the rail.".replace("R", "r"))
   })
 
   it("carries the speakers and the dialogue word for word", () => {
@@ -214,7 +239,7 @@ describe("what a line can say", () => {
       kind: "all",
     })
 
-    expect(instruction).toContain("Says (S1,S2), reproduce exactly:")
+    expect(instruction).toContain("Says (S1,S2):")
   })
 
   it("asks for the voiceover phrasing when a line is off screen", () => {
@@ -430,7 +455,7 @@ describe("assembling the prompt", () => {
 
     const instruction = minimaxH3.prose.instruction(withoutTransition, { kind: "all" })
 
-    expect(instruction).toContain('Begin this shot with exactly "the camera cuts to"')
+    expect(instruction).toContain("Begin shot 2 with exactly: the camera cuts to")
   })
 
   it("refuses an answer whose later shot does not carry its cut phrase", () => {

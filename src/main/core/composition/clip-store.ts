@@ -25,6 +25,12 @@ export interface ClipSummary {
 }
 
 /** Everything a shot holds, as the editor sends it back. */
+/** One beat as the editor sends it back. */
+export interface BeatInput {
+  assetId: number | null
+  text: string
+}
+
 export interface ShotInput {
   id: number
   durationMs: number
@@ -33,7 +39,6 @@ export interface ShotInput {
   speed: string | null
   transition: string | null
   lighting: string | null
-  action: string
   soundNote: string
 }
 
@@ -209,6 +214,19 @@ export function readComposition(db: ProjectDatabase, clipId: number): ClipCompos
     .orderBy(asc(schema.shotAssets.position))
     .all()
 
+  const beatRows = db
+    .select({
+      shotId: schema.shotBeats.shotId,
+      subjectName: schema.assets.name,
+      text: schema.shotBeats.text,
+    })
+    .from(schema.shotBeats)
+    .innerJoin(schema.shots, eq(schema.shots.id, schema.shotBeats.shotId))
+    .leftJoin(schema.assets, eq(schema.assets.id, schema.shotBeats.assetId))
+    .where(eq(schema.shots.clipId, clipId))
+    .orderBy(asc(schema.shotBeats.position), asc(schema.shotBeats.id))
+    .all()
+
   const dialogueRows = db
     .select({
       shotId: schema.dialogueLines.shotId,
@@ -236,7 +254,9 @@ export function readComposition(db: ProjectDatabase, clipId: number): ClipCompos
     things: thingRows
       .filter((thing) => thing.shotId === shot.id)
       .map(({ id, kind, name, description }) => ({ id, kind, name, description })),
-    action: shot.action,
+    beats: beatRows
+      .filter((beat) => beat.shotId === shot.id)
+      .map(({ subjectName, text }) => ({ subjectName, text })),
     dialogue: dialogueRows
       .filter((line) => line.shotId === shot.id)
       .map((line) => ({
@@ -353,7 +373,6 @@ export function updateShot(db: ProjectDatabase, input: ShotInput): void {
       speed: input.speed,
       transition: input.transition,
       lighting: input.lighting,
-      action: input.action,
       soundNote: input.soundNote,
     })
     .where(eq(schema.shots.id, input.id))
@@ -394,6 +413,19 @@ export function setShotThings(db: ProjectDatabase, shotId: number, assetIds: num
     tx.delete(schema.shotAssets).where(eq(schema.shotAssets.shotId, shotId)).run()
     assetIds.forEach((assetId, position) => {
       tx.insert(schema.shotAssets).values({ shotId, assetId, position }).run()
+    })
+  })
+}
+
+/** Replaces what happens in a shot, in the order given. */
+export function setShotBeats(db: ProjectDatabase, shotId: number, beats: BeatInput[]): void {
+  clipOfShot(db, shotId)
+  db.transaction((tx) => {
+    tx.delete(schema.shotBeats).where(eq(schema.shotBeats.shotId, shotId)).run()
+    beats.forEach((beat, position) => {
+      tx.insert(schema.shotBeats)
+        .values({ shotId, position, ...beat })
+        .run()
     })
   })
 }

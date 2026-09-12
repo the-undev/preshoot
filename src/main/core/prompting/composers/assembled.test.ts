@@ -21,7 +21,7 @@ function shot(id: number, over: Partial<ShotComposition> = {}): ShotComposition 
     transition: null,
     lighting: null,
     things: [],
-    action: `Shot ${id} happens`,
+    beats: [{ subjectName: null, text: `Shot ${id} happens` }],
     dialogue: [],
     soundNote: "",
     ...over,

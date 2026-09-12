@@ -108,8 +108,8 @@ describe("clips router", () => {
       speed: "at slow speed",
       transition: null,
       lighting: "night",
-      action: "climbs the last steps",
       soundNote: "wind on the glass",
+      beats: [{ assetId: null, text: "climbs the last steps" }],
       things: [keeper.id],
       dialogue: [
         {
@@ -149,8 +149,8 @@ describe("clips router", () => {
       speed: null,
       transition: null,
       lighting: null,
-      action: "climbs",
       soundNote: "",
+      beats: [{ assetId: null, text: "climbs" }],
       things: [],
       dialogue: [
         {
@@ -199,8 +199,8 @@ describe("clips router", () => {
         speed: null,
         transition: null,
         lighting: null,
-        action: "climbs",
         soundNote: "",
+        beats: [{ assetId: null, text: "climbs" }],
         things: [],
         dialogue: [],
       })
@@ -219,8 +219,8 @@ describe("clips router", () => {
         speed: null,
         transition: null,
         lighting: null,
-        action: "climbs",
         soundNote: "",
+        beats: [{ assetId: null, text: "climbs" }],
         things: [],
         dialogue: [],
       })

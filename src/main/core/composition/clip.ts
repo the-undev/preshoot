@@ -34,9 +34,16 @@ export interface DialogueComposition {
   cutOff: boolean
 }
 
+/** One thing that happens in a shot, done by one of its subjects or by nobody in particular. */
+export interface BeatComposition {
+  subjectName: string | null
+  text: string
+}
+
 /**
- * One shot: how long it lasts, how it is shot, what it shows and what is said. The motion,
- * amplitude, speed, transition and lighting hold values from the target's vocabularies.
+ * One shot: how long it lasts, how it is shot, what it shows, what happens in it and what is
+ * said. The motion, amplitude, speed, transition and lighting hold values from the target's
+ * vocabularies.
  */
 export interface ShotComposition {
   id: number
@@ -47,7 +54,7 @@ export interface ShotComposition {
   transition: string | null
   lighting: string | null
   things: ThingComposition[]
-  action: string
+  beats: BeatComposition[]
   dialogue: DialogueComposition[]
   soundNote: string
 }

@@ -33,7 +33,7 @@ const shot: ShotComposition = {
   transition: null,
   lighting: null,
   things: [],
-  action: "climbs the last steps",
+  beats: [{ subjectName: null, text: "climbs the last steps" }],
   dialogue: [],
   soundNote: "",
 }
@@ -68,12 +68,12 @@ function renderRow(over: Partial<React.ComponentProps<typeof ShotRow>> = {}): {
 }
 
 describe("ShotRow", () => {
-  it("shows the shot's number, length and action", () => {
+  it("shows the shot's number, length and what happens in it", () => {
     renderRow()
 
     expect(screen.getByText("Shot 1")).toBeInTheDocument()
     expect(screen.getByLabelText("Seconds")).toHaveValue(4.5)
-    expect(screen.getByLabelText("What happens")).toHaveValue("climbs the last steps")
+    expect(screen.getByLabelText("Beat 1 of shot 11")).toHaveValue("climbs the last steps")
   })
 
   it("reports the whole shot once the length box is left", () => {
@@ -100,16 +100,31 @@ describe("ShotRow", () => {
     expect(seconds).toHaveValue(4.5)
   })
 
-  it("reports what happens once the field is left", () => {
+  it("reports what happens once the beat is left", () => {
     const { onChange } = renderRow()
 
-    const action = screen.getByLabelText("What happens")
-    fireEvent.change(action, { target: { value: "reaches for the lamp" } })
+    const beat = screen.getByLabelText("Beat 1 of shot 11")
+    fireEvent.change(beat, { target: { value: "reaches for the lamp" } })
     expect(onChange).not.toHaveBeenCalled()
 
-    fireEvent.blur(action)
+    fireEvent.blur(beat)
     expect(onChange).toHaveBeenCalledWith(
-      expect.objectContaining({ action: "reaches for the lamp" })
+      expect.objectContaining({ beats: [{ assetId: null, text: "reaches for the lamp" }] })
+    )
+  })
+
+  it("adds what happens next, after what happens first", () => {
+    const { onChange } = renderRow()
+
+    fireEvent.click(screen.getByRole("button", { name: "Add what happens" }))
+
+    expect(onChange).toHaveBeenCalledWith(
+      expect.objectContaining({
+        beats: [
+          { assetId: null, text: "climbs the last steps" },
+          { assetId: null, text: "" },
+        ],
+      })
     )
   })
 
@@ -130,7 +145,7 @@ describe("ShotRow", () => {
   it("opens on the first shot and folds the rest away", () => {
     renderRow({ index: 1 })
 
-    expect(screen.queryByLabelText("What happens")).not.toBeInTheDocument()
+    expect(screen.queryByLabelText("Beat 1 of shot 11")).not.toBeInTheDocument()
     expect(screen.getByText(/4.5s · push in · climbs the last steps/)).toBeInTheDocument()
   })
 
@@ -138,10 +153,10 @@ describe("ShotRow", () => {
     renderRow()
 
     fireEvent.click(screen.getByRole("button", { name: /Shot 1/ }))
-    expect(screen.queryByLabelText("What happens")).not.toBeInTheDocument()
+    expect(screen.queryByLabelText("Beat 1 of shot 11")).not.toBeInTheDocument()
 
     fireEvent.click(screen.getByRole("button", { name: /Shot 1/ }))
-    expect(screen.getByLabelText("What happens")).toBeInTheDocument()
+    expect(screen.getByLabelText("Beat 1 of shot 11")).toBeInTheDocument()
   })
 
   it("offers a handle for dragging it into another place", () => {

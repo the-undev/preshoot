@@ -14,7 +14,6 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  Textarea,
 } from "@renderer/design-system"
 import type {
   Asset,
@@ -24,6 +23,7 @@ import type {
   Vocabularies,
 } from "@renderer/lib/trpc"
 import { Chip } from "./chip"
+import { ShotBeats } from "./shot-beats"
 import { ShotDialogue } from "./shot-dialogue"
 import type { ShotFields } from "./use-clip"
 
@@ -65,7 +65,6 @@ export function ShotRow({
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: shot.id,
   })
-  const [action, setAction] = useState(shot.action)
   const [soundNote, setSoundNote] = useState(shot.soundNote)
   const [seconds, setSeconds] = useState(String(shot.durationMs / 1000))
 
@@ -78,9 +77,12 @@ export function ShotRow({
       speed: shot.speed,
       transition: shot.transition,
       lighting: shot.lighting,
-      action,
       soundNote,
       things: shot.things.map((thing) => thing.id),
+      beats: shot.beats.map((beat) => ({
+        assetId: library.find((asset) => asset.name === beat.subjectName)?.id ?? null,
+        text: beat.text,
+      })),
       dialogue: shot.dialogue,
       ...over,
     })
@@ -247,14 +249,14 @@ export function ShotRow({
           </div>
 
           <div className="flex flex-col gap-2">
-            <Label htmlFor={id("action")}>What happens</Label>
-            <Textarea
-              id={id("action")}
-              rows={2}
-              value={action}
-              placeholder="climbs the last steps of the tower and reaches for the lamp"
-              onChange={(event) => setAction(event.target.value)}
-              onBlur={() => commit({ action })}
+            <span className="text-sm font-medium">What happens</span>
+            <ShotBeats
+              shotId={shot.id}
+              beats={shot.beats}
+              subjects={library.filter((asset) =>
+                shot.things.some((thing) => thing.id === asset.id)
+              )}
+              onChange={(beats) => commit({ beats })}
             />
           </div>
 
@@ -287,8 +289,8 @@ export function ShotRow({
 /** What a shot is, in one line, for when it is collapsed. */
 function summary(shot: ShotComposition): string {
   const seconds = `${(shot.durationMs / 1000).toFixed(1)}s`
-  const action = shot.action.trim()
-  return [seconds, shot.cameraMotion, action].filter(Boolean).join(" · ")
+  const first = shot.beats.find((beat) => beat.text.trim().length > 0)?.text.trim()
+  return [seconds, shot.cameraMotion, first].filter(Boolean).join(" · ")
 }
 
 interface PickerProps {

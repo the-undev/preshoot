@@ -26,8 +26,8 @@ export function clipReadiness(composition: ClipComposition, hasModel: boolean): 
   }
 
   const empty = composition.shots
-    .map((shot, index) => ({ number: index + 1, action: shot.action.trim() }))
-    .filter((shot) => shot.action.length === 0)
+    .map((shot, index) => ({ number: index + 1, beats: shot.beats }))
+    .filter((shot) => !shot.beats.some((beat) => beat.text.trim().length > 0))
   if (empty.length > 0) {
     const numbers = empty.map((shot) => shot.number).join(", ")
     missing.push(

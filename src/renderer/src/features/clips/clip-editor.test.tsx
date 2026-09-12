@@ -22,7 +22,7 @@ function shot(id: number, durationMs: number): ShotComposition {
     transition: null,
     lighting: null,
     things: [],
-    action: `Shot ${id}`,
+    beats: [{ subjectName: null, text: `Shot ${id}` }],
     dialogue: [],
     soundNote: "",
   }
@@ -172,7 +172,10 @@ describe("ClipEditor", () => {
 
   it("names a shot with nothing happening in it before Generate is pressed", () => {
     renderEditor({
-      composition: { ...composition, shots: [{ ...composition.shots[0], action: "" }] },
+      composition: {
+        ...composition,
+        shots: [{ ...composition.shots[0], beats: [{ subjectName: null, text: "" }] }],
+      },
     })
 
     expect(screen.getByText("Shot 1 has nothing happening in it.")).toBeInTheDocument()

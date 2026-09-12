@@ -14,8 +14,8 @@ export interface ShotFields {
   speed: string | null
   transition: string | null
   lighting: string | null
-  action: string
   soundNote: string
+  beats: { assetId: number | null; text: string }[]
   things: number[]
   dialogue: DialogueLine[]
 }

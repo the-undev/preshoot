@@ -209,8 +209,8 @@ describe("assets router", () => {
       speed: null,
       transition: null,
       lighting: null,
-      action: "climbs",
       soundNote: "",
+      beats: [{ assetId: null, text: "climbs" }],
       things: [keeper.id],
       dialogue: [],
     })

@@ -12,7 +12,7 @@ function shot(id: number, durationMs: number): ShotComposition {
     transition: null,
     lighting: null,
     things: [],
-    action: "something happens",
+    beats: [{ subjectName: null, text: "something happens" }],
     dialogue: [],
     soundNote: "",
   }
