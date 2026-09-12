@@ -10,7 +10,7 @@ import {
   SelectValue,
   Textarea,
 } from "@renderer/design-system"
-import type { Asset, ClipComposition, Vocabularies } from "@renderer/lib/trpc"
+import type { Asset, ClipComposition, PromptVariant, Vocabularies } from "@renderer/lib/trpc"
 import { ClipSpeakers } from "./clip-speakers"
 import { ShotRow } from "./shot-row"
 import type { ClipFields, ShotFields } from "./use-clip"
@@ -25,6 +25,8 @@ interface ClipEditorProps {
   library: Asset[]
   composers: ComposerOption[]
   composerId: string
+  variants: PromptVariant[]
+  variantId: string | null
   isSaving: boolean
   isGenerating: boolean
   canRegenerate: boolean
@@ -37,6 +39,7 @@ interface ClipEditorProps {
   onUpdateSpeaker: (speakerId: number, description: string) => void
   onRemoveSpeaker: (speakerId: number) => void
   onChooseComposer: (composerId: string) => void
+  onChooseVariant: (variantId: string) => void
   onGenerate: () => void
   onRegenerateShot: (shotId: number) => void
 }
@@ -48,6 +51,8 @@ export function ClipEditor({
   library,
   composers,
   composerId,
+  variants,
+  variantId,
   isSaving,
   isGenerating,
   canRegenerate,
@@ -60,6 +65,7 @@ export function ClipEditor({
   onUpdateSpeaker,
   onRemoveSpeaker,
   onChooseComposer,
+  onChooseVariant,
   onGenerate,
   onRegenerateShot,
 }: ClipEditorProps): React.JSX.Element {
@@ -184,6 +190,21 @@ export function ClipEditor({
               {composers.map((composer) => (
                 <SelectItem key={composer.id} value={composer.id}>
                   {composer.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="flex flex-col gap-1">
+          <Label htmlFor="clip-variant">Prompt</Label>
+          <Select value={variantId ?? variants[0]?.id ?? ""} onValueChange={onChooseVariant}>
+            <SelectTrigger id="clip-variant" className="w-64">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {variants.map((variant) => (
+                <SelectItem key={variant.id} value={variant.id}>
+                  {variant.name}
                 </SelectItem>
               ))}
             </SelectContent>

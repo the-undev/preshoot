@@ -4,10 +4,13 @@ import { Alert, AlertDescription } from "@renderer/design-system"
 import { useAssets } from "@renderer/features/assets/use-assets"
 import { ClipEditor } from "@renderer/features/clips/clip-editor"
 import { ClipList } from "@renderer/features/clips/clip-list"
+import { ComparePanel } from "@renderer/features/clips/compare-panel"
 import { useClip } from "@renderer/features/clips/use-clip"
+import { useCompare, type ComparePair } from "@renderer/features/clips/use-compare"
 import { useClips } from "@renderer/features/clips/use-clips"
 import { useGenerateClip } from "@renderer/features/clips/use-generate-clip"
 import { GenerationHistory } from "@renderer/features/prompts/generation-history"
+import { useVariants } from "@renderer/features/prompts/use-variants"
 import { PromptResult } from "@renderer/features/prompts/prompt-result"
 
 export const Route = createFileRoute("/project/")({
@@ -38,7 +41,10 @@ function Clips(): React.JSX.Element {
       {clipId === null ? (
         <p className="text-sm text-muted-foreground">Start a clip to write a prompt for it.</p>
       ) : (
-        <OpenClip clipId={clipId} />
+        <OpenClip
+          clipId={clipId}
+          targetId={clips.clips.find((clip) => clip.id === clipId)?.target ?? ""}
+        />
       )}
     </main>
   )
@@ -46,13 +52,17 @@ function Clips(): React.JSX.Element {
 
 interface OpenClipProps {
   clipId: number
+  targetId: string
 }
 
 /** The clip being written, its result and everything written for it before. */
-function OpenClip({ clipId }: OpenClipProps): React.JSX.Element {
+function OpenClip({ clipId, targetId }: OpenClipProps): React.JSX.Element {
   const clip = useClip(clipId)
   const library = useAssets()
   const writing = useGenerateClip(clipId)
+  const prompts = useVariants(targetId)
+  const comparison = useCompare(clipId)
+  const [pairs, setPairs] = useState<ComparePair[]>([])
 
   if (!clip.composition || !clip.vocabularies) {
     return <p className="text-sm text-muted-foreground">Loading the clip…</p>
@@ -69,6 +79,8 @@ function OpenClip({ clipId }: OpenClipProps): React.JSX.Element {
           library={library.assets}
           composers={writing.composers}
           composerId={writing.composerId}
+          variants={prompts.variants}
+          variantId={writing.variantId}
           isSaving={clip.isSaving}
           isGenerating={writing.isPending}
           canRegenerate={Boolean(writing.latest?.prose)}
@@ -81,6 +93,7 @@ function OpenClip({ clipId }: OpenClipProps): React.JSX.Element {
           onUpdateSpeaker={clip.updateSpeaker}
           onRemoveSpeaker={clip.removeSpeaker}
           onChooseComposer={writing.chooseComposer}
+          onChooseVariant={writing.chooseVariant}
           onGenerate={writing.generate}
           onRegenerateShot={writing.regenerateShot}
         />
@@ -96,6 +109,24 @@ function OpenClip({ clipId }: OpenClipProps): React.JSX.Element {
         {latest && <PromptResult generation={latest} />}
         <h2 className="font-heading text-sm font-semibold text-muted-foreground">History</h2>
         <GenerationHistory generations={earlier} />
+
+        <ComparePanel
+          composers={writing.composers}
+          variants={prompts.variants}
+          pairs={pairs}
+          results={comparison.results}
+          isPending={comparison.isPending}
+          onAddPair={(pair) => setPairs([...pairs, pair])}
+          onRemovePair={(index) => setPairs(pairs.filter((_, at) => at !== index))}
+          onRun={() => comparison.run(pairs)}
+          onJudge={comparison.judge}
+        />
+
+        {comparison.errorMessage && (
+          <Alert variant="destructive">
+            <AlertDescription>{comparison.errorMessage}</AlertDescription>
+          </Alert>
+        )}
       </section>
     </div>
   )

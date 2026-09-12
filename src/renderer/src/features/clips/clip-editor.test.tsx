@@ -56,6 +56,17 @@ function renderEditor(over: Partial<React.ComponentProps<typeof ClipEditor>> = {
         { id: "assembled", name: "Assembled without the model" },
       ]}
       composerId="prose"
+      variants={[
+        {
+          id: "builtin:minimax-h3:prose",
+          targetId: "minimax-h3",
+          strategy: "prose",
+          name: "Built-in, prose per shot",
+          systemPrompt: "You write the prose of each shot.",
+          editable: false,
+        },
+      ]}
+      variantId={null}
       isSaving={false}
       isGenerating={false}
       canRegenerate={false}
@@ -68,6 +79,7 @@ function renderEditor(over: Partial<React.ComponentProps<typeof ClipEditor>> = {
       onUpdateSpeaker={vi.fn()}
       onRemoveSpeaker={vi.fn()}
       onChooseComposer={vi.fn()}
+      onChooseVariant={vi.fn()}
       onGenerate={onGenerate}
       onRegenerateShot={vi.fn()}
       {...over}
