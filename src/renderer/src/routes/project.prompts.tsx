@@ -23,7 +23,7 @@ function Prompts(): React.JSX.Element {
   const targetId = targets.data?.defaultId ?? ""
 
   return (
-    <main className="mx-auto grid w-full max-w-[1400px] gap-8 p-8 lg:grid-cols-[20rem_1fr]">
+    <main className="mx-auto grid h-full w-full max-w-[1400px] gap-8 overflow-y-auto p-8 lg:grid-cols-[20rem_1fr]">
       {targetId.length === 0 ? (
         <p className="text-sm text-muted-foreground">Loading targets…</p>
       ) : (

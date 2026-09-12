@@ -20,7 +20,7 @@ function Library(): React.JSX.Element {
   const close = (): void => setEditing({ kind: "none" })
 
   return (
-    <main className="mx-auto grid w-full max-w-[1400px] gap-8 p-8 lg:grid-cols-[1fr_2fr]">
+    <main className="mx-auto grid h-full w-full max-w-[1400px] gap-8 overflow-y-auto p-8 lg:grid-cols-[1fr_2fr]">
       <section className="flex flex-col gap-4">
         <div className="flex items-center justify-between gap-4">
           <h2 className="font-heading text-sm font-semibold text-muted-foreground">

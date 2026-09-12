@@ -11,6 +11,7 @@ export {
   CardTitle,
 } from "./ui/card"
 export { Checkbox } from "./ui/checkbox"
+export { Collapsible, CollapsibleContent, CollapsibleTrigger } from "./ui/collapsible"
 export {
   Dialog,
   DialogClose,

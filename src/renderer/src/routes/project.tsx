@@ -45,8 +45,8 @@ function ProjectWorkspace(): React.JSX.Element {
   )
 
   return (
-    <div className="flex min-h-screen flex-col">
-      <header className="flex items-center justify-between gap-6 border-b px-6 py-4">
+    <div className="flex h-screen flex-col overflow-hidden">
+      <header className="flex shrink-0 items-center justify-between gap-6 border-b px-6 py-4">
         <div className="flex min-w-0 items-center gap-6">
           <div className="flex min-w-0 flex-col">
             <h1 className="font-heading text-lg font-semibold">{project.name}</h1>
@@ -89,7 +89,9 @@ function ProjectWorkspace(): React.JSX.Element {
         </div>
       </header>
 
-      <Outlet />
+      <div className="min-h-0 flex-1 overflow-hidden">
+        <Outlet />
+      </div>
 
       {settingsOpen && <SettingsDialog onClose={() => setSettingsOpen(false)} />}
     </div>

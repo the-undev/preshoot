@@ -1,3 +1,5 @@
+import { DndContext } from "@dnd-kit/core"
+import { SortableContext } from "@dnd-kit/sortable"
 import { fireEvent, render, screen } from "@testing-library/react"
 import { describe, expect, it, vi } from "vitest"
 import type { Asset, ShotComposition, Vocabularies } from "@renderer/lib/trpc"
@@ -41,22 +43,23 @@ function renderRow(over: Partial<React.ComponentProps<typeof ShotRow>> = {}): {
 } {
   const onChange = vi.fn()
   render(
-    <ShotRow
-      shot={shot}
-      index={0}
-      isFirst={true}
-      isLast={false}
-      speakers={[]}
-      library={library}
-      vocabularies={vocabularies}
-      canRegenerate={false}
-      isBusy={false}
-      onChange={onChange}
-      onMove={vi.fn()}
-      onRemove={vi.fn()}
-      onRegenerate={vi.fn()}
-      {...over}
-    />
+    <DndContext>
+      <SortableContext items={[11]}>
+        <ShotRow
+          shot={shot}
+          index={0}
+          speakers={[]}
+          library={library}
+          vocabularies={vocabularies}
+          canRegenerate={false}
+          isBusy={false}
+          onChange={onChange}
+          onRemove={vi.fn()}
+          onRegenerate={vi.fn()}
+          {...over}
+        />
+      </SortableContext>
+    </DndContext>
   )
   return { onChange }
 }
@@ -114,9 +117,34 @@ describe("ShotRow", () => {
   })
 
   it("offers a transition on a later shot", () => {
-    renderRow({ index: 1, isFirst: false })
+    renderRow({ index: 1 })
+
+    fireEvent.click(screen.getByRole("button", { name: /Shot 2/ }))
 
     expect(screen.getByLabelText("Cut into it with")).toBeInTheDocument()
+  })
+
+  it("opens on the first shot and folds the rest away", () => {
+    renderRow({ index: 1 })
+
+    expect(screen.queryByLabelText("What happens")).not.toBeInTheDocument()
+    expect(screen.getByText(/4.5s · push in · climbs the last steps/)).toBeInTheDocument()
+  })
+
+  it("folds a shot away and opens it again", () => {
+    renderRow()
+
+    fireEvent.click(screen.getByRole("button", { name: /Shot 1/ }))
+    expect(screen.queryByLabelText("What happens")).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole("button", { name: /Shot 1/ }))
+    expect(screen.getByLabelText("What happens")).toBeInTheDocument()
+  })
+
+  it("offers a handle for dragging it into another place", () => {
+    renderRow()
+
+    expect(screen.getByRole("button", { name: "Reorder shot 1" })).toBeInTheDocument()
   })
 
   it("adds a library thing to what the shot shows", () => {
@@ -135,12 +163,6 @@ describe("ShotRow", () => {
     fireEvent.click(screen.getByRole("button", { name: "Keeper" }))
 
     expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ things: [] }))
-  })
-
-  it("cannot move the first shot earlier", () => {
-    renderRow()
-
-    expect(screen.getByRole("button", { name: "Move shot 1 earlier" })).toBeDisabled()
   })
 
   it("cannot rewrite one shot until the clip has been written once", () => {

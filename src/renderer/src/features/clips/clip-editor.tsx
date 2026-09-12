@@ -12,7 +12,7 @@ import {
 } from "@renderer/design-system"
 import type { Asset, ClipComposition, PromptVariant, Vocabularies } from "@renderer/lib/trpc"
 import { ClipSpeakers } from "./clip-speakers"
-import { ShotRow } from "./shot-row"
+import { ShotList } from "./shot-list"
 import type { ClipFields, ShotFields } from "./use-clip"
 import type { ComposerOption } from "./use-generate-clip"
 
@@ -155,24 +155,18 @@ export function ClipEditor({
           </p>
         </div>
 
-        {composition.shots.map((shot, index) => (
-          <ShotRow
-            key={shot.id}
-            shot={shot}
-            index={index}
-            isFirst={index === 0}
-            isLast={index === composition.shots.length - 1}
-            speakers={composition.speakers}
-            library={library}
-            vocabularies={vocabularies}
-            canRegenerate={canRegenerate}
-            isBusy={isGenerating}
-            onChange={(fields) => onShotChange(shot.id, fields)}
-            onMove={(toPosition) => onMoveShot(shot.id, toPosition)}
-            onRemove={() => onRemoveShot(shot.id)}
-            onRegenerate={() => onRegenerateShot(shot.id)}
-          />
-        ))}
+        <ShotList
+          shots={composition.shots}
+          speakers={composition.speakers}
+          library={library}
+          vocabularies={vocabularies}
+          canRegenerate={canRegenerate}
+          isBusy={isGenerating}
+          onChange={onShotChange}
+          onMove={onMoveShot}
+          onRemove={onRemoveShot}
+          onRegenerate={onRegenerateShot}
+        />
 
         <div>
           <Button variant="outline" onClick={onAddShot} disabled={isSaving}>

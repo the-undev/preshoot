@@ -37,8 +37,8 @@ function Clips(): React.JSX.Element {
   const clipId = chosenId ?? clips.clips[0]?.id ?? null
 
   return (
-    <main className="mx-auto grid w-full max-w-[1400px] gap-8 p-8 lg:grid-cols-[16rem_1fr]">
-      <section className="flex flex-col gap-4">
+    <main className="mx-auto grid h-full w-full max-w-[1400px] gap-8 p-8 lg:grid-cols-[16rem_1fr]">
+      <section className="flex min-h-0 flex-col gap-4 overflow-y-auto pr-1">
         <ClipList
           clips={clips.clips}
           selectedId={clipId}
@@ -118,8 +118,8 @@ function OpenClip({ clipId, targetId }: OpenClipProps): React.JSX.Element {
   const [latest, ...earlier] = writing.generations
 
   return (
-    <div className="grid gap-8 xl:grid-cols-2">
-      <section className="flex flex-col gap-4">
+    <div className="grid h-full min-h-0 gap-8 xl:grid-cols-2">
+      <section className="flex min-h-0 flex-col gap-4 overflow-y-auto pr-2">
         <ClipEditor
           composition={clip.composition}
           vocabularies={clip.vocabularies}
@@ -153,7 +153,7 @@ function OpenClip({ clipId, targetId }: OpenClipProps): React.JSX.Element {
         )}
       </section>
 
-      <section className="flex flex-col gap-4">
+      <section className="flex min-h-0 flex-col gap-4 overflow-y-auto pr-2">
         {latest && (
           <PromptResult
             generation={latest}
