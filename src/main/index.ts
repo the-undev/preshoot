@@ -1,14 +1,18 @@
-import { app, shell, BrowserWindow, nativeTheme } from "electron"
+import { app, protocol, shell, BrowserWindow, nativeTheme } from "electron"
 import { join } from "path"
 import { electronApp, optimizer, is } from "@electron-toolkit/utils"
 import icon from "../../resources/icon.png?asset"
+import { LlamaServerClient } from "./core/prompting/llama-server-client"
 import { ProjectSession } from "./core/projects/session"
 import { AppSettingsStore } from "./core/settings/app-settings"
 import { createDialogs } from "./dialogs"
-import { handleTrpcRequests, registerTrpcScheme } from "./trpc/protocol"
+import { handleAssetRequests } from "./images/protocol"
+import { PRIVILEGED_SCHEMES } from "./schemes"
+import { handleTrpcRequests } from "./trpc/protocol"
 import type { Context } from "./trpc/context"
 
-registerTrpcScheme()
+// Once, before app ready: a second registration would replace these rather than add to them.
+protocol.registerSchemesAsPrivileged(PRIVILEGED_SCHEMES)
 
 const projects = new ProjectSession()
 
@@ -21,6 +25,7 @@ function migrationsFolder(): string {
 
 /** Builds the values every procedure reaches. Folder pickers open over `window`. */
 function createContext(window: BrowserWindow): () => Context {
+  const settings = new AppSettingsStore(join(app.getPath("userData"), "settings.json"))
   const context: Context = {
     versions: {
       app: app.getVersion(),
@@ -29,9 +34,14 @@ function createContext(window: BrowserWindow): () => Context {
       node: process.versions.node,
     },
     projects,
-    settings: new AppSettingsStore(join(app.getPath("userData"), "settings.json")),
+    settings,
     migrationsFolder: migrationsFolder(),
     dialogs: createDialogs(window),
+    // Built per request, so a URL saved in settings applies to the next generation without a restart.
+    promptClient: (baseUrl) => new LlamaServerClient({ baseUrl, fetch: globalThis.fetch }),
+    openPath: async (path) => {
+      await shell.openPath(path)
+    },
   }
   return () => context
 }
@@ -85,6 +95,7 @@ app.whenReady().then(() => {
   // The window exists before the page loads so the protocol handler is ready for its first request.
   const mainWindow = createWindow()
   handleTrpcRequests(createContext(mainWindow))
+  handleAssetRequests(projects)
   loadRenderer(mainWindow)
 
   app.on("activate", function () {

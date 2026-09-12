@@ -1,7 +1,10 @@
 # preshoot
 
 Electron desktop app for storyboards and generation prompts. See
-`docs/roadmap.md` for purpose, decisions and milestones.
+`docs/roadmap.md` for purpose, decisions and milestones, and
+`docs/issues.md` for known bugs, limitations and improvements.
+`docs/llama-server.md` says how to run the model server the app writes
+through.
 
 ## Layout
 

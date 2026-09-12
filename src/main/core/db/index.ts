@@ -5,6 +5,12 @@ import * as schema from "./schema"
 
 export type ProjectDatabase = ReturnType<typeof drizzle<typeof schema>>
 
+/** The handle inside a transaction, which carries the same query builder as the database itself. */
+export type ProjectTransaction = Parameters<Parameters<ProjectDatabase["transaction"]>[0]>[0]
+
+/** Either handle, for helpers that read or write the same way inside a transaction and out. */
+export type ProjectDb = ProjectDatabase | ProjectTransaction
+
 /** An open project database together with the call that releases its file handle. */
 export interface ProjectDatabaseHandle {
   db: ProjectDatabase

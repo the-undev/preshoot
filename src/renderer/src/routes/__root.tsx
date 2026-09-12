@@ -1,6 +1,7 @@
 import { createRootRouteWithContext, Outlet } from "@tanstack/react-router"
 import { TanStackRouterDevtools } from "@tanstack/react-router-devtools"
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools"
+import { TooltipProvider } from "@renderer/design-system"
 import type { RouterContext } from "@renderer/lib/router-context"
 
 export const Route = createRootRouteWithContext<RouterContext>()({
@@ -9,7 +10,7 @@ export const Route = createRootRouteWithContext<RouterContext>()({
 
 function RootLayout(): React.JSX.Element {
   return (
-    <>
+    <TooltipProvider>
       <Outlet />
       {import.meta.env.DEV && (
         <>
@@ -17,6 +18,6 @@ function RootLayout(): React.JSX.Element {
           <ReactQueryDevtools buttonPosition="bottom-left" />
         </>
       )}
-    </>
+    </TooltipProvider>
   )
 }

@@ -47,9 +47,49 @@ at Q2 or Q3 with the Lightning LoRA.
 - Domain code lives in `src/main/core` and never imports Electron. A lint
   rule enforces it. Tests run under Vitest with a `main` project (Node) and a
   `renderer` project (jsdom).
-- Local services (llama-server, ComfyUI) are attached by URL first. Managed
-  mode, where the app starts them and downloads models, comes per service
-  later, llama-server first.
+- Local services (llama-server, ComfyUI) are attached by URL. The app starts
+  and stops nothing: llama-server's router mode already hosts every model it
+  can find from one process, loads one on demand when a request names it, and
+  frees it again on `POST /models/unload`. So the app names its model, shows
+  what is loaded, and can hand the card back. Start it once with
+  `llama-server --models-dir <dir> --models-max 1 --mmproj-device none`.
+- System prompts are data, not constants. Each target ships with one per way
+  of writing, a project can hold its own, and every generation keeps the
+  prompt it used and that prompt's text, so editing a prompt does not rewrite
+  what earlier ones were made with.
+- A target owns one model's vocabularies, system prompts and formatting; a
+  composer owns how the model is asked. Both are looked up by id, so another
+  target or another way of writing a prompt is one file and one line in an
+  index. Every stored generation records which composer wrote it and the
+  composition it was given, so two ways can be compared on the same clip.
+- The app writes the mechanical parts of a prompt itself: shot markers, cut
+  times, transition phrases and the dialogue tags. The model writes only the
+  prose, in one request per clip so a look or a voice carries across a cut.
+- The workspace is a centred band no wider than 1400px, on the ultrawide as
+  everywhere else.
+- Reference pictures are copied into the project rather than referenced where
+  they sit, so a project stays a folder that can be moved, and the renderer
+  reads them through an `asset://` scheme that serves only the open project.
+- The model's own guides are vendored under `docs/minimax-h3/` and
+  `docs/h3-mapping.md` maps what they allow back to the inputs the app holds.
+  Prompt work is checked against them rather than against memory of them.
+- Describing a picture is not writing a prompt for a particular model, so it
+  sits beside the targets rather than inside one, and goes through a client
+  call of its own: a vision answer is prose, not JSON.
+- Editing a prompt is not a composer. A composer turns a clip into a prompt;
+  editing turns a prompt into another prompt, and widening that interface
+  would make every composer accept an input it cannot use. An edit is stored
+  as an ordinary generation carrying what it came from, so it can be copied,
+  judged, compared and edited again with no special cases.
+- An exported prompt is a text file holding the prompt and nothing else, so
+  it pastes straight into the model's own form, with the clip, the way, the
+  variant, the model and any edit instruction in a json beside it.
+- A prompt is one field of a generation request, and the app holds the rest:
+  the task, the duration, the shape, the short edge, the seed and the
+  pictures. They are shown as fields to copy rather than sent anywhere,
+  because nothing the app can reach accepts them. The adaptor that would
+  turn them into a request belongs with the Runpod or ComfyUI work, built
+  against a real endpoint rather than guessed at from a sample.
 - Runpod: manual copy of prompts first. Then rsync of the project bundle
   over SSH plus ComfyUI HTTP for queueing jobs and pulling outputs. Then
   pod start and stop through the Runpod API.
@@ -58,42 +98,49 @@ at Q2 or Q3 with the Lightning LoRA.
 
 1. Welcome screen, project create and open, recent projects, and an empty
    project workspace.
+2. Prompt generation: a brief becomes a MiniMax H3 text-to-video prompt
+   through llama-server, kept in the project and listed in the workspace.
+3. Shot composition: a text library of people, places and objects, clips
+   built from shots with camera moves, cuts, timings and dialogue, and
+   three ways of turning one into a prompt.
+4. Models and iteration: the model is named per request and chosen from
+   what the server offers, system prompts are editable data, and one clip
+   can be written several ways at once and the results judged side by side.
+5. Editing and export: a finished prompt is rewritten from a change asked
+   for in words, edits chain under what they came from, and a prompt can be
+   written into the project or saved where the user chooses.
+6. Closing the loop: comparison runs are kept and read back, a run that
+   fails part way says where it stopped, a verdict and a note are written
+   apart, and nothing is deleted without asking.
+7. Asset images: reference pictures copied into the project and shown in the
+   library, with a description drafted from them by the local vision model.
+8. The keyframe forms: a clip says which form it is written for, the image
+   forms anchor to pictures from the library, and the prompt opens with the
+   line the guide gives for that form.
+9. The complete output: a clip holds the shape, the short edge and the seed
+   it is generated at, and a result shows every field a generation needs,
+   each copyable on its own.
 
 ## Milestones
 
-2. Asset library: people, places, objects, plus picklists for camera
-   angle, movement, transition, lighting and style. Reference images and
-   RefMod files attached to assets. Description drafted from images by the
-   local vision model.
-3. Storyboard editor: ordered shots referencing assets and picklists, with
-   duration, dialogue and sound notes. Split into clips under 15 seconds,
-   chained by last frame to first frame.
-4. Prompt generation per clip per target model using the official prompt
-   guides as templates. Edit, regenerate, version every prompt.
-5. Runpod link: connect to a pod, pull outputs into the project, show each
-   take next to its shot, mark good or bad with notes, export chosen takes.
-6. ComfyUI templates: API-format workflow JSON per target with named slots,
-   filled and submitted by the app.
-7. Local ComfyUI management: model downloads, start and stop, RefMod
-   creation if the H3 VAE fits in 8GB with offload (TBD).
+10. Full reference mode: pictures and audio labelled as `<Picture N>` and
+    `<Audio N>`, subjects built from them, retention markers chosen rather
+    than invented, and a second target whose answer is six sections rather
+    than three. `docs/h3-mapping.md` says what is missing before it can be
+    built.
+11. Storyboard editor: clips in order across a film, chained by last frame
+    to first frame, with prompts versioned per clip.
+12. Runpod link: connect to a pod, pull outputs into the project, show each
+    take next to its shot, mark good or bad with notes, export chosen takes.
+13. ComfyUI templates: API-format workflow JSON per target with named slots,
+    filled and submitted by the app.
+14. Local ComfyUI management: model downloads, start and stop, RefMod
+    creation if the H3 VAE fits in 8GB with offload (TBD).
 
-## Open items
+## Open questions
+
+Unanswered, and each one decides a later milestone. Bugs, limitations and
+improvements live in `docs/issues.md`.
 
 - Whether Qwen Image at Q4 is usable with RAM offload on this machine.
 - Whether RefMod creation fits on 8GB. Import RefMods regardless.
-- Image editing (Qwen Image Edit) as a shot type that edits a library image.
-- `app.getVersion()` reports the Electron version when run from `out/`
-  unpackaged; correct once packaged.
-- TypeScript 7, Vite 8 and ESLint 10 are out. The template pins TS 5.9,
-  Vite 7 and ESLint 9; upgrade when electron-vite and the toolkit configs
-  support them.
-- The Electron postinstall silently skipped extracting the binary in this
-  environment; the zip was cached and extracted by hand. Check whether a
-  clean `pnpm install` on this machine reproduces it.
-- The recent projects list drops an entry whose folder is missing when the
-  list is read, so a project on an unmounted drive is forgotten rather than
-  hidden.
-- Only one project is open at a time, for the app rather than per window. A
-  second window would need a session per window.
-- Testing Library cleanup is registered by hand in the renderer test setup
-  because Vitest globals are off. Turning globals on would remove it.

@@ -1,3 +1,4 @@
+import type { LlamaServerClient } from "../core/prompting/llama-server-client"
 import type { ProjectSession } from "../core/projects/session"
 import type { AppSettingsStore } from "../core/settings/app-settings"
 
@@ -8,6 +9,8 @@ export interface Context {
   settings: AppSettingsStore
   migrationsFolder: string
   dialogs: Dialogs
+  promptClient(baseUrl: string): LlamaServerClient
+  openPath(path: string): Promise<void>
 }
 
 /** Runtime versions shown on the welcome screen and in bug reports. */
@@ -21,4 +24,6 @@ export interface RuntimeVersions {
 /** Native pickers the renderer drives through the router. */
 export interface Dialogs {
   pickDirectory(options: { title: string; allowCreate: boolean }): Promise<string | null>
+  pickFiles(options: { title: string; extensions: string[] }): Promise<string[]>
+  saveFile(options: { title: string; defaultPath: string }): Promise<string | null>
 }

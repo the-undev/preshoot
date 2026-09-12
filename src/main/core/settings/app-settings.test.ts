@@ -3,7 +3,7 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
 import { PROJECT_MARKER_FILENAME } from "../projects/marker"
-import { AppSettingsStore, appSettingsSchema } from "./app-settings"
+import { AppSettingsStore, appSettingsSchema, DEFAULT_LLAMA_SERVER_URL } from "./app-settings"
 
 describe("AppSettingsStore", () => {
   let dir: string
@@ -32,12 +32,61 @@ describe("AppSettingsStore", () => {
   }
 
   it("returns defaults when the file is missing", () => {
-    expect(store.read()).toEqual({ recentProjects: [] })
+    expect(store.read()).toEqual({
+      recentProjects: [],
+      llamaServerUrl: DEFAULT_LLAMA_SERVER_URL,
+      llamaModel: "",
+    })
   })
 
   it("returns defaults when the file is not valid settings", () => {
     writeFileSync(settingsPath, "{ not json", "utf8")
-    expect(store.read()).toEqual({ recentProjects: [] })
+    expect(store.read()).toEqual({
+      recentProjects: [],
+      llamaServerUrl: DEFAULT_LLAMA_SERVER_URL,
+      llamaModel: "",
+    })
+  })
+
+  it("reads a file without a server URL as the default one", () => {
+    writeFileSync(settingsPath, JSON.stringify({ recentProjects: [] }), "utf8")
+
+    expect(store.llamaServerUrl()).toBe(DEFAULT_LLAMA_SERVER_URL)
+  })
+
+  it("has no model until one is chosen", () => {
+    expect(store.llamaModel()).toBe("")
+  })
+
+  it("reads back the model it was given", () => {
+    store.setLlamaModel("unsloth/Qwen3.5-9B-GGUF:Q4_K_M")
+
+    expect(store.llamaModel()).toBe("unsloth/Qwen3.5-9B-GGUF:Q4_K_M")
+    expect(store.llamaServerUrl()).toBe(DEFAULT_LLAMA_SERVER_URL)
+  })
+
+  it("reads back the server URL it was given", () => {
+    store.setLlamaServerUrl("http://192.168.1.20:9000")
+
+    expect(store.llamaServerUrl()).toBe("http://192.168.1.20:9000")
+  })
+
+  it("keeps the recent projects when the server URL changes", () => {
+    const directory = makeProjectFolder("kept")
+    store.recordRecentProject({ directory, name: "Kept", createdAt: "" })
+
+    store.setLlamaServerUrl("http://192.168.1.20:9000")
+
+    expect(store.listRecentProjects().map((entry) => entry.directory)).toEqual([directory])
+  })
+
+  it("keeps the server URL when a project is recorded", () => {
+    store.setLlamaServerUrl("http://192.168.1.20:9000")
+
+    const directory = makeProjectFolder("kept")
+    store.recordRecentProject({ directory, name: "Kept", createdAt: "" })
+
+    expect(store.llamaServerUrl()).toBe("http://192.168.1.20:9000")
   })
 
   it("writes a file the schema accepts", () => {

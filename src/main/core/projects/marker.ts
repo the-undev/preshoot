@@ -59,3 +59,8 @@ export function readProjectMarker(directory: string): ProjectMarker {
 export function writeProjectMarker(directory: string, marker: ProjectMarker): void {
   writeFileSync(projectMarkerPath(directory), `${JSON.stringify(marker, null, 2)}\n`, "utf8")
 }
+
+/** Where exported prompts go, kept apart from whatever else is exported later. */
+export function projectPromptExportsPath(directory: string): string {
+  return join(directory, "exports", "prompts")
+}
