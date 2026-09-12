@@ -7,7 +7,7 @@ import {
   updateAsset,
 } from "../../core/composition/asset-store"
 import { asClientError } from "../client-errors"
-import { requireProject } from "../project"
+import { requireOpenProject, requireProject } from "../project"
 import { publicProcedure, router } from "../trpc"
 
 const name = z.string().trim().min(1)
@@ -33,10 +33,11 @@ export const assetsRouter = router({
       }
     }),
 
-  /** Removes a thing, unless a shot still shows it. */
+  /** Removes a thing and its pictures, unless a shot still shows it. */
   remove: publicProcedure.input(z.object({ id: z.number().int() })).mutation(({ ctx, input }) => {
+    const project = requireOpenProject(ctx)
     try {
-      deleteAsset(requireProject(ctx), input.id)
+      deleteAsset(project.db, project.directory, input.id)
     } catch (error) {
       asClientError(error)
     }

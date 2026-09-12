@@ -73,7 +73,7 @@ describe("asset store", () => {
   it("removes a thing no shot shows", () => {
     const stored = keeper()
 
-    deleteAsset(handle.db, stored.id)
+    deleteAsset(handle.db, dir, stored.id)
 
     expect(listAssets(handle.db)).toEqual([])
   })
@@ -88,7 +88,7 @@ describe("asset store", () => {
     const shotId = insertShot(handle.db, clip.id)
     setShotThings(handle.db, shotId, [stored.id])
 
-    expect(() => deleteAsset(handle.db, stored.id)).toThrow(
+    expect(() => deleteAsset(handle.db, dir, stored.id)).toThrow(
       expect.objectContaining({ code: "in-use", message: expect.stringContaining("Lighthouse") })
     )
   })

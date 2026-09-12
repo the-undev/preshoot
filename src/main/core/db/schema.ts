@@ -18,6 +18,18 @@ export const assets = sqliteTable("assets", {
   createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
 })
 
+/** Reference pictures of a library thing, copied into the project so it can be moved. */
+export const assetImages = sqliteTable("asset_images", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  assetId: integer("asset_id")
+    .notNull()
+    .references(() => assets.id, { onDelete: "cascade" }),
+  fileName: text("file_name").notNull(),
+  mediaType: text("media_type").notNull(),
+  position: integer("position").notNull(),
+  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+})
+
 /** One clip: a few shots that become a single prompt. */
 export const clips = sqliteTable("clips", {
   id: integer("id").primaryKey({ autoIncrement: true }),

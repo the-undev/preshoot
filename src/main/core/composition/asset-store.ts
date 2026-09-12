@@ -1,6 +1,7 @@
 import { asc, eq } from "drizzle-orm"
 import { schema, type ProjectDatabase } from "../db"
 import { CompositionError } from "./errors"
+import { deleteImagesOfAsset } from "./image-store"
 
 /** What a library thing can be. */
 export const ASSET_KINDS = ["person", "place", "object"] as const
@@ -58,8 +59,8 @@ export function updateAsset(
   return toRecord(row)
 }
 
-/** Removes a thing, unless a shot still shows it. */
-export function deleteAsset(db: ProjectDatabase, id: number): void {
+/** Removes a thing and its pictures, unless a shot still shows it. */
+export function deleteAsset(db: ProjectDatabase, directory: string, id: number): void {
   const asset = db.select().from(schema.assets).where(eq(schema.assets.id, id)).get()
   if (!asset) {
     throw CompositionError.notFound(`Thing ${id}`)
@@ -78,6 +79,7 @@ export function deleteAsset(db: ProjectDatabase, id: number): void {
     throw CompositionError.inUse(asset.name, [...new Set(clipNames)].join(", "))
   }
 
+  deleteImagesOfAsset(db, directory, id)
   db.delete(schema.assets).where(eq(schema.assets.id, id)).run()
 }
 
