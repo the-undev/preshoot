@@ -87,34 +87,34 @@ export function GenerationFields({ generation }: GenerationFieldsProps): React.J
         </Button>
       </div>
 
-      <dl className="flex min-w-0 flex-col gap-1">
+      <ul className="flex min-w-0 flex-col gap-1">
         {fields.map((field) => (
-          <div
-            key={field.name}
-            className="flex min-w-0 items-baseline gap-2 border-b py-1 last:border-b-0"
-          >
-            <dt className="w-28 shrink-0 text-xs text-muted-foreground">{field.name}</dt>
-            <dd className="min-w-0 flex-1 truncate font-mono text-xs">{field.value}</dd>
-            {field.note && (
-              <span className="shrink-0 text-xs text-muted-foreground">{field.note}</span>
-            )}
-            <Button
-              variant="ghost"
-              size="icon"
-              className="size-7 shrink-0"
+          <li key={field.name} className="border-b last:border-b-0">
+            {/* The whole line copies, not just the icon, since the line is what you are reaching
+                for. One button per row, so nothing is nested inside anything clickable. */}
+            <button
+              type="button"
               aria-label={`Copy ${field.name}`}
               title={`Copy ${field.name}`}
+              className="flex w-full min-w-0 items-baseline gap-2 rounded px-1 py-1.5 text-left hover:bg-accent"
               onClick={() => void copy(field.name, field.value)}
             >
-              {copied === field.name ? (
-                <Check className="size-3.5" />
-              ) : (
-                <Copy className="size-3.5" />
+              <span className="w-28 shrink-0 text-xs text-muted-foreground">{field.name}</span>
+              <span className="min-w-0 flex-1 truncate font-mono text-xs">{field.value}</span>
+              {field.note && (
+                <span className="hidden shrink-0 text-xs text-muted-foreground sm:inline">
+                  {field.note}
+                </span>
               )}
-            </Button>
-          </div>
+              {copied === field.name ? (
+                <Check className="size-3.5 shrink-0 text-muted-foreground" />
+              ) : (
+                <Copy className="size-3.5 shrink-0 text-muted-foreground" />
+              )}
+            </button>
+          </li>
         ))}
-      </dl>
+      </ul>
     </section>
   )
 }

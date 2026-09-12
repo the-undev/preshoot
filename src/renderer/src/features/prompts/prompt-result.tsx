@@ -109,22 +109,26 @@ export function PromptResult({
       <GenerationFields generation={generation} />
 
       <div className="flex min-w-0 flex-col gap-1">
-        <div className="flex items-center justify-between gap-2">
-          <h3 className="font-heading text-sm font-semibold text-muted-foreground">Prompt</h3>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="size-7"
-            aria-label="Copy the prompt"
-            title="Copy the prompt"
-            onClick={() => void copy()}
-          >
-            {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
-          </Button>
-        </div>
-        <pre className="text-sm whitespace-pre-wrap text-muted-foreground">
-          {generation.rendered}
-        </pre>
+        {/* The prompt copies from anywhere on it, the same as the fields above. */}
+        <button
+          type="button"
+          aria-label="Copy the prompt"
+          title="Copy the prompt"
+          className="flex w-full min-w-0 flex-col gap-1 rounded px-1 py-1 text-left hover:bg-accent"
+          onClick={() => void copy()}
+        >
+          <span className="flex w-full items-center justify-between gap-2">
+            <span className="font-heading text-sm font-semibold text-muted-foreground">Prompt</span>
+            {copied ? (
+              <Check className="size-3.5 text-muted-foreground" />
+            ) : (
+              <Copy className="size-3.5 text-muted-foreground" />
+            )}
+          </span>
+          <pre className="w-full text-sm whitespace-pre-wrap text-muted-foreground">
+            {generation.rendered}
+          </pre>
+        </button>
       </div>
 
       <form

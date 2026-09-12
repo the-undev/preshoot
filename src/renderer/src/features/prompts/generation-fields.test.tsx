@@ -91,6 +91,14 @@ describe("GenerationFields", () => {
     expect(written).toEqual(["42"])
   })
 
+  it("copies from anywhere on the line, not only the icon", () => {
+    render(<GenerationFields generation={generation} />)
+
+    fireEvent.click(screen.getByText("fl2va"))
+
+    expect(written).toEqual(["fl2va"])
+  })
+
   it("copies every field and the prompt as one block", () => {
     render(<GenerationFields generation={generation} />)
 
