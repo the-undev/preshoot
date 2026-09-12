@@ -39,6 +39,12 @@ export type RecentProject = RouterOutputs["projects"]["recent"][number]
 /** One prompt generated in the open project. */
 export type GenerationRecord = RouterOutputs["prompts"]["list"][number]
 
+/** One model the llama-server can serve. */
+export type ServerModel = RouterOutputs["settings"]["checkLlamaServer"]["models"][number]
+
+/** What a server had to say when it was asked. */
+export type ServerReport = RouterOutputs["settings"]["checkLlamaServer"]
+
 /** One thing in the project's library. */
 export type Asset = RouterOutputs["assets"]["list"][number]
 
