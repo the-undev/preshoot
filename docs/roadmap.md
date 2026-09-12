@@ -67,6 +67,12 @@ at Q2 or Q3 with the Lightning LoRA.
   prose, in one request per clip so a look or a voice carries across a cut.
 - The workspace is a centred band no wider than 1400px, on the ultrawide as
   everywhere else.
+- Reference pictures are copied into the project rather than referenced where
+  they sit, so a project stays a folder that can be moved, and the renderer
+  reads them through an `asset://` scheme that serves only the open project.
+- Describing a picture is not writing a prompt for a particular model, so it
+  sits beside the targets rather than inside one, and goes through a client
+  call of its own: a vision answer is prose, not JSON.
 - Editing a prompt is not a composer. A composer turns a clip into a prompt;
   editing turns a prompt into another prompt, and widening that interface
   would make every composer accept an input it cannot use. An edit is stored
@@ -97,19 +103,20 @@ at Q2 or Q3 with the Lightning LoRA.
 6. Closing the loop: comparison runs are kept and read back, a run that
    fails part way says where it stopped, a verdict and a note are written
    apart, and nothing is deleted without asking.
+7. Asset images: reference pictures copied into the project and shown in the
+   library, with a description drafted from them by the local vision model.
 
 ## Milestones
 
-7. Asset images: reference images and RefMod files attached to library
-   things, with descriptions drafted from them by the local vision model.
-   The reference image forms of the H3 prompt arrive with them.
-8. Storyboard editor: clips in order across a film, chained by last frame
+8. RefMod files attached to library things, and the reference image forms of
+   the H3 prompt, which need the alignment line.
+9. Storyboard editor: clips in order across a film, chained by last frame
    to first frame, with prompts versioned per clip.
-9. Runpod link: connect to a pod, pull outputs into the project, show each
-   take next to its shot, mark good or bad with notes, export chosen takes.
-10. ComfyUI templates: API-format workflow JSON per target with named slots,
+10. Runpod link: connect to a pod, pull outputs into the project, show each
+    take next to its shot, mark good or bad with notes, export chosen takes.
+11. ComfyUI templates: API-format workflow JSON per target with named slots,
     filled and submitted by the app.
-11. Local ComfyUI management: model downloads, start and stop, RefMod
+12. Local ComfyUI management: model downloads, start and stop, RefMod
     creation if the H3 VAE fits in 8GB with offload (TBD).
 
 ## Open questions

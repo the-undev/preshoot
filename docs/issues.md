@@ -59,7 +59,13 @@ says so.
   copies its parent's, so the name no longer says what the column holds.
 - `readVariant` lists every variant of a target to find one of them.
 - The reference image forms of the H3 prompt (I2VA, FL2VA, L2VA) need the
-  alignment line. They arrive with the asset images milestone.
+  alignment line.
+- The prompt that describes a picture is a constant, not a variant, so it
+  cannot be tuned in the app the way the prompts that write clips can.
+- A drafted description replaces whatever is in the box. There is no way to
+  keep both and choose.
+- A picture is shown at whatever size it was imported at, so a large one is
+  read into the page in full to be drawn as a thumbnail.
 - Image editing (Qwen Image Edit) as a shot type that edits a library image.
 
 ## Environment and tooling
@@ -67,6 +73,10 @@ says so.
 - The multimodal projector has to stay off the GPU on this card. Loaded onto
   it, an image encode aborted inside CUDA while another model held VRAM.
   Whether it fits on the GPU with nothing else loaded is untested.
+- Describing one 512x512 picture took 29.5 seconds with the model on the CPU
+  while another server held the card. On the GPU it should be far quicker,
+  but that is untested, and the two minute limit is not far away for a thing
+  with several pictures.
 - A vision request needs `enable_thinking` off as much as a text one does,
   or the answer is spent on reasoning before the image is described.
 - drizzle-kit generated a table rebuild that read columns added in the same
