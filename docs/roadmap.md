@@ -67,6 +67,14 @@ at Q2 or Q3 with the Lightning LoRA.
   prose, in one request per clip so a look or a voice carries across a cut.
 - The workspace is a centred band no wider than 1400px, on the ultrawide as
   everywhere else.
+- Editing a prompt is not a composer. A composer turns a clip into a prompt;
+  editing turns a prompt into another prompt, and widening that interface
+  would make every composer accept an input it cannot use. An edit is stored
+  as an ordinary generation carrying what it came from, so it can be copied,
+  judged, compared and edited again with no special cases.
+- An exported prompt is a text file holding the prompt and nothing else, so
+  it pastes straight into the model's own form, with the clip, the way, the
+  variant, the model and any edit instruction in a json beside it.
 - Runpod: manual copy of prompts first. Then rsync of the project bundle
   over SSH plus ComfyUI HTTP for queueing jobs and pulling outputs. Then
   pod start and stop through the Runpod API.
@@ -83,20 +91,23 @@ at Q2 or Q3 with the Lightning LoRA.
 4. Models and iteration: the model is named per request and chosen from
    what the server offers, system prompts are editable data, and one clip
    can be written several ways at once and the results judged side by side.
+5. Editing and export: a finished prompt is rewritten from a change asked
+   for in words, edits chain under what they came from, and a prompt can be
+   written into the project or saved where the user chooses.
 
 ## Milestones
 
-5. Asset images: reference images and RefMod files attached to library
+6. Asset images: reference images and RefMod files attached to library
    things, with descriptions drafted from them by the local vision model.
    The reference image forms of the H3 prompt arrive with them.
-6. Storyboard editor: clips in order across a film, chained by last frame
+7. Storyboard editor: clips in order across a film, chained by last frame
    to first frame, with prompts versioned per clip.
-7. Runpod link: connect to a pod, pull outputs into the project, show each
+8. Runpod link: connect to a pod, pull outputs into the project, show each
    take next to its shot, mark good or bad with notes, export chosen takes.
-8. ComfyUI templates: API-format workflow JSON per target with named slots,
+9. ComfyUI templates: API-format workflow JSON per target with named slots,
    filled and submitted by the app.
-9. Local ComfyUI management: model downloads, start and stop, RefMod
-   creation if the H3 VAE fits in 8GB with offload (TBD).
+10. Local ComfyUI management: model downloads, start and stop, RefMod
+    creation if the H3 VAE fits in 8GB with offload (TBD).
 
 ## Open items
 
@@ -147,3 +158,10 @@ at Q2 or Q3 with the Lightning LoRA.
   to. Older runs are in the database and out of reach.
 - A verdict and its note are written together, so marking a result good
   rewrites whatever note the box holds at that moment.
+- Export writes one prompt at a time. There is no way to write out a whole
+  clip or project at once.
+- An edit is made from the prompt as it was, not from the clip as it is now,
+  so editing an old prompt after changing its clip keeps the old wording.
+  That is what makes an edit chain readable, but it will surprise someone.
+- The save dialog offers no file type filter, and appends nothing when a
+  name is typed without an extension.
