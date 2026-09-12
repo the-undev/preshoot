@@ -29,6 +29,7 @@ interface ClipEditorProps {
   variantId: string | null
   isSaving: boolean
   isGenerating: boolean
+  hasModel: boolean
   canRegenerate: boolean
   onClipChange: (fields: ClipFields) => void
   onAddShot: () => void
@@ -55,6 +56,7 @@ export function ClipEditor({
   variantId,
   isSaving,
   isGenerating,
+  hasModel,
   canRegenerate,
   onClipChange,
   onAddShot,
@@ -213,6 +215,11 @@ export function ClipEditor({
         <Button onClick={onGenerate} disabled={isGenerating || composition.shots.length === 0}>
           {isGenerating ? "Generating…" : "Generate"}
         </Button>
+        {!hasModel && (
+          <p className="pb-2 text-xs text-destructive">
+            No model chosen. Open settings, press Check, and pick one.
+          </p>
+        )}
       </section>
     </div>
   )

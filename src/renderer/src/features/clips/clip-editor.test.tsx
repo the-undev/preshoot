@@ -69,6 +69,7 @@ function renderEditor(over: Partial<React.ComponentProps<typeof ClipEditor>> = {
       variantId={null}
       isSaving={false}
       isGenerating={false}
+      hasModel={true}
       canRegenerate={false}
       onClipChange={onClipChange}
       onAddShot={onAddShot}
@@ -145,6 +146,14 @@ describe("ClipEditor", () => {
     fireEvent.click(screen.getByRole("button", { name: "Generate" }))
 
     expect(onGenerate).toHaveBeenCalled()
+  })
+
+  it("says so when no model has been chosen", () => {
+    renderEditor({ hasModel: false })
+
+    expect(
+      screen.getByText("No model chosen. Open settings, press Check, and pick one.")
+    ).toBeInTheDocument()
   })
 
   it("will not write a clip with no shots", () => {

@@ -29,6 +29,20 @@ export const settingsRouter = router({
       }
     }),
 
+  /** What the saved server can serve, asked for whenever the dialog is opened. */
+  models: publicProcedure.query(async ({ ctx }): Promise<ServerReport> => {
+    const client = ctx.promptClient(ctx.settings.llamaServerUrl())
+    try {
+      const state = await client.health()
+      return { state, models: state === "ok" ? await client.models() : [] }
+    } catch (error) {
+      if (error instanceof PromptServiceError && error.code === "unreachable") {
+        return { state: "unreachable", models: [] }
+      }
+      throw error
+    }
+  }),
+
   /**
    * Whether a llama-server answers at `url`, and what it can serve. The URL comes from the caller
    * rather than settings so the dialog can look before saving, and a server that is down is an

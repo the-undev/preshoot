@@ -18,6 +18,9 @@ export function SettingsDialog({ onClose }: SettingsDialogProps): React.JSX.Elem
   const trpc = useTRPC()
   const queryClient = useQueryClient()
   const settings = useQuery(trpc.settings.get.queryOptions())
+  // Asked for as the dialog opens: an empty list beside a Check button reads as a server with
+  // nothing on it, rather than a question nobody has asked yet.
+  const saved = useQuery(trpc.settings.models.queryOptions())
 
   const check = useMutation(trpc.settings.checkLlamaServer.mutationOptions())
   // What unload answers with is newer than what the last check saw, so it wins below.
@@ -31,7 +34,7 @@ export function SettingsDialog({ onClose }: SettingsDialogProps): React.JSX.Elem
     })
   )
 
-  const models = unload.data?.models ?? check.data?.models ?? []
+  const models = unload.data?.models ?? check.data?.models ?? saved.data?.models ?? []
 
   return (
     <Dialog
@@ -50,8 +53,8 @@ export function SettingsDialog({ onClose }: SettingsDialogProps): React.JSX.Elem
             llamaServerUrl={settings.data.llamaServerUrl}
             llamaModel={settings.data.llamaModel}
             models={models}
-            checkState={check.data?.state ?? null}
-            isChecking={check.isPending}
+            checkState={check.data?.state ?? saved.data?.state ?? null}
+            isChecking={check.isPending || saved.isLoading}
             isSaving={save.isPending}
             isUnloading={unload.isPending}
             errorMessage={

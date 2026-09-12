@@ -1,4 +1,5 @@
 import { useState } from "react"
+import { useQuery } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
 import {
   Alert,
@@ -18,7 +19,7 @@ import { ComparePanel } from "@renderer/features/clips/compare-panel"
 import { useClip } from "@renderer/features/clips/use-clip"
 import { useCompare, type ComparePair } from "@renderer/features/clips/use-compare"
 import { useClips } from "@renderer/features/clips/use-clips"
-import type { ClipSummary } from "@renderer/lib/trpc"
+import { useTRPC, type ClipSummary } from "@renderer/lib/trpc"
 import { useGenerateClip } from "@renderer/features/clips/use-generate-clip"
 import { GenerationHistory } from "@renderer/features/prompts/generation-history"
 import { usePromptActions } from "@renderer/features/prompts/use-prompt-actions"
@@ -106,6 +107,8 @@ function OpenClip({ clipId, targetId }: OpenClipProps): React.JSX.Element {
   const prompts = useVariants(targetId)
   const comparison = useCompare(clipId)
   const actions = usePromptActions()
+  const trpc = useTRPC()
+  const settings = useQuery(trpc.settings.get.queryOptions())
   const [pairs, setPairs] = useState<ComparePair[]>([])
 
   if (!clip.composition || !clip.vocabularies) {
@@ -127,6 +130,7 @@ function OpenClip({ clipId, targetId }: OpenClipProps): React.JSX.Element {
           variantId={writing.variantId}
           isSaving={clip.isSaving}
           isGenerating={writing.isPending}
+          hasModel={(settings.data?.llamaModel.length ?? 0) > 0}
           canRegenerate={Boolean(writing.latest?.prose)}
           onClipChange={clip.updateClip}
           onAddShot={clip.addShot}
