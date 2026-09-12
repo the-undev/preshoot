@@ -26,6 +26,9 @@ describe("projects router", () => {
       settings: new AppSettingsStore(join(dir, "settings.json")),
       migrationsFolder,
       dialogs: { pickDirectory: (options) => pickDirectory(options) },
+      promptClient: () => {
+        throw new Error("the projects router does not generate prompts")
+      },
     }
     caller = appRouter.createCaller(ctx)
   })

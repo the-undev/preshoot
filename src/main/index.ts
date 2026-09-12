@@ -2,6 +2,7 @@ import { app, shell, BrowserWindow, nativeTheme } from "electron"
 import { join } from "path"
 import { electronApp, optimizer, is } from "@electron-toolkit/utils"
 import icon from "../../resources/icon.png?asset"
+import { LlamaServerClient } from "./core/prompting/llama-server-client"
 import { ProjectSession } from "./core/projects/session"
 import { AppSettingsStore } from "./core/settings/app-settings"
 import { createDialogs } from "./dialogs"
@@ -21,6 +22,7 @@ function migrationsFolder(): string {
 
 /** Builds the values every procedure reaches. Folder pickers open over `window`. */
 function createContext(window: BrowserWindow): () => Context {
+  const settings = new AppSettingsStore(join(app.getPath("userData"), "settings.json"))
   const context: Context = {
     versions: {
       app: app.getVersion(),
@@ -29,9 +31,11 @@ function createContext(window: BrowserWindow): () => Context {
       node: process.versions.node,
     },
     projects,
-    settings: new AppSettingsStore(join(app.getPath("userData"), "settings.json")),
+    settings,
     migrationsFolder: migrationsFolder(),
     dialogs: createDialogs(window),
+    // Built per request, so a URL saved in settings applies to the next generation without a restart.
+    promptClient: (baseUrl) => new LlamaServerClient({ baseUrl, fetch: globalThis.fetch }),
   }
   return () => context
 }

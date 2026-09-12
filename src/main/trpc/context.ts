@@ -1,3 +1,4 @@
+import type { LlamaServerClient } from "../core/prompting/llama-server-client"
 import type { ProjectSession } from "../core/projects/session"
 import type { AppSettingsStore } from "../core/settings/app-settings"
 
@@ -8,6 +9,7 @@ export interface Context {
   settings: AppSettingsStore
   migrationsFolder: string
   dialogs: Dialogs
+  promptClient(baseUrl: string): LlamaServerClient
 }
 
 /** Runtime versions shown on the welcome screen and in bug reports. */
