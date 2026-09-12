@@ -208,9 +208,22 @@ function spokenLines(shot: ShotComposition): ShotComposition["dialogue"] {
   return shot.dialogue.filter((line) => line.text.trim().length > 0)
 }
 
-/** Every dialogue line of `shot` as the exact string that has to come back. */
+/**
+ * The lines of `shot` that have to come back word for word. A line carried across a cut is split
+ * between two shots with <scenetrans> between the parts, and a line the clip ends over is
+ * truncated with <cutoff>, so neither can be found whole in one shot.
+ */
 function dialogueTags(shot: ShotComposition): string[] {
-  return spokenLines(shot).map((line) => dialogueTag(line.language, line.text))
+  return spokenLines(shot)
+    .filter((line) => !line.crossesCut && !line.cutOff)
+    .map((line) => dialogueTag(line.language, line.text))
+}
+
+/** A split line still has to be tagged and in its language, even though its words are broken up. */
+function dialogueOpeners(shot: ShotComposition): string[] {
+  return spokenLines(shot)
+    .filter((line) => line.crossesCut || line.cutOff)
+    .map((line) => `<d>[${line.language}]`)
 }
 
 /** One shot as the instruction describes it to the model. */
@@ -312,7 +325,7 @@ function readProse(content: string, composition: ClipComposition, scope: Compose
       throw PromptServiceError.badResponse()
     }
     const prose = written.get(shot.id) ?? ""
-    for (const tag of dialogueTags(shot)) {
+    for (const tag of [...dialogueTags(shot), ...dialogueOpeners(shot)]) {
       if (!prose.includes(tag)) {
         throw PromptServiceError.badResponse()
       }
@@ -506,7 +519,7 @@ Do not write shot markers such as "[Shot 2]", do not write timestamps, and do no
 
 Write the camera motion you were given into the action sentence as natural English, keeping its amplitude and speed as they were given. Example: "The camera pushes in with small amplitude at slow speed toward the folded letter in her hands."
 
-Reproduce every dialogue line exactly as it was given, inside its <d> tags with its language tag, and introduce the speaker by the identity you were given for them: The elderly keeper with a low, weathered voice (S1) says: <d>[English] Almost there.</d>. Several speakers sharing a line take a compound ID such as (S1,S2). A line spoken off screen uses the exact phrase "says in an off-screen voiceover" and is followed by a statement that the character's lips remain closed. A line carried across a cut takes <scenetrans> at the connecting point in both shots, with a statement that the audio continues. A line the clip ends over takes <cutoff> where it stops. Text visible on screen goes in double quotation marks, verbatim. Diegetic music, radio, television and phone audio belong in the prose, not in the other two fields.
+Reproduce every dialogue line exactly as it was given, inside its <d> tags with its language tag, and introduce each speaker in this shape: The elderly keeper with a low, weathered voice (S1) says: <d>[English] Almost there.</d>. Take the identity from the Speakers list you are given, never from that example. Several speakers sharing a line take a compound ID such as (S1,S2). A line spoken off screen uses the exact phrase "says in an off-screen voiceover" and is followed by a statement that the character's lips remain closed. A line carried across a cut takes <scenetrans> at the connecting point in both shots, with a statement that the audio continues. A line the clip ends over takes <cutoff> where it stops. Text visible on screen goes in double quotation marks, verbatim. Diegetic music, radio, television and phone audio belong in the prose, not in the other two fields.
 
 A person, place or object that appears in more than one shot looks and sounds the same throughout, so carry the description you gave it into every later shot that shows it. Add scene, character and action detail that stays consistent with what you were given.
 
