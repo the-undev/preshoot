@@ -43,23 +43,29 @@ says so.
 - Streaming tokens to the renderer as they arrive needs a subscription link
   over the `trpc://` scheme, which nothing implements yet.
 
-## What the distilled prompt gets wrong
+## What the prompt still gets wrong
+
+Checked against `docs/minimax-h3/`. What has been fixed is gone from this
+list; what is left was found by generating against the model.
+
+- The identity in the speaker example leaks into the answer. Asked for a
+  clip about a young woman, one run in four still writes "The elderly keeper
+  with a low, weathered voice (S1)", which is the example. Saying to take the
+  identity from the Speakers list cut it from every run to about one in four.
+  Removing the example instead was worse: the model dropped the `<d>` tags
+  and the speaker id altogether.
+- `<scenetrans>` is asked for on a line that crosses a cut and is rarely
+  written. The check cannot insist on it, because a split line has no single
+  form to look for.
+- Unintelligible speech in reference audio is written `[unclear]` rather than
+  guessed at. Nothing says so.
 
 Found by reading `docs/minimax-h3/VIDEO_PROMPT_WRITING_GUIDE_base_en.md`
 against the system prompt in `targets/minimax-h3.ts`, which until now had
 been written from memory of the guide rather than from the guide.
 
-- Dialogue that crosses a cut needs `<scenetrans>` at both connecting points
-  and a statement that the audio continues. Speech cut off by the end of the
-  video needs `<cutoff>`. Neither is mentioned.
-- Several speakers talking together take a compound ID such as `(S1,S2)`.
-  The app gives a line exactly one speaker, so it cannot say this.
-- Cross-dissolve, fade and wipe are allowed when the user asks for them. The
-  app offers only the five cut phrases.
 - Unintelligible speech in reference audio is written `[unclear]` rather than
   guessed at.
-- A generation-task body runs 350 to 500 words. Nothing says so, and nothing
-  checks it.
 
 ## Improvements
 
@@ -76,8 +82,6 @@ been written from memory of the guide rather than from the guide.
 - The `brief` column on `generations` holds the clip's note, and an edit
   copies its parent's, so the name no longer says what the column holds.
 - `readVariant` lists every variant of a target to find one of them.
-- The reference image forms of the H3 prompt (I2VA, FL2VA, L2VA) need the
-  alignment line.
 - The prompt that describes a picture is a constant, not a variant, so it
   cannot be tuned in the app the way the prompts that write clips can.
 - A drafted description replaces whatever is in the box. There is no way to

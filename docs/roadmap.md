@@ -70,6 +70,9 @@ at Q2 or Q3 with the Lightning LoRA.
 - Reference pictures are copied into the project rather than referenced where
   they sit, so a project stays a folder that can be moved, and the renderer
   reads them through an `asset://` scheme that serves only the open project.
+- The model's own guides are vendored under `docs/minimax-h3/` and
+  `docs/h3-mapping.md` maps what they allow back to the inputs the app holds.
+  Prompt work is checked against them rather than against memory of them.
 - Describing a picture is not writing a prompt for a particular model, so it
   sits beside the targets rather than inside one, and goes through a client
   call of its own: a vision answer is prose, not JSON.
@@ -105,18 +108,24 @@ at Q2 or Q3 with the Lightning LoRA.
    apart, and nothing is deleted without asking.
 7. Asset images: reference pictures copied into the project and shown in the
    library, with a description drafted from them by the local vision model.
+8. The keyframe forms: a clip says which form it is written for, the image
+   forms anchor to pictures from the library, and the prompt opens with the
+   line the guide gives for that form.
 
 ## Milestones
 
-8. RefMod files attached to library things, and the reference image forms of
-   the H3 prompt, which need the alignment line.
-9. Storyboard editor: clips in order across a film, chained by last frame
-   to first frame, with prompts versioned per clip.
-10. Runpod link: connect to a pod, pull outputs into the project, show each
+9. Full reference mode: pictures and audio labelled as `<Picture N>` and
+   `<Audio N>`, subjects built from them, retention markers chosen rather
+   than invented, and a second target whose answer is six sections rather
+   than three. `docs/h3-mapping.md` says what is missing before it can be
+   built.
+10. Storyboard editor: clips in order across a film, chained by last frame
+    to first frame, with prompts versioned per clip.
+11. Runpod link: connect to a pod, pull outputs into the project, show each
     take next to its shot, mark good or bad with notes, export chosen takes.
-11. ComfyUI templates: API-format workflow JSON per target with named slots,
+12. ComfyUI templates: API-format workflow JSON per target with named slots,
     filled and submitted by the app.
-12. Local ComfyUI management: model downloads, start and stop, RefMod
+13. Local ComfyUI management: model downloads, start and stop, RefMod
     creation if the H3 VAE fits in 8GB with offload (TBD).
 
 ## Open questions
