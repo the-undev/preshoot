@@ -42,4 +42,9 @@ export class PromptServiceError extends Error {
       "llama-server answered with something the app could not read."
     )
   }
+
+  /** The answer was readable but left something out, named here so it can be acted on. */
+  static missing(what: string): PromptServiceError {
+    return new PromptServiceError("bad-response", `The model ${what}. Try writing it again.`)
+  }
 }

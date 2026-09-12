@@ -356,12 +356,14 @@ function readProse(content: string, composition: ClipComposition, scope: Compose
   for (const number of requiredNumbers(composition, scope)) {
     const shot = composition.shots[number - 1]
     if (!shot || !written.has(shot.id)) {
-      throw PromptServiceError.badResponse()
+      throw PromptServiceError.missing(`left out shot ${number}`)
     }
     const prose = written.get(shot.id) ?? ""
     for (const required of requiredIn(composition, shot, number)) {
       if (!prose.toLowerCase().includes(required.toLowerCase())) {
-        throw PromptServiceError.badResponse()
+        throw PromptServiceError.missing(
+          `wrote shot ${number} without "${required}", which the prompt needs word for word`
+        )
       }
     }
   }

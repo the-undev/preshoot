@@ -189,8 +189,8 @@ describe("proseComposer", () => {
     ).rejects.toThrow(expect.objectContaining({ code: "nothing-to-write" }))
   })
 
-  it("passes on an answer that misses a shot", async () => {
-    const { client } = clientAnswering(
+  it("asks again before giving up, and says what was left out", async () => {
+    const { client, requests } = clientAnswering(
       JSON.stringify({
         shots: [{ shot: 1, prose: "The keeper climbs." }],
         overall_soundscape: "Wind.",
@@ -207,6 +207,34 @@ describe("proseComposer", () => {
         client,
         scope: { kind: "all" },
       })
-    ).rejects.toThrow(expect.objectContaining({ code: "bad-response" }))
+    ).rejects.toThrow(
+      expect.objectContaining({ message: expect.stringContaining("left out shot 2") })
+    )
+    expect(requests).toHaveLength(2)
+  })
+
+  it("keeps what a second go answered when the first left something out", async () => {
+    const good = {
+      shots: [
+        { shot: 1, prose: "The keeper climbs." },
+        { shot: 2, prose: "the shot cuts to the lamp catching." },
+      ],
+      overall_soundscape: "Wind.",
+      non_diegetic_music: "N/A",
+    }
+    const answers = [JSON.stringify({ ...good, shots: [good.shots[0]] }), JSON.stringify(good)]
+    const chat = vi.fn(async () => ({ content: answers.shift() ?? "", model: "Qwen3.5-9B" }))
+    const client = { chat } as unknown as LlamaServerClient
+
+    const composed = await proseComposer.compose({
+      composition,
+      model: "Qwen3.5-9B",
+      systemPrompt: "You write prompts.",
+      target: minimaxH3,
+      client,
+      scope: { kind: "all" },
+    })
+
+    expect(composed.prose?.shots).toHaveLength(2)
   })
 })

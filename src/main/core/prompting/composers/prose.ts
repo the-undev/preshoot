@@ -1,4 +1,5 @@
 import { CompositionError } from "../../composition/errors"
+import type { ClipProse } from "../../composition/prose"
 import { renderPrompt } from "../target"
 import type { ComposeInput, ComposedPrompt, PromptComposer } from "./composer"
 
@@ -26,15 +27,24 @@ export const proseComposer: PromptComposer = {
       throw CompositionError.nothingToWrite("Add a shot before writing this clip.")
     }
 
-    const answer = await client.chat({
+    const request = {
       model,
       system: systemPrompt,
       user: target.prose.instruction(composition, scope),
       schema: target.prose.schema,
       maxTokens: BASE_TOKENS + TOKENS_PER_SHOT * composition.shots.length,
-    })
+    }
 
-    const prose = target.prose.readProse(answer.content, composition, scope)
+    // The model leaves something out often enough that one more go is worth more than a message.
+    let answer = await client.chat(request)
+    let prose: ClipProse
+    try {
+      prose = target.prose.readProse(answer.content, composition, scope)
+    } catch {
+      answer = await client.chat(request)
+      prose = target.prose.readProse(answer.content, composition, scope)
+    }
+
     const fields = target.prose.assemble(composition, prose)
     return {
       fields,
