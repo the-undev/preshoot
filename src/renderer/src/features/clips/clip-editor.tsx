@@ -210,6 +210,10 @@ export function ClipEditor({
 
       <section className="flex flex-col gap-2">
         <h2 className="font-heading text-sm font-semibold text-muted-foreground">Speakers</h2>
+        <p className="text-xs text-muted-foreground">
+          Anyone who speaks or sings. Each becomes a voice the prompt refers to as (S1), (S2) and so
+          on, described once so it stays the same across shots.
+        </p>
         <ClipSpeakers
           speakers={composition.speakers}
           onAdd={onAddSpeaker}

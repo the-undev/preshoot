@@ -92,27 +92,36 @@ export function ShotRow({
       className={`flex min-w-0 flex-col gap-4 rounded-lg border p-4 ${isDragging ? "opacity-60" : ""}`}
     >
       <Collapsible open={open} onOpenChange={setOpen}>
-        <header className="flex items-center justify-between gap-2">
-          <div className="flex min-w-0 items-center gap-1">
+        <header className="flex items-center gap-2">
+          <button
+            type="button"
+            aria-label={`Reorder shot ${index + 1}`}
+            className="shrink-0 cursor-grab rounded p-1 text-muted-foreground hover:text-foreground"
+            {...attributes}
+            {...listeners}
+          >
+            <GripVertical className="size-4" />
+          </button>
+
+          <CollapsibleTrigger asChild>
+            {/* A plain button: the design system's refuses to shrink, so the summary ran under
+                the buttons beside it rather than being cut short. */}
             <button
               type="button"
-              aria-label={`Reorder shot ${index + 1}`}
-              className="cursor-grab rounded p-1 text-muted-foreground hover:text-foreground"
-              {...attributes}
-              {...listeners}
+              className="flex min-w-0 flex-1 items-center gap-2 rounded px-2 py-1 text-left hover:bg-accent"
             >
-              <GripVertical className="size-4" />
+              {open ? (
+                <ChevronDown className="size-4 shrink-0" />
+              ) : (
+                <ChevronRight className="size-4 shrink-0" />
+              )}
+              <span className="shrink-0 font-heading text-sm font-semibold">Shot {index + 1}</span>
+              <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">
+                {summary(shot)}
+              </span>
             </button>
-            <CollapsibleTrigger asChild>
-              <Button variant="ghost" size="sm" className="h-auto min-w-0 justify-start px-2 py-1">
-                {open ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
-                <span className="font-heading text-sm font-semibold">Shot {index + 1}</span>
-                <span className="truncate text-xs font-normal text-muted-foreground">
-                  {summary(shot)}
-                </span>
-              </Button>
-            </CollapsibleTrigger>
-          </div>
+          </CollapsibleTrigger>
+
           <div className="flex shrink-0 items-center gap-1">
             <Button
               variant="ghost"
