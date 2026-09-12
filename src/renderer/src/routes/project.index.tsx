@@ -188,12 +188,17 @@ function OpenClip({ clipId, targetId }: OpenClipProps): React.JSX.Element {
           composers={writing.composers}
           variants={prompts.variants}
           pairs={pairs}
+          runs={comparison.runs}
+          runId={comparison.runId}
           results={comparison.results}
+          failure={comparison.failure}
           isPending={comparison.isPending}
           onAddPair={(pair) => setPairs([...pairs, pair])}
           onRemovePair={(index) => setPairs(pairs.filter((_, at) => at !== index))}
           onRun={() => comparison.run(pairs)}
-          onJudge={comparison.judge}
+          onChooseRun={comparison.chooseRun}
+          onVerdict={comparison.setVerdict}
+          onNote={comparison.setNote}
         />
 
         {comparison.errorMessage && (

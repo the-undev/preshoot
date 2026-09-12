@@ -307,32 +307,59 @@ describe("prompts router", () => {
       ],
     })
 
-    expect(run).toHaveLength(2)
-    expect(run[0].composer).toBe("prose")
-    expect(run[1].composer).toBe("assembled")
-    expect(run[0].runId).toBe(run[1].runId)
-    expect(run[0].runId).not.toBeNull()
+    expect(run.results).toHaveLength(2)
+    expect(run.results[0].composer).toBe("prose")
+    expect(run.results[1].composer).toBe("assembled")
+    expect(run.results[0].runId).toBe(run.runId)
+    expect(run.failure).toBeNull()
   })
 
-  it("keeps what landed when a later way of writing fails", async () => {
+  it("lists the runs a clip has, newest first, with what was liked", async () => {
+    await openProject()
+    const { clipId } = await clipOfTwo()
+    const first = await caller.prompts.compare({
+      clipId,
+      runs: [
+        { composerId: "assembled", variantId: null },
+        { composerId: "assembled", variantId: null },
+      ],
+    })
+    await caller.prompts.setVerdict({ generationId: first.results[0].id, verdict: "good" })
+    const second = await caller.prompts.compare({
+      clipId,
+      runs: [
+        { composerId: "assembled", variantId: null },
+        { composerId: "assembled", variantId: null },
+      ],
+    })
+
+    const runs = await caller.prompts.runs({ clipId })
+
+    expect(runs.map((run) => run.runId)).toEqual([second.runId, first.runId])
+    expect(runs[1]).toEqual(expect.objectContaining({ written: 2, good: 1 }))
+    expect(await caller.prompts.run({ runId: first.runId })).toHaveLength(2)
+  })
+
+  it("keeps what landed when a later way of writing fails, and says which", async () => {
     await openProject()
     const { clipId } = await clipOfTwo()
     chat = vi.fn(async () => ({ content: "not a prompt", model: "Qwen3.5-9B" }))
 
-    await expect(
-      caller.prompts.compare({
-        clipId,
-        runs: [
-          { composerId: "assembled", variantId: null },
-          { composerId: "prose", variantId: null },
-        ],
-      })
-    ).rejects.toThrow(expect.objectContaining({ code: "BAD_GATEWAY" }))
+    const run = await caller.prompts.compare({
+      clipId,
+      runs: [
+        { composerId: "assembled", variantId: null },
+        { composerId: "prose", variantId: null },
+      ],
+    })
 
+    expect(run.results).toHaveLength(1)
+    expect(run.failure?.composerId).toBe("prose")
+    expect(run.failure?.message).toContain("could not read")
     expect(await caller.prompts.list({ clipId })).toHaveLength(1)
   })
 
-  it("marks a result good or bad and keeps a note", async () => {
+  it("marks a result without writing over its note", async () => {
     await openProject()
     const { clipId } = await clipOfTwo()
     const generated = await caller.prompts.generate({
@@ -340,16 +367,34 @@ describe("prompts router", () => {
       composerId: "prose",
       variantId: null,
     })
-
-    const judged = await caller.prompts.judge({
+    await caller.prompts.setNote({
       generationId: generated.id,
-      verdict: "good",
       note: "Kept the voice across the cut.",
     })
 
+    const judged = await caller.prompts.setVerdict({ generationId: generated.id, verdict: "good" })
+
     expect(judged.verdict).toBe("good")
     expect(judged.note).toBe("Kept the voice across the cut.")
-    expect((await caller.prompts.list({ clipId }))[0].verdict).toBe("good")
+  })
+
+  it("writes a note without clearing the verdict", async () => {
+    await openProject()
+    const { clipId } = await clipOfTwo()
+    const generated = await caller.prompts.generate({
+      clipId,
+      composerId: "prose",
+      variantId: null,
+    })
+    await caller.prompts.setVerdict({ generationId: generated.id, verdict: "bad" })
+
+    const noted = await caller.prompts.setNote({
+      generationId: generated.id,
+      note: "Lost the keeper between shots.",
+    })
+
+    expect(noted.verdict).toBe("bad")
+    expect(noted.note).toBe("Lost the keeper between shots.")
   })
 
   it("rewrites a prompt and keeps what it came from", async () => {

@@ -9,20 +9,25 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@renderer/design-system"
-import type { GenerationRecord, PromptVariant } from "@renderer/lib/trpc"
+import type { GenerationRecord, PromptVariant, RunSummary } from "@renderer/lib/trpc"
 import type { ComposerOption } from "./use-generate-clip"
-import type { ComparePair } from "./use-compare"
+import type { ComparePair, RunFailure } from "./use-compare"
 
 interface ComparePanelProps {
   composers: ComposerOption[]
   variants: PromptVariant[]
   pairs: ComparePair[]
+  runs: RunSummary[]
+  runId: string | null
   results: GenerationRecord[]
+  failure: RunFailure | null
   isPending: boolean
   onAddPair: (pair: ComparePair) => void
   onRemovePair: (index: number) => void
   onRun: () => void
-  onJudge: (generationId: number, verdict: "good" | "bad" | null, note: string) => void
+  onChooseRun: (runId: string) => void
+  onVerdict: (generationId: number, verdict: "good" | "bad" | null) => void
+  onNote: (generationId: number, note: string) => void
 }
 
 /** Writes the same clip several ways and puts the results next to each other. */
@@ -30,12 +35,17 @@ export function ComparePanel({
   composers,
   variants,
   pairs,
+  runs,
+  runId,
   results,
+  failure,
   isPending,
   onAddPair,
   onRemovePair,
   onRun,
-  onJudge,
+  onChooseRun,
+  onVerdict,
+  onNote,
 }: ComparePanelProps): React.JSX.Element {
   const [composerId, setComposerId] = useState(composers[0]?.id ?? "")
   const [variantId, setVariantId] = useState(variants[0]?.id ?? "")
@@ -122,15 +132,40 @@ export function ComparePanel({
         </Button>
       </div>
 
+      {failure && (
+        <p className="text-xs text-destructive">
+          Stopped at {nameOfComposer(failure.composerId)}: {failure.message}
+        </p>
+      )}
+
+      {runs.length > 0 && (
+        <div className="flex flex-col gap-1">
+          <Label htmlFor="compare-run">Run</Label>
+          <Select value={runId ?? ""} onValueChange={onChooseRun}>
+            <SelectTrigger id="compare-run" className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {runs.map((run) => (
+                <SelectItem key={run.runId} value={run.runId}>
+                  {new Date(run.ranAt).toLocaleString()} · {run.written} written · {run.good} good
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+
       {results.length > 0 && (
-        <div className="grid gap-4 xl:grid-cols-2">
+        <div className="flex flex-col gap-4">
           {results.map((result) => (
             <CompareResult
               key={result.id}
               result={result}
               composerName={nameOfComposer(result.composer)}
               variantName={nameOfVariant(result.promptVariantId)}
-              onJudge={onJudge}
+              onVerdict={onVerdict}
+              onNote={onNote}
             />
           ))}
         </div>
@@ -143,7 +178,8 @@ interface CompareResultProps {
   result: GenerationRecord
   composerName: string
   variantName: string
-  onJudge: (generationId: number, verdict: "good" | "bad" | null, note: string) => void
+  onVerdict: (generationId: number, verdict: "good" | "bad" | null) => void
+  onNote: (generationId: number, note: string) => void
 }
 
 /** One result of a run, with what wrote it and what was made of it. */
@@ -151,7 +187,8 @@ function CompareResult({
   result,
   composerName,
   variantName,
-  onJudge,
+  onVerdict,
+  onNote,
 }: CompareResultProps): React.JSX.Element {
   const [note, setNote] = useState(result.note)
 
@@ -171,7 +208,7 @@ function CompareResult({
           variant={result.verdict === "good" ? "secondary" : "outline"}
           size="sm"
           aria-pressed={result.verdict === "good"}
-          onClick={() => onJudge(result.id, result.verdict === "good" ? null : "good", note)}
+          onClick={() => onVerdict(result.id, result.verdict === "good" ? null : "good")}
         >
           Good
         </Button>
@@ -179,7 +216,7 @@ function CompareResult({
           variant={result.verdict === "bad" ? "secondary" : "outline"}
           size="sm"
           aria-pressed={result.verdict === "bad"}
-          onClick={() => onJudge(result.id, result.verdict === "bad" ? null : "bad", note)}
+          onClick={() => onVerdict(result.id, result.verdict === "bad" ? null : "bad")}
         >
           Bad
         </Button>
@@ -188,7 +225,7 @@ function CompareResult({
           placeholder="What was wrong with it"
           value={note}
           onChange={(event) => setNote(event.target.value)}
-          onBlur={() => onJudge(result.id, result.verdict as "good" | "bad" | null, note)}
+          onBlur={() => onNote(result.id, note)}
         />
       </div>
     </article>

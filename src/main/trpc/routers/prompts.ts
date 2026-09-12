@@ -11,10 +11,12 @@ import type { ComposedPrompt } from "../../core/prompting/composers/composer"
 import { editPrompt } from "../../core/prompting/edit"
 import {
   insertGeneration,
-  judgeGeneration,
   listGenerations,
   listRun,
+  listRuns,
   readGeneration,
+  setNote,
+  setVerdict,
   type GenerationRecord,
 } from "../../core/prompting/generation-store"
 import type { ComposeScope } from "../../core/prompting/target"
@@ -119,6 +121,16 @@ function proseToKeep(previous: GenerationRecord, shotId: number, shotIds: number
     })
   }
   return previous.prose
+}
+
+/** A failure as the renderer should read it, whatever kind it was. */
+function asMessage(error: unknown): string {
+  try {
+    asClientError(error)
+  } catch (client) {
+    return client instanceof Error ? client.message : String(client)
+  }
+  return "Something went wrong."
 }
 
 /** The generation to export and what its files should be called. */
@@ -258,9 +270,10 @@ export const promptsRouter = router({
     .mutation(async ({ ctx, input }) => {
       const db = requireProject(ctx)
       const runId = randomUUID()
-      try {
-        const clip = readClip(db, input.clipId)
-        for (const pair of input.runs) {
+      const clip = readClip(db, input.clipId)
+
+      for (const pair of input.runs) {
+        try {
           await writeClip(ctx, db, {
             clipId: input.clipId,
             composerId: pair.composerId,
@@ -268,11 +281,17 @@ export const promptsRouter = router({
             runId,
             scope: { kind: "all" },
           })
+        } catch (error) {
+          // What already landed is kept, and the run says where it stopped rather than vanishing.
+          return {
+            runId,
+            results: listRun(db, runId),
+            failure: { ...pair, message: asMessage(error) },
+          }
         }
-        return listRun(db, runId)
-      } catch (error) {
-        asClientError(error)
       }
+
+      return { runId, results: listRun(db, runId), failure: null }
     }),
 
   /** Rewrites a prompt with one change made, keeping what it came from. */
@@ -411,26 +430,42 @@ export const promptsRouter = router({
       })
     }),
 
-  /** Marks a result good or bad and keeps a note against it. */
-  judge: publicProcedure
+  /** Marks a result good or bad, leaving its note alone. */
+  setVerdict: publicProcedure
     .input(
       z.object({
         generationId: z.number().int(),
         verdict: z.enum(["good", "bad"]).nullable(),
-        note: z.string().trim(),
       })
     )
     .mutation(({ ctx, input }) => {
       try {
-        return judgeGeneration(requireProject(ctx), {
-          id: input.generationId,
-          verdict: input.verdict,
-          note: input.note,
-        })
+        return setVerdict(requireProject(ctx), { id: input.generationId, verdict: input.verdict })
       } catch (error) {
         asClientError(error)
       }
     }),
+
+  /** Keeps a note against a result, leaving its verdict alone. */
+  setNote: publicProcedure
+    .input(z.object({ generationId: z.number().int(), note: z.string() }))
+    .mutation(({ ctx, input }) => {
+      try {
+        return setNote(requireProject(ctx), { id: input.generationId, note: input.note })
+      } catch (error) {
+        asClientError(error)
+      }
+    }),
+
+  /** The comparison runs of one clip, newest first. */
+  runs: publicProcedure
+    .input(z.object({ clipId }))
+    .query(({ ctx, input }) => listRuns(requireProject(ctx), input.clipId)),
+
+  /** Everything one comparison run wrote, in the order it was written. */
+  run: publicProcedure
+    .input(z.object({ runId: z.string().min(1) }))
+    .query(({ ctx, input }) => listRun(requireProject(ctx), input.runId)),
 
   /** What has been generated for one clip, newest first. */
   list: publicProcedure

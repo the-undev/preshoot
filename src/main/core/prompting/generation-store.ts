@@ -63,21 +63,71 @@ export function listRun(db: ProjectDatabase, runId: string): GenerationRecord[] 
     .map(toRecord)
 }
 
-/** Marks a generation good or bad and keeps a note against it. */
-export function judgeGeneration(
+/** Marks a generation good or bad, leaving whatever note it carries alone. */
+export function setVerdict(
   db: ProjectDatabase,
-  input: { id: number; verdict: string | null; note: string }
+  input: { id: number; verdict: string | null }
+): GenerationRecord {
+  return change(db, input.id, { verdict: input.verdict })
+}
+
+/** Keeps a note against a generation, leaving whatever verdict it carries alone. */
+export function setNote(
+  db: ProjectDatabase,
+  input: { id: number; note: string }
+): GenerationRecord {
+  return change(db, input.id, { note: input.note })
+}
+
+function change(
+  db: ProjectDatabase,
+  id: number,
+  fields: Partial<typeof schema.generations.$inferInsert>
 ): GenerationRecord {
   const [row] = db
     .update(schema.generations)
-    .set({ verdict: input.verdict, note: input.note })
-    .where(eq(schema.generations.id, input.id))
+    .set(fields)
+    .where(eq(schema.generations.id, id))
     .returning()
     .all()
   if (!row) {
-    throw CompositionError.notFound(`Prompt ${input.id}`)
+    throw CompositionError.notFound(`Prompt ${id}`)
   }
   return toRecord(row)
+}
+
+/** One comparison run: when it went, how many ways were written and how many were liked. */
+export interface RunSummary {
+  runId: string
+  ranAt: string
+  written: number
+  good: number
+}
+
+/** Every comparison run of one clip, newest first. */
+export function listRuns(db: ProjectDatabase, clipId: number): RunSummary[] {
+  const rows = db
+    .select()
+    .from(schema.generations)
+    .where(eq(schema.generations.clipId, clipId))
+    .orderBy(schema.generations.id)
+    .all()
+    .filter((row) => row.runId !== null)
+
+  const runs = new Map<string, RunSummary>()
+  for (const row of rows) {
+    const runId = row.runId as string
+    const run = runs.get(runId) ?? {
+      runId,
+      ranAt: row.createdAt.toISOString(),
+      written: 0,
+      good: 0,
+    }
+    run.written += 1
+    run.good += row.verdict === "good" ? 1 : 0
+    runs.set(runId, run)
+  }
+  return [...runs.values()].reverse()
 }
 
 /** One stored generation, or nothing when it has gone. */

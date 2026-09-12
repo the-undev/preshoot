@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from "@testing-library/react"
 import { describe, expect, it, vi } from "vitest"
-import type { GenerationRecord, PromptVariant } from "@renderer/lib/trpc"
+import type { GenerationRecord, PromptVariant, RunSummary } from "@renderer/lib/trpc"
 import { ComparePanel } from "./compare-panel"
 
 const composers = [
@@ -42,31 +42,43 @@ function result(id: number, composer: string, verdict: string | null): Generatio
   }
 }
 
+const runs: RunSummary[] = [
+  { runId: "run-2", ranAt: "2026-09-12T10:00:00.000Z", written: 2, good: 1 },
+  { runId: "run-1", ranAt: "2026-09-12T09:00:00.000Z", written: 3, good: 0 },
+]
+
 function renderPanel(over: Partial<React.ComponentProps<typeof ComparePanel>> = {}): {
   onAddPair: ReturnType<typeof vi.fn>
   onRun: ReturnType<typeof vi.fn>
-  onJudge: ReturnType<typeof vi.fn>
+  onVerdict: ReturnType<typeof vi.fn>
+  onNote: ReturnType<typeof vi.fn>
   onRemovePair: ReturnType<typeof vi.fn>
 } {
   const onAddPair = vi.fn()
   const onRun = vi.fn()
-  const onJudge = vi.fn()
+  const onVerdict = vi.fn()
+  const onNote = vi.fn()
   const onRemovePair = vi.fn()
   render(
     <ComparePanel
       composers={composers}
       variants={variants}
       pairs={[]}
+      runs={[]}
+      runId={null}
       results={[]}
+      failure={null}
       isPending={false}
       onAddPair={onAddPair}
       onRemovePair={onRemovePair}
       onRun={onRun}
-      onJudge={onJudge}
+      onChooseRun={vi.fn()}
+      onVerdict={onVerdict}
+      onNote={onNote}
       {...over}
     />
   )
-  return { onAddPair, onRun, onJudge, onRemovePair }
+  return { onAddPair, onRun, onVerdict, onNote, onRemovePair }
 }
 
 describe("ComparePanel", () => {
@@ -113,19 +125,46 @@ describe("ComparePanel", () => {
     expect(screen.getByLabelText("Note on Assembled without the model")).toBeInTheDocument()
   })
 
-  it("reports a verdict against the result it was given on", () => {
-    const { onJudge } = renderPanel({ results: [result(7, "prose", null)] })
+  it("reports a verdict without touching the note", () => {
+    const { onVerdict, onNote } = renderPanel({ results: [result(7, "prose", null)] })
 
     fireEvent.click(screen.getByRole("button", { name: "Good" }))
 
-    expect(onJudge).toHaveBeenCalledWith(7, "good", "")
+    expect(onVerdict).toHaveBeenCalledWith(7, "good")
+    expect(onNote).not.toHaveBeenCalled()
   })
 
   it("takes a verdict back when it is pressed again", () => {
-    const { onJudge } = renderPanel({ results: [result(7, "prose", "good")] })
+    const { onVerdict } = renderPanel({ results: [result(7, "prose", "good")] })
 
     fireEvent.click(screen.getByRole("button", { name: "Good" }))
 
-    expect(onJudge).toHaveBeenCalledWith(7, null, "")
+    expect(onVerdict).toHaveBeenCalledWith(7, null)
+  })
+
+  it("reports a note once the box is left", () => {
+    const { onNote } = renderPanel({ results: [result(7, "prose", null)] })
+
+    const box = screen.getByLabelText("Note on Model prose per shot")
+    fireEvent.change(box, { target: { value: "Lost the keeper." } })
+    fireEvent.blur(box)
+
+    expect(onNote).toHaveBeenCalledWith(7, "Lost the keeper.")
+  })
+
+  it("lists the runs the clip has", () => {
+    renderPanel({ runs, runId: "run-2" })
+
+    expect(screen.getByLabelText("Run")).toHaveTextContent("2 written · 1 good")
+  })
+
+  it("says where a run stopped", () => {
+    renderPanel({
+      failure: { composerId: "prose", message: "llama-server answered badly." },
+    })
+
+    expect(
+      screen.getByText("Stopped at Model prose per shot: llama-server answered badly.")
+    ).toBeInTheDocument()
   })
 })
