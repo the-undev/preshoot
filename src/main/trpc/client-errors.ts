@@ -9,6 +9,14 @@ const COMPOSITION_CODES = {
   "nothing-to-write": "BAD_REQUEST",
 } as const
 
+/** How a failure talking to the prompt server reaches the renderer. */
+const PROMPT_CODES = {
+  unreachable: "SERVICE_UNAVAILABLE",
+  loading: "SERVICE_UNAVAILABLE",
+  "bad-response": "BAD_GATEWAY",
+  timeout: "TIMEOUT",
+} as const
+
 /**
  * Rethrows a failure the user can act on with its own message, since those messages already say
  * what to do. Anything else goes up as it is.
@@ -22,11 +30,7 @@ export function asClientError(error: unknown): never {
     })
   }
   if (error instanceof PromptServiceError) {
-    throw new TRPCError({
-      code: error.code === "bad-response" ? "BAD_GATEWAY" : "SERVICE_UNAVAILABLE",
-      message: error.message,
-      cause: error,
-    })
+    throw new TRPCError({ code: PROMPT_CODES[error.code], message: error.message, cause: error })
   }
   throw error
 }

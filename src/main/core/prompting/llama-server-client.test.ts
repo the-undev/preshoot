@@ -141,6 +141,19 @@ describe("LlamaServerClient", () => {
     })
   })
 
+  it("reads a request that was abandoned as a timeout rather than an absent server", async () => {
+    const timeOut = vi.fn(async () => {
+      const error = new Error("The operation was aborted due to timeout")
+      error.name = "TimeoutError"
+      throw error
+    }) as unknown as typeof fetch
+    const client = new LlamaServerClient({ baseUrl, fetch: timeOut })
+
+    await expect(client.chat(chatRequest())).rejects.toThrow(
+      expect.objectContaining({ code: "timeout", message: expect.stringContaining("120 seconds") })
+    )
+  })
+
   it("reads a refused connection as the server being unreachable", async () => {
     const refuse = vi.fn(async () => {
       throw new TypeError("fetch failed")

@@ -1,5 +1,5 @@
 /** Why a prompt request failed. */
-export type PromptServiceErrorCode = "unreachable" | "loading" | "bad-response"
+export type PromptServiceErrorCode = "unreachable" | "loading" | "bad-response" | "timeout"
 
 /** A failure talking to the prompt server, carrying a message the user can act on. */
 export class PromptServiceError extends Error {
@@ -16,6 +16,14 @@ export class PromptServiceError extends Error {
     return new PromptServiceError(
       "unreachable",
       `No answer from llama-server at ${baseUrl}. Check that it is running and that the URL in settings is right.`
+    )
+  }
+
+  /** The request was abandoned before the server answered. */
+  static timeout(seconds: number): PromptServiceError {
+    return new PromptServiceError(
+      "timeout",
+      `llama-server did not answer within ${seconds} seconds. A shorter clip, or a smaller model, may finish in time.`
     )
   }
 

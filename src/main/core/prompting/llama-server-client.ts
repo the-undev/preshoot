@@ -149,11 +149,14 @@ export class LlamaServerClient {
     return { content: choice.message.content, model: body.data.model }
   }
 
-  /** Runs a request against the server, reading a failure to reach it as `unreachable`. */
+  /** Runs a request, telling a server that never answered from one that was never there. */
   private async send(path: string, init: RequestInit): Promise<Response> {
     try {
       return await this.fetch(`${this.baseUrl}${path}`, init)
-    } catch {
+    } catch (error) {
+      if (error instanceof Error && error.name === "TimeoutError") {
+        throw PromptServiceError.timeout(CHAT_TIMEOUT_MS / 1000)
+      }
       throw PromptServiceError.unreachable(this.baseUrl)
     }
   }
