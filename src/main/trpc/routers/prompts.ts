@@ -31,7 +31,7 @@ import { publicProcedure, router } from "../trpc"
 
 const clipId = z.number().int()
 const variantId = z.string().min(1)
-const strategySchema = z.enum(["prose", "brief"])
+const strategySchema = z.enum(["prose", "brief", "edit"])
 
 /** Which kind of system prompt a way of writing needs. */
 const COMPOSER_STRATEGY: Record<string, PromptStrategy> = { prose: "prose", brief: "brief" }

@@ -43,6 +43,7 @@ describe("variant store", () => {
     expect(variants.map((variant) => variant.id)).toEqual([
       "builtin:minimax-h3:prose",
       "builtin:minimax-h3:brief",
+      "builtin:minimax-h3:edit",
     ])
     expect(variants.every((variant) => !variant.editable)).toBe(true)
     expect(variants[0].systemPrompt).toBe(minimaxH3.prose.systemPrompt)
@@ -55,6 +56,7 @@ describe("variant store", () => {
     expect(variants.map((variant) => variant.id)).toEqual([
       "builtin:minimax-h3:prose",
       "builtin:minimax-h3:brief",
+      "builtin:minimax-h3:edit",
       written.id,
     ])
     expect(written.editable).toBe(true)
@@ -104,7 +106,7 @@ describe("variant store", () => {
     const written = write("Terser")
 
     deleteVariant(handle.db, written.id)
-    expect(listVariants(handle.db, minimaxH3)).toHaveLength(2)
+    expect(listVariants(handle.db, minimaxH3)).toHaveLength(3)
 
     expect(() => deleteVariant(handle.db, "builtin:minimax-h3:prose")).toThrow(
       expect.objectContaining({ code: "not-found" })

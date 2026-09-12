@@ -117,6 +117,22 @@ describe("the brief strategy", () => {
   })
 })
 
+describe("the edit strategy", () => {
+  it("gives the prompt as it stands and the change to make", () => {
+    const message = minimaxH3.edit.userMessage(
+      "integrated_multimodal_description: a woman waits",
+      "She is happier."
+    )
+
+    expect(message).toContain("integrated_multimodal_description: a woman waits")
+    expect(message).toContain("She is happier.")
+  })
+
+  it("reads the rewritten fields back", () => {
+    expect(minimaxH3.edit.readFields(JSON.stringify(fields))).toEqual(fields)
+  })
+})
+
 describe("the prose instruction", () => {
   it("describes every shot with its camera move and its timing", () => {
     const instruction = minimaxH3.prose.instruction(composition, { kind: "all" })

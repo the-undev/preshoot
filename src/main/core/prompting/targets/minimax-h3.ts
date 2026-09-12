@@ -432,6 +432,20 @@ overall_soundscape is one paragraph of one to four sentences summarising ambient
 
 non_diegetic_music is one to three sentences describing music only the audience hears: instrumentation, tempo, rhythm and changes in dynamics. Do not use mood words or explain what the music is for. Use "N/A" when there is no score.`
 
+/** Rewriting a whole prompt with one change made and everything else left alone. */
+export const H3_EDIT_SYSTEM_PROMPT = `You rewrite a finished MiniMax H3 video prompt. The user gives you the prompt as it stands and a change they want. You write the whole prompt again with that change made and everything else left as it was.
+
+Answer with JSON holding exactly three string fields: integrated_multimodal_description, overall_soundscape, non_diegetic_music.
+
+Keep the shot markers such as "[Shot 2]", the cut times such as "At 00:04.500,", the transition phrases and the dialogue tags exactly as they are, unless the change itself asks for them to move. Keep every subject, place and object the same unless the change is about them. Spoken words inside <d> tags stay word for word unless the change is about what is said.
+
+Make the change everywhere it reaches. A change to a person's mood belongs in their face, their posture, their movement and their voice, not in one adjective. A change to pace belongs in the actions, the camera speed and the cut times together. Do not explain what you changed and do not add anything the change did not ask for.`
+
+/** The prompt to rewrite, then the change asked for. */
+export function h3EditMessage(previous: string, instruction: string): string {
+  return `The prompt as it stands:\n\n${previous}\n\nThe change to make:\n\n${instruction}`
+}
+
 /** MiniMax H3, text to video. The reference image forms arrive with the asset library. */
 export const minimaxH3: PromptTarget = {
   id: "minimax-h3",
@@ -442,6 +456,12 @@ export const minimaxH3: PromptTarget = {
     systemPrompt: H3_SYSTEM_PROMPT,
     schema: H3_PROMPT_SCHEMA,
     userMessage: h3UserMessage,
+    readFields,
+  },
+  edit: {
+    systemPrompt: H3_EDIT_SYSTEM_PROMPT,
+    schema: H3_PROMPT_SCHEMA,
+    userMessage: h3EditMessage,
     readFields,
   },
   prose: {

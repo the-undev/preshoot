@@ -1,7 +1,7 @@
 import type { PromptTarget } from "./target"
 
 /** Which kind of system prompt a variant replaces. */
-export type PromptStrategy = "prose" | "brief"
+export type PromptStrategy = "prose" | "brief" | "edit"
 
 /** One system prompt that can be written with, whether it ships with the app or was written here. */
 export interface PromptVariant {
@@ -46,6 +46,14 @@ export function builtinVariants(target: PromptTarget): PromptVariant[] {
       strategy: "brief",
       name: "Built-in, brief only",
       systemPrompt: target.brief.systemPrompt,
+      editable: false,
+    },
+    {
+      id: builtinVariantId(target.id, "edit"),
+      targetId: target.id,
+      strategy: "edit",
+      name: "Built-in, editing",
+      systemPrompt: target.edit.systemPrompt,
       editable: false,
     },
   ]

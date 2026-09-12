@@ -36,6 +36,14 @@ export interface ProseStrategy {
   describeShot(composition: ClipComposition, shotId: number): string
 }
 
+/** Rewriting a finished prompt with a change asked for in words. */
+export interface EditStrategy {
+  systemPrompt: string
+  schema: Record<string, unknown>
+  userMessage(previous: string, instruction: string): string
+  readFields(content: string): TargetFields
+}
+
 /** One generation model the app writes prompts for. */
 export interface PromptTarget {
   id: string
@@ -44,4 +52,5 @@ export interface PromptTarget {
   render(fields: TargetFields): string
   brief: BriefStrategy
   prose: ProseStrategy
+  edit: EditStrategy
 }
