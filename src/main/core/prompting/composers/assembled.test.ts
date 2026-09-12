@@ -61,9 +61,7 @@ describe("assembledComposer", () => {
     expect(composed.fields.integrated_multimodal_description).toContain(
       "[Shot 1] Live-action, cinematic. Shot 11 happens."
     )
-    expect(composed.fields.integrated_multimodal_description).toContain(
-      "[Shot 2] At 00:04.000, the shot cuts to"
-    )
+    expect(composed.fields.integrated_multimodal_description).toContain("[Shot 2] At 00:04.000,")
   })
 
   it("joins the shots' sound notes and takes the music from the clip", async () => {

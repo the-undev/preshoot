@@ -70,8 +70,8 @@ const composition: ClipComposition = {
 
 const prose: ClipProse = {
   shots: [
-    { shotId: 11, prose: `The keeper climbs. ${dialogueTag("English", "Almost there.")}` },
-    { shotId: 12, prose: "The lamp turns and catches." },
+    { shotId: 11, prose: `The keeper (S1) climbs. ${dialogueTag("English", "Almost there.")}` },
+    { shotId: 12, prose: "the shot cuts to the lamp turning and catching." },
   ],
   soundscape: "Wind batters the glass.",
   music: "N/A",
@@ -152,7 +152,7 @@ describe("the prose instruction", () => {
     expect(instruction).toContain("Shot 1 (starts at 00:00.000, runs 4.5 seconds)")
     expect(instruction).toContain("Shot 2 (starts at 00:04.500, runs 3.0 seconds)")
     expect(instruction).toContain("push in with small amplitude at slow speed")
-    expect(instruction).toContain("Cut into it with: the shot cuts to")
+    expect(instruction).toContain('Begin this shot with exactly "the shot cuts to"')
     expect(instruction).toContain("Shows (person) Keeper: an elderly man in oilskins")
   })
 
@@ -171,7 +171,7 @@ describe("the prose instruction", () => {
     })
 
     expect(instruction).toContain("Write shot 2 again, and only that shot")
-    expect(instruction).toContain("Shot 1: The keeper climbs.")
+    expect(instruction).toContain("Shot 1: The keeper (S1) climbs.")
     expect(instruction).not.toContain("Shot 2: The lamp turns and catches.")
   })
 })
@@ -237,8 +237,8 @@ describe("a line of dialogue with nothing typed in it yet", () => {
   it("is not required back from the model", () => {
     const answer = {
       shots: [
-        { shot: 1, prose: "The keeper climbs." },
-        { shot: 2, prose: "The lamp turns." },
+        { shot: 1, prose: "The keeper (S1) climbs." },
+        { shot: 2, prose: "the shot cuts to the lamp turning." },
       ],
       overall_soundscape: "Wind.",
       non_diegetic_music: "N/A",
@@ -255,7 +255,7 @@ describe("a clip whose style has been emptied", () => {
     const assembled = minimaxH3.prose.assemble({ ...composition, style: "" }, prose)
 
     expect(
-      assembled.integrated_multimodal_description.startsWith("[Shot 1] The keeper climbs.")
+      assembled.integrated_multimodal_description.startsWith("[Shot 1] The keeper (S1) climbs.")
     ).toBe(true)
   })
 })
@@ -263,8 +263,8 @@ describe("a clip whose style has been emptied", () => {
 describe("reading prose back", () => {
   const answer = {
     shots: [
-      { shot: 1, prose: `The keeper climbs. ${dialogueTag("English", "Almost there.")}` },
-      { shot: 2, prose: "The lamp turns and catches." },
+      { shot: 1, prose: `The keeper (S1) climbs. ${dialogueTag("English", "Almost there.")}` },
+      { shot: 2, prose: "the shot cuts to the lamp turning and catching." },
     ],
     overall_soundscape: "Wind batters the glass.",
     non_diegetic_music: "N/A",
@@ -289,7 +289,7 @@ describe("reading prose back", () => {
   it("refuses an answer that drops a line of dialogue", () => {
     const silent = {
       ...answer,
-      shots: [{ shot: 1, prose: "The keeper climbs." }, answer.shots[1]],
+      shots: [{ shot: 1, prose: "The keeper (S1) climbs." }, answer.shots[1]],
     }
 
     expect(() =>
@@ -298,7 +298,10 @@ describe("reading prose back", () => {
   })
 
   it("keeps the other shots when only one was rewritten", () => {
-    const one = { ...answer, shots: [{ shot: 2, prose: "The lamp sweeps the water." }] }
+    const one = {
+      ...answer,
+      shots: [{ shot: 2, prose: "the shot cuts to the lamp sweeping the water." }],
+    }
 
     const read = minimaxH3.prose.readProse(JSON.stringify(one), composition, {
       kind: "shot",
@@ -307,8 +310,8 @@ describe("reading prose back", () => {
     })
 
     expect(read.shots).toEqual([
-      { shotId: 11, prose: `The keeper climbs. ${dialogueTag("English", "Almost there.")}` },
-      { shotId: 12, prose: "The lamp sweeps the water." },
+      { shotId: 11, prose: `The keeper (S1) climbs. ${dialogueTag("English", "Almost there.")}` },
+      { shotId: 12, prose: "the shot cuts to the lamp sweeping the water." },
     ])
   })
 })
@@ -374,44 +377,69 @@ describe("assembling the prompt", () => {
     const assembled = minimaxH3.prose.assemble(composition, prose)
 
     expect(assembled.integrated_multimodal_description).toBe(
-      `[Shot 1] Live-action, cinematic. The keeper climbs. ${dialogueTag("English", "Almost there.")} ` +
-        "[Shot 2] At 00:04.500, the shot cuts to the lamp turns and catches."
+      `[Shot 1] Live-action, cinematic. The keeper (S1) climbs. ${dialogueTag("English", "Almost there.")} ` +
+        "[Shot 2] At 00:04.500, the shot cuts to the lamp turning and catching."
     )
     expect(assembled.overall_soundscape).toBe("Wind batters the glass.")
     expect(assembled.non_diegetic_music).toBe("N/A")
   })
 
-  it("takes off a marker, a cut time or a transition the model wrote anyway", () => {
+  it("takes off a marker or a cut time the model wrote anyway, keeping its cut phrase", () => {
     const wordy: ClipProse = {
       ...prose,
       shots: [
         { shotId: 11, prose: "[Shot 1] The keeper climbs." },
-        { shotId: 12, prose: "[Shot 2] At 00:04.500, the shot cuts to The lamp turns." },
+        { shotId: 12, prose: "[Shot 2] At 00:04.500, the shot cuts to the lamp turning." },
       ],
     }
 
-    const assembled = minimaxH3.prose.assemble(
-      { ...composition, shots: [composition.shots[0], composition.shots[1]] },
-      wordy
-    )
+    const assembled = minimaxH3.prose.assemble(composition, wordy)
 
     expect(assembled.integrated_multimodal_description).toBe(
       "[Shot 1] Live-action, cinematic. The keeper climbs. " +
-        "[Shot 2] At 00:04.500, the shot cuts to the lamp turns."
+        "[Shot 2] At 00:04.500, the shot cuts to the lamp turning."
     )
   })
 
-  it("cuts with a plain camera cut when the shot names no transition", () => {
+  it("asks for a plain camera cut when the shot names no transition", () => {
     const withoutTransition = {
       ...composition,
       shots: [composition.shots[0], { ...composition.shots[1], transition: null }],
     }
 
-    const assembled = minimaxH3.prose.assemble(withoutTransition, prose)
+    const instruction = minimaxH3.prose.instruction(withoutTransition, { kind: "all" })
 
-    expect(assembled.integrated_multimodal_description).toContain(
-      "[Shot 2] At 00:04.500, the camera cuts to"
-    )
+    expect(instruction).toContain('Begin this shot with exactly "the camera cuts to"')
+  })
+
+  it("refuses an answer whose later shot does not carry its cut phrase", () => {
+    const answer = {
+      shots: [
+        { shot: 1, prose: `The keeper (S1) climbs. ${dialogueTag("English", "Almost there.")}` },
+        { shot: 2, prose: "the lamp turns and catches." },
+      ],
+      overall_soundscape: "Wind.",
+      non_diegetic_music: "N/A",
+    }
+
+    expect(() =>
+      minimaxH3.prose.readProse(JSON.stringify(answer), composition, { kind: "all" })
+    ).toThrow(expect.objectContaining({ code: "bad-response" }))
+  })
+
+  it("refuses an answer that leaves out the id of someone who speaks", () => {
+    const answer = {
+      shots: [
+        { shot: 1, prose: `The keeper climbs. ${dialogueTag("English", "Almost there.")}` },
+        { shot: 2, prose: "the shot cuts to the lamp turning." },
+      ],
+      overall_soundscape: "Wind.",
+      non_diegetic_music: "N/A",
+    }
+
+    expect(() =>
+      minimaxH3.prose.readProse(JSON.stringify(answer), composition, { kind: "all" })
+    ).toThrow(expect.objectContaining({ code: "bad-response" }))
   })
 })
 

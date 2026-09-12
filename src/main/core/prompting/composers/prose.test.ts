@@ -49,7 +49,7 @@ const composition: ClipComposition = {
 const answer = JSON.stringify({
   shots: [
     { shot: 1, prose: "The keeper climbs." },
-    { shot: 2, prose: "The lamp catches." },
+    { shot: 2, prose: "the shot cuts to the lamp catching." },
   ],
   overall_soundscape: "Wind batters the glass.",
   non_diegetic_music: "N/A",
@@ -101,12 +101,12 @@ describe("proseComposer", () => {
 
     expect(composed.model).toBe("Qwen3.5-9B")
     expect(composed.fields.integrated_multimodal_description).toBe(
-      "[Shot 1] Live-action, cinematic. The keeper climbs. [Shot 2] At 00:04.500, the shot cuts to the lamp catches."
+      "[Shot 1] Live-action, cinematic. The keeper climbs. [Shot 2] At 00:04.500, the shot cuts to the lamp catching."
     )
     expect(composed.rendered).toContain("overall_soundscape: Wind batters the glass.")
     expect(composed.prose?.shots).toEqual([
       { shotId: 11, prose: "The keeper climbs." },
-      { shotId: 12, prose: "The lamp catches." },
+      { shotId: 12, prose: "the shot cuts to the lamp catching." },
     ])
   })
 
@@ -141,7 +141,7 @@ describe("proseComposer", () => {
   it("asks for one shot alone when that is the scope", async () => {
     const { client, requests } = clientAnswering(
       JSON.stringify({
-        shots: [{ shot: 2, prose: "The lamp sweeps the water." }],
+        shots: [{ shot: 2, prose: "the shot cuts to the lamp sweeping the water." }],
         overall_soundscape: "Wind batters the glass.",
         non_diegetic_music: "N/A",
       })
@@ -159,7 +159,7 @@ describe("proseComposer", () => {
         previous: {
           shots: [
             { shotId: 11, prose: "The keeper climbs." },
-            { shotId: 12, prose: "The lamp catches." },
+            { shotId: 12, prose: "the shot cuts to the lamp catching." },
           ],
           soundscape: "Wind batters the glass.",
           music: "N/A",
@@ -170,7 +170,7 @@ describe("proseComposer", () => {
     expect(requests[0].user).toContain("Write shot 2 again, and only that shot")
     expect(composed.prose?.shots).toEqual([
       { shotId: 11, prose: "The keeper climbs." },
-      { shotId: 12, prose: "The lamp sweeps the water." },
+      { shotId: 12, prose: "the shot cuts to the lamp sweeping the water." },
     ])
   })
 

@@ -27,7 +27,8 @@ function proseAnswer(count: number): string {
   return JSON.stringify({
     shots: Array.from({ length: count }, (_, index) => ({
       shot: index + 1,
-      prose: `Shot ${index + 1} as written.`,
+      prose:
+        index === 0 ? "Shot 1 as written." : `the camera cuts to shot ${index + 1} as written.`,
     })),
     overall_soundscape: "Wind batters the glass.",
     non_diegetic_music: "N/A",
@@ -200,7 +201,7 @@ describe("prompts router", () => {
     const first = await caller.prompts.generate({ clipId, composerId: "prose", variantId: null })
     chat = vi.fn(async () => ({
       content: JSON.stringify({
-        shots: [{ shot: 2, prose: "Shot 2 written again." }],
+        shots: [{ shot: 2, prose: "the camera cuts to shot 2 written again." }],
         overall_soundscape: "Wind batters the glass.",
         non_diegetic_music: "N/A",
       }),
@@ -215,9 +216,9 @@ describe("prompts router", () => {
     expect(requests[1].user).toContain("Write shot 2 again, and only that shot")
     expect(again.prose?.shots).toEqual([
       { shotId: shotIds[0], prose: "Shot 1 as written." },
-      { shotId: shotIds[1], prose: "Shot 2 written again." },
+      { shotId: shotIds[1], prose: "the camera cuts to shot 2 written again." },
     ])
-    expect(again.rendered).toContain("Shot 2 written again.")
+    expect(again.rendered).toContain("shot 2 written again.")
   })
 
   it("records the prompt it wrote with and the text of it", async () => {

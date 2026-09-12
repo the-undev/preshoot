@@ -194,7 +194,7 @@ function lineRules(line: DialogueComposition): string[] {
   }
   if (line.crossesCut) {
     rules.push(
-      "carried across the cut that follows: write <scenetrans> at the connecting point in both shots and say the audio continues across the cut"
+      "carried across the cut that follows: split these words between the two shots, write <scenetrans> where they break in the first shot and again where they resume in the second, and say the audio continues across the cut. Do not say the whole line twice"
     )
   }
   if (line.cutOff) {
@@ -234,7 +234,9 @@ function shotBlock(composition: ClipComposition, shot: ShotComposition, index: n
     `  Camera: ${cameraPhrase(shot)}`,
   ]
   if (index > 0) {
-    lines.push(`  Cut into it with: ${shot.transition ?? DEFAULT_TRANSITION}`)
+    lines.push(
+      `  Begin this shot with exactly "${shot.transition ?? DEFAULT_TRANSITION}" and carry straight on with what the cut lands on`
+    )
   }
   if (shot.lighting) {
     lines.push(`  Lighting: ${shot.lighting}`)
@@ -297,6 +299,17 @@ function proseInstruction(composition: ClipComposition, scope: ComposeScope): st
   return parts.join("\n\n")
 }
 
+/**
+ * Everything a shot's prose has to hold: its cut phrase, the words of every line said in it, and
+ * the id of everyone who speaks. These are checked rather than asked for, because a long
+ * instruction is followed in part, and a check is followed or it fails.
+ */
+function requiredIn(composition: ClipComposition, shot: ShotComposition, number: number): string[] {
+  const cut = number > 1 ? [shot.transition ?? DEFAULT_TRANSITION] : []
+  const speakers = spokenLines(shot).map((line) => speakerLabel(composition, line))
+  return [...cut, ...dialogueTags(shot), ...dialogueOpeners(shot), ...speakers]
+}
+
 /** Which shot numbers an answer has to carry for `scope`. */
 function requiredNumbers(composition: ClipComposition, scope: ComposeScope): number[] {
   if (scope.kind === "shot") return [shotNumber(composition, scope.shotId)]
@@ -325,8 +338,8 @@ function readProse(content: string, composition: ClipComposition, scope: Compose
       throw PromptServiceError.badResponse()
     }
     const prose = written.get(shot.id) ?? ""
-    for (const tag of [...dialogueTags(shot), ...dialogueOpeners(shot)]) {
-      if (!prose.includes(tag)) {
+    for (const required of requiredIn(composition, shot, number)) {
+      if (!prose.toLowerCase().includes(required.toLowerCase())) {
         throw PromptServiceError.badResponse()
       }
     }
@@ -346,13 +359,7 @@ function readProse(content: string, composition: ClipComposition, scope: Compose
 }
 
 /** A marker, a cut time or a transition the model wrote anyway, which the app puts in itself. */
-const LEAD_INS = [
-  /^\s*\[shot\s*\d+\]\s*/i,
-  /^\s*at\s+\d{2}:\d{2}\.\d{3}\s*,?\s*/i,
-  ...H3_VOCABULARIES.transitions.map(
-    (phrase) => new RegExp(`^\\s*the\\s+${phrase.replace(/^the\s+/, "")}\\s*`, "i")
-  ),
-]
+const LEAD_INS = [/^\s*\[shot\s*\d+\]\s*/i, /^\s*at\s+\d{2}:\d{2}\.\d{3}\s*,?\s*/i]
 
 /** The prose with anything the app writes for itself taken off the front. */
 function stripLeadIn(prose: string): string {
@@ -389,8 +396,7 @@ function assemble(composition: ClipComposition, prose: ClipProse): TargetFields 
       return [`[Shot 1]`, sentence(composition.style), text].filter(Boolean).join(" ")
     }
     const start = formatCutTime(shotStartMs(composition, shot.id))
-    const transition = shot.transition ?? DEFAULT_TRANSITION
-    return `[Shot ${index + 1}] At ${start}, ${transition} ${lowerOpeningArticle(text)}`
+    return `[Shot ${index + 1}] At ${start}, ${lowerOpeningArticle(text)}`
   })
 
   return {
@@ -517,6 +523,8 @@ Answer with JSON: shots, an array of objects holding shot, the number you were g
 
 Do not write shot markers such as "[Shot 2]", do not write timestamps, and do not write the transition phrase. The app puts those around your prose. Everything you write must be visible or audible.
 
+For every shot after the first, the app writes a cut phrase such as "the camera cuts to" immediately before your prose, so begin that shot with what the cut lands on, as a thing rather than a sentence: "a close-up of steam rising from the sliced bread, while the baker's last words carry over". Do not begin it with "The camera", and do not write the cut again.
+
 Write the camera motion you were given into the action sentence as natural English, keeping its amplitude and speed as they were given. Example: "The camera pushes in with small amplitude at slow speed toward the folded letter in her hands."
 
 Reproduce every dialogue line exactly as it was given, inside its <d> tags with its language tag, and introduce each speaker in this shape: The elderly keeper with a low, weathered voice (S1) says: <d>[English] Almost there.</d>. Take the identity from the Speakers list you are given, never from that example. Several speakers sharing a line take a compound ID such as (S1,S2). A line spoken off screen uses the exact phrase "says in an off-screen voiceover" and is followed by a statement that the character's lips remain closed. A line carried across a cut takes <scenetrans> at the connecting point in both shots, with a statement that the audio continues. A line the clip ends over takes <cutoff> where it stops. Text visible on screen goes in double quotation marks, verbatim. Diegetic music, radio, television and phone audio belong in the prose, not in the other two fields.
@@ -532,7 +540,9 @@ export const H3_EDIT_SYSTEM_PROMPT = `You rewrite a finished MiniMax H3 video pr
 
 Answer with JSON holding exactly three string fields: integrated_multimodal_description, overall_soundscape, non_diegetic_music.
 
-Keep the shot markers such as "[Shot 2]", the cut times such as "At 00:04.500,", the transition phrases and the dialogue tags exactly as they are, unless the change itself asks for them to move. Keep every subject, place and object the same unless the change is about them. Spoken words inside <d> tags stay word for word unless the change is about what is said.
+Keep the shot markers such as "[Shot 2]", the cut times such as "At 00:04.500,", the transition phrases and the dialogue tags exactly as they are, unless the change itself asks for them to move. Write each cut phrase once and only where it already is.
+
+Keep the speakers the prompt already has: the same ids, the same count, in the same places. Do not add a speaker, do not renumber one, and do not add, remove or repeat a line of dialogue. A line that already appears once appears once in your answer. Keep every subject, place and object the same unless the change is about them. Spoken words inside <d> tags stay word for word unless the change is about what is said.
 
 Make the change everywhere it reaches. A change to a person's mood belongs in their face, their posture, their movement and their voice, not in one adjective. A change to pace belongs in the actions, the camera speed and the cut times together. Do not explain what you changed and do not add anything the change did not ask for.`
 
