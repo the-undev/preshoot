@@ -95,9 +95,9 @@ left was found by generating against the model.
 
 ## Environment and tooling
 
-- The migrations were squashed to one while the app had no users, so a
-  project made before that will not open. Whenever that is done again, the
-  old ones have to be kept.
+- Squashing the migrations to one broke every project made before it. That
+  was acceptable with no users; it will not be again, so the old ones have to
+  be kept next time.
 - drizzle-kit will generate a table rebuild that reads columns added in the
   same migration, which fails on a fresh database, and it asks an
   interactive question when a column is dropped and another added together.
@@ -118,9 +118,6 @@ left was found by generating against the model.
   with several pictures.
 - A vision request needs `enable_thinking` off as much as a text one does,
   or the answer is spent on reasoning before the image is described.
-- The Electron postinstall silently skipped extracting the binary in this
-  environment; the zip was cached and extracted by hand. Check whether a
-  clean `pnpm install` on this machine reproduces it.
 - TypeScript 7, Vite 8 and ESLint 10 are out. The template pins TS 5.9, Vite
   7 and ESLint 9; upgrade when electron-vite and the toolkit configs support
   them.

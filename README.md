@@ -17,7 +17,8 @@ by hand.
 
 ## What you need
 
-- Node and pnpm. Developed against Node 26 and pnpm 11.
+- Node 22.12, 24 or 26 and pnpm 11. `engines` in `package.json` carries the
+  same range, which comes from the narrowest the toolchain declares.
 - A [llama-server](https://github.com/ggml-org/llama.cpp) answering on a URL
   you can reach, serving at least one model. The app attaches to a server,
   it never starts or stops one. `docs/llama-server.md` covers router mode,

@@ -77,8 +77,9 @@ Four label kinds, assigned once and used the same way in every section:
 
 ## What a generation request actually takes
 
-From the request scripts in the model repo, vendored beside the guides. The
-prompt is one field of several, and the rest is not in the app at all.
+From the request scripts in the model repo, linked from
+`docs/minimax-h3.md`. The prompt is one field of several, and a clip holds
+the rest.
 
 ```json
 {
@@ -102,12 +103,13 @@ prompt is one field of several, and the rest is not in the app at all.
 | `conditions[].role`           | `keyframe` for the image forms, `reference` for full reference. Derivable from the form.                                                      |
 | `conditions[].frame_index`    | Which frame a keyframe lands on. Derivable for the first frame; the last frame needs the frame count, which needs a frame rate nothing holds. |
 | `target.duration_seconds`     | The clip's duration. Have it, and never show it.                                                                                              |
-| `target.short_edge`           | Missing. A resolution nothing in the app decides.                                                                                             |
-| `target.aspect_ratio`         | Missing.                                                                                                                                      |
-| `seed`                        | Missing.                                                                                                                                      |
+| `target.short_edge`           | The clip's short edge. Have it.                                                                                                               |
+| `target.aspect_ratio`         | The clip's aspect ratio, `auto` unless set. Have it.                                                                                          |
+| `seed`                        | The clip's seed. Have it.                                                                                                                     |
 
-So a finished prompt is not enough to generate from. The app holds most of
-the rest and shows none of it.
+A finished prompt is not enough to generate from, and the app now holds the
+rest and shows it as fields to copy. Nothing submits them, because there is
+no endpoint to submit to.
 
 ## What this means for the work
 
