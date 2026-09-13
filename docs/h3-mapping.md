@@ -49,11 +49,11 @@ one.
 | Cuts: the five phrases                              | The transition vocabulary                                  | Have it                                               |
 | Cross-dissolve, fade, wipe when asked for           | Three more transitions, allowed but not offered by default | Missing                                               |
 | Speaker IDs `(S1)`                                  | Speakers on a clip                                         | Have it                                               |
-| Compound IDs `(S1,S2)` for people speaking together | A line that can name more than one speaker                 | Missing: a line has exactly one                       |
+| Compound IDs `(S1,S2)` for people speaking together | A line that can name more than one speaker                 | Have it                                               |
 | `<d>[Language] ...</d>`, verbatim                   | Dialogue lines with a language                             | Have it                                               |
-| Voiceover, plus the lips-closed sentence            | A flag on a line saying it is off-screen                   | Missing                                               |
-| `<scenetrans>` for a line crossing a cut            | A flag on a line saying it continues into the next shot    | Missing                                               |
-| `<cutoff>` for speech the video ends over           | A flag on a line saying it is cut off                      | Missing                                               |
+| Voiceover, plus the lips-closed sentence            | A flag on a line saying it is off-screen                   | Have it                                               |
+| `<scenetrans>` for a line crossing a cut            | A flag on a line saying it continues into the next shot    | Have it                                               |
+| `<cutoff>` for speech the video ends over           | A flag on a line saying it is cut off                      | Have it                                               |
 | `[unclear]` for unintelligible reference audio      | Nothing, it is typed                                       | Have it                                               |
 | On-screen text in double quotes                     | Nothing, it is typed into what happens                     | Have it                                               |
 | 350 to 500 words for a generation body              | A count, and something that says when it is short          | Missing                                               |
@@ -70,7 +70,7 @@ Four label kinds, assigned once and used the same way in every section:
 | `<Picture N>`                                                | Pictures on a library thing                                                                                                                                                                                               | Have it                                                                  |
 | `<Audio N>`                                                  | Audio files, on a library thing for a voice and on a clip for music or ambience                                                                                                                                           | Missing entirely                                                         |
 | `<Video N>`, for editing or continuing a source video        | A video input                                                                                                                                                                                                             | Out of scope: the app generates rather than edits                        |
-| `<Subject 2> (S1)` when a referenced subject speaks          | A speaker that points at a library thing                                                                                                                                                                                  | Missing: speakers and library things are unconnected                     |
+| `<Subject 2> (S1)` when a referenced subject speaks          | A speaker that points at a library thing                                                                                                                                                                                  | Have it                                                                  |
 | `subject_definitions`, one line per label                    | The above, written by the model from it                                                                                                                                                                                   | Follows once the inputs exist                                            |
 | `summary` with a task-type prefix                            | The task types, some derivable from what is attached                                                                                                                                                                      | Derivable, except which of reuse or reference an audio asset is          |
 | `retention_analysis`, one line per label with a fixed marker | A marker per asset, chosen by the user: `fully_preserved`, `partially_preserved`, `attribute_transfer`, `weak_reference` for visible content, and `fully_copy`, `partially_copy`, `reference`, `weak_reference` for audio | Missing. This is intent, not something the model should invent           |
@@ -113,15 +113,18 @@ no endpoint to submit to.
 
 ## What this means for the work
 
-1. The keyframe forms are small. A clip gains a form and one or two frame
-   pictures, and the target writes one more line. Everything else is there.
-2. Full reference is a second target, not a mode of the first. Six fields
+1. The keyframe forms are built. A clip carries a form and one or two frame
+   pictures, and the target writes the opening line each one takes.
+2. The dialogue model is built. A line names one speaker or several, carries
+   its off-screen, crossing and cut-off flags, and a speaker points at a
+   library thing or describes somebody who exists nowhere else.
+3. Audio is the gap left in the shared model. A library thing has pictures
+   and no voice, and a clip has a note about music and no music. Both are
+   conditions on a request as much as a picture is, and full reference needs
+   them labelled.
+4. Full reference is a second target, not a mode of the first. Six fields
    against three means a different schema, a different render and a different
    system prompt, which is what the target seam is for.
-3. Three gaps have to be closed in the shared model whichever comes first: a
-   dialogue line that can name several speakers and carry its off-screen,
-   crossing and cut-off flags; audio as a kind of reference asset; and a
-   speaker that can point at a library thing.
-4. The retention markers are inputs, not outputs. A person decides whether a
+5. The retention markers are inputs, not outputs. A person decides whether a
    subject is fully preserved or only loosely referenced, and the model is
    told which.
