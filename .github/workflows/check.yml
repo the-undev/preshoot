@@ -15,4 +15,7 @@ jobs:
           node-version: 26
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      # pnpm check never launches Electron, so a postinstall that failed to
+      # unpack the binary would otherwise pass unnoticed.
+      - run: ELECTRON_RUN_AS_NODE=1 pnpm exec electron -e "console.log('electron', process.versions.electron)"
       - run: pnpm check

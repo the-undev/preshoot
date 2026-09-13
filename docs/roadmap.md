@@ -95,6 +95,12 @@ at Q2 or Q3 with the Lightning LoRA.
 - Runpod: manual copy of prompts first. Then rsync of the project bundle
   over SSH plus ComfyUI HTTP for queueing jobs and pulling outputs. Then
   pod start and stop through the Runpod API.
+- `pnpm-workspace.yaml` overrides `yauzl` to 3.x. Electron unpacks its binary
+  with `extract-zip`, whose `yauzl@2` stalls part-way through the zip on
+  current Node and exits 0 without writing `path.txt`, so a fresh install
+  reports success and `pnpm dev` fails with "Electron uninstall". Only
+  Electron's installer uses `yauzl`, and CI runs the binary after install so
+  the failure cannot pass silently again.
 
 ## Done
 
