@@ -21,18 +21,25 @@ by hand.
   same range, which comes from the narrowest the toolchain declares.
 - A [llama-server](https://github.com/ggml-org/llama.cpp) answering on a URL
   you can reach, serving at least one model. The app attaches to a server,
-  it never starts or stops one. `docs/llama-server.md` covers router mode,
-  which is what it expects.
+  it never starts or stops one.
 
 ## Running
 
 ```bash
 pnpm install
-pnpm dev
+pnpm llama    # the model server, in its own terminal
+pnpm dev      # the app
 ```
 
-Open Settings with the gear in the workspace header, press Check, choose a
-model, and press Save. Generate refuses until a model is chosen, because a
+`pnpm llama` starts llama-server in router mode: every model under
+`~/.cache/huggingface/hub`, one loaded at a time, the vision projector off the
+GPU, listening on `http://127.0.0.1:8080`, which is where the app looks by
+default. Arguments are passed through, so `pnpm llama --port 9000` moves it.
+`docs/llama-server.md` says what each flag is for and how to reach a server
+somewhere else.
+
+Then open Settings with the gear in the workspace header, press Check, choose
+a model, and press Save. Generate refuses until a model is chosen, because a
 request that names none is refused by the server.
 
 ## Building

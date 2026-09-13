@@ -21,6 +21,12 @@ One server hosts every model it can find and loads one on demand, so the app
 never needs it started a particular way:
 
 ```
+pnpm llama
+```
+
+which runs:
+
+```
 llama-server \
   --models-dir ~/.cache/huggingface/hub \
   --models-max 1 \
