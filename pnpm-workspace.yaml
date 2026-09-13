@@ -3,3 +3,10 @@ allowBuilds:
   electron: true
   electron-winstaller: false
   esbuild: true
+
+# electron unpacks its binary with extract-zip, whose yauzl@2 stalls part-way
+# through the zip on current Node and exits 0 without writing path.txt, so a
+# fresh install fails with "Electron uninstall". yauzl@3 reads the zip itself
+# and extract-zip calls it the same way. Nothing else in the tree uses yauzl.
+overrides:
+  yauzl: ^3.4.0
