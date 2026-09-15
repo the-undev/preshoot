@@ -43,6 +43,20 @@
       "when": 1789489296081,
       "tag": "0005_gorgeous_madripoor",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1789491859030,
+      "tag": "0006_harsh_captain_cross",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1789491869156,
+      "tag": "0007_peaceful_stephen_strange",
+      "breakpoints": true
     }
   ]
 }

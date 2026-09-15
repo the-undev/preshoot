@@ -13,6 +13,7 @@ const composition: ClipComposition = {
   style: "Live-action, cinematic",
   note: "A keeper lights the lamp during a storm.",
   musicNote: "",
+  language: "English",
   speakers: [],
   shots: [
     {
@@ -24,8 +25,20 @@ const composition: ClipComposition = {
       transition: null,
       lighting: null,
       things: [],
-      beats: [{ subjectName: null, text: "climbs the last steps of the tower" }],
-      dialogue: [],
+      lines: [
+        {
+          id: 21,
+          kind: "action" as const,
+          assetId: null,
+          subjectName: null,
+          speakerIds: [],
+          text: "climbs the last steps of the tower",
+          language: null,
+          offScreen: false,
+          crossesCut: false,
+          cutOff: false,
+        },
+      ],
       soundNote: "",
     },
   ],

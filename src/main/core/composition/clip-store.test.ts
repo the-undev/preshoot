@@ -14,14 +14,33 @@ import {
   listClips,
   moveShot,
   readComposition,
-  setShotBeats,
-  setShotDialogue,
+  setShotLines,
   setShotThings,
   updateClip,
   updateShot,
+  type LineInput,
 } from "./clip-store"
 
 const migrationsFolder = join(__dirname, "../../../../resources/migrations")
+
+/** Something happening, as the editor sends it back. */
+function action(assetId: number | null, text: string): LineInput {
+  return {
+    kind: "action",
+    assetId,
+    speakerIds: [],
+    text,
+    language: null,
+    offScreen: false,
+    crossesCut: false,
+    cutOff: false,
+  }
+}
+
+/** Something said, as the editor sends it back. */
+function speech(speakerIds: number[], text: string): LineInput {
+  return { ...action(null, text), kind: "speech", speakerIds }
+}
 
 describe("clip store", () => {
   let dir: string
@@ -67,6 +86,7 @@ describe("clip store", () => {
       form: "t2v",
       shortEdge: 768,
       aspectRatio: "auto",
+      language: "English",
     })
 
     const composition = readComposition(handle.db, clipId)
@@ -101,13 +121,15 @@ describe("clip store", () => {
       lighting: "night",
       soundNote: "wind on the glass",
     })
-    setShotBeats(handle.db, shotId, [{ assetId: null, text: "climbs the last steps" }])
+    setShotLines(handle.db, shotId, [action(null, "climbs the last steps")])
 
     const [shot] = readComposition(handle.db, clipId).shots
     expect(shot.durationMs).toBe(6000)
     expect(shot.cameraMotion).toBe("push in")
     expect(shot.lighting).toBe("night")
-    expect(shot.beats).toEqual([{ subjectName: null, text: "climbs the last steps" }])
+    expect(shot.lines).toEqual([
+      expect.objectContaining({ kind: "action", subjectName: null, text: "climbs the last steps" }),
+    ])
   })
 
   it("keeps what happens in the order it was given, with who does it", () => {
@@ -118,14 +140,31 @@ describe("clip store", () => {
       description: "an elderly man",
     })
 
-    setShotBeats(handle.db, shotId, [
-      { assetId: keeper.id, text: "climbs the last steps" },
-      { assetId: null, text: "rain runs off the rail" },
+    setShotLines(handle.db, shotId, [
+      action(keeper.id, "climbs the last steps"),
+      action(null, "rain runs off the rail"),
     ])
 
-    expect(readComposition(handle.db, clipId).shots[0].beats).toEqual([
-      { subjectName: "Keeper", text: "climbs the last steps" },
-      { subjectName: null, text: "rain runs off the rail" },
+    expect(readComposition(handle.db, clipId).shots[0].lines).toEqual([
+      expect.objectContaining({ subjectName: "Keeper", text: "climbs the last steps" }),
+      expect.objectContaining({ subjectName: null, text: "rain runs off the rail" }),
+    ])
+  })
+
+  it("keeps what happens and what is said in one list, in the order given", () => {
+    const shotId = insertShot(handle.db, clipId)
+    const speakerId = insertSpeaker(handle.db, clipId, { assetId: null, description: "The keeper" })
+
+    setShotLines(handle.db, shotId, [
+      action(null, "the lamp turns"),
+      speech([speakerId], "Almost there."),
+      action(null, "the beam sweeps the water"),
+    ])
+
+    expect(readComposition(handle.db, clipId).shots[0].lines.map((line) => line.kind)).toEqual([
+      "action",
+      "speech",
+      "action",
     ])
   })
 
@@ -186,16 +225,7 @@ describe("clip store", () => {
       description: "The keeper, low and weathered",
     })
 
-    setShotDialogue(handle.db, shotId, [
-      {
-        speakerIds: [speakerId],
-        language: "English",
-        text: "Almost there.",
-        offScreen: false,
-        crossesCut: false,
-        cutOff: false,
-      },
-    ])
+    setShotLines(handle.db, shotId, [speech([speakerId], "Almost there.")])
 
     const composition = readComposition(handle.db, clipId)
     expect(composition.speakers).toEqual([
@@ -206,15 +236,12 @@ describe("clip store", () => {
         subjectName: null,
       },
     ])
-    expect(composition.shots[0].dialogue).toEqual([
-      {
+    expect(composition.shots[0].lines).toEqual([
+      expect.objectContaining({
+        kind: "speech",
         speakerIds: [speakerId],
-        language: "English",
         text: "Almost there.",
-        offScreen: false,
-        crossesCut: false,
-        cutOff: false,
-      },
+      }),
     ])
   })
 
@@ -225,23 +252,9 @@ describe("clip store", () => {
       assetId: null,
       description: "The radio operator",
     })
-    setShotDialogue(handle.db, shotId, [
-      {
-        speakerIds: [first],
-        language: "English",
-        text: "Almost there.",
-        offScreen: false,
-        crossesCut: false,
-        cutOff: false,
-      },
-      {
-        speakerIds: [second],
-        language: "English",
-        text: "Say again.",
-        offScreen: false,
-        crossesCut: false,
-        cutOff: false,
-      },
+    setShotLines(handle.db, shotId, [
+      speech([first], "Almost there."),
+      speech([second], "Say again."),
     ])
 
     deleteSpeaker(handle.db, first)
@@ -250,36 +263,20 @@ describe("clip store", () => {
     expect(composition.speakers).toEqual([
       { id: second, label: "S1", description: "The radio operator", subjectName: null },
     ])
-    expect(composition.shots[0].dialogue).toEqual([
-      {
-        speakerIds: [second],
-        language: "English",
-        text: "Say again.",
-        offScreen: false,
-        crossesCut: false,
-        cutOff: false,
-      },
+    expect(composition.shots[0].lines).toEqual([
+      expect.objectContaining({ speakerIds: [second], text: "Say again." }),
     ])
   })
 
   it("takes the shots and their dialogue when the clip goes", () => {
     const shotId = insertShot(handle.db, clipId)
     const speakerId = insertSpeaker(handle.db, clipId, { assetId: null, description: "The keeper" })
-    setShotDialogue(handle.db, shotId, [
-      {
-        speakerIds: [speakerId],
-        language: "English",
-        text: "Almost there.",
-        offScreen: false,
-        crossesCut: false,
-        cutOff: false,
-      },
-    ])
+    setShotLines(handle.db, shotId, [speech([speakerId], "Almost there.")])
 
     deleteClip(handle.db, clipId)
 
     expect(handle.db.select().from(schema.shots).all()).toEqual([])
-    expect(handle.db.select().from(schema.dialogueLines).all()).toEqual([])
+    expect(handle.db.select().from(schema.shotLines).all()).toEqual([])
     expect(handle.db.select().from(schema.speakers).all()).toEqual([])
   })
 })

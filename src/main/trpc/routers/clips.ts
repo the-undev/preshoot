@@ -1,7 +1,7 @@
 import { TRPCError } from "@trpc/server"
 import { z } from "zod"
 import { ASPECT_RATIOS } from "../../core/composition/aspect"
-import { CLIP_FORMS, type ClipForm } from "../../core/composition/clip"
+import { CLIP_FORMS, LINE_KINDS, type ClipForm, type LineKind } from "../../core/composition/clip"
 import {
   branchClip,
   clearClipFrame,
@@ -18,8 +18,7 @@ import {
   readClip,
   readComposition,
   saveClip,
-  setShotBeats,
-  setShotDialogue,
+  setShotLines,
   setShotThings,
   updateClip,
   updateShot,
@@ -54,13 +53,14 @@ const shotInput = z.object({
   transition: z.string().nullable(),
   lighting: z.string().nullable(),
   soundNote: z.string(),
-  beats: z.array(z.object({ assetId: z.number().int().nullable(), text: z.string() })),
   things: z.array(z.number().int()),
-  dialogue: z.array(
+  lines: z.array(
     z.object({
+      kind: z.enum(LINE_KINDS as [LineKind, ...LineKind[]]),
+      assetId: z.number().int().nullable(),
       speakerIds: z.array(z.number().int()),
-      language: z.string(),
       text: z.string(),
+      language: z.string().nullable(),
       offScreen: z.boolean(),
       crossesCut: z.boolean(),
       cutOff: z.boolean(),
@@ -132,6 +132,7 @@ export const clipsRouter = router({
         form: z.enum(CLIP_FORMS as [ClipForm, ...ClipForm[]]),
         shortEdge: z.number().int().min(128).max(4096),
         aspectRatio: z.enum(ASPECT_RATIOS.map((entry) => entry.value) as [string, ...string[]]),
+        language: z.string().trim().min(1),
       })
     )
     .mutation(({ ctx, input }) => {
@@ -240,9 +241,8 @@ export const clipsRouter = router({
         lighting: input.lighting,
         soundNote: input.soundNote,
       })
-      setShotBeats(db, input.shotId, input.beats)
       setShotThings(db, input.shotId, input.things)
-      setShotDialogue(db, input.shotId, input.dialogue)
+      setShotLines(db, input.shotId, input.lines)
       return readComposition(db, id)
     } catch (error) {
       asClientError(error)

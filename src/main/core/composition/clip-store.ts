@@ -1,6 +1,6 @@
 import { and, asc, count, desc, eq, isNotNull, sum } from "drizzle-orm"
 import { schema, type ProjectDatabase, type ProjectDb } from "../db"
-import type { ClipComposition, ClipForm, FrameComposition, ShotComposition } from "./clip"
+import type { ClipComposition, ClipForm, FrameComposition, LineKind, ShotComposition } from "./clip"
 import { CompositionError } from "./errors"
 
 /** How long a new shot runs until the user says otherwise. */
@@ -20,18 +20,14 @@ export interface ClipSummary {
   form: ClipForm
   shortEdge: number
   aspectRatio: string
+  /** What is spoken in this clip unless a line says otherwise. */
+  language: string
   shots: number
   durationMs: number
   createdAt: string
 }
 
 /** Everything a shot holds, as the editor sends it back. */
-/** One beat as the editor sends it back. */
-export interface BeatInput {
-  assetId: number | null
-  text: string
-}
-
 export interface ShotInput {
   id: number
   durationMs: number
@@ -44,10 +40,12 @@ export interface ShotInput {
 }
 
 /** One line as the editor sends it back. */
-export interface DialogueInput {
+export interface LineInput {
+  kind: LineKind
+  assetId: number | null
   speakerIds: number[]
-  language: string
   text: string
+  language: string | null
   offScreen: boolean
   crossesCut: boolean
   cutOff: boolean
@@ -116,6 +114,7 @@ export function updateClip(
     form: ClipForm
     shortEdge: number
     aspectRatio: string
+    language: string
   }
 ): ClipSummary {
   const [row] = db
@@ -127,6 +126,7 @@ export function updateClip(
       form: input.form,
       shortEdge: input.shortEdge,
       aspectRatio: input.aspectRatio,
+      language: input.language,
     })
     .where(eq(schema.clips.id, input.id))
     .returning()
@@ -210,16 +210,6 @@ function copyShotContents(
   toShotId: number,
   speakers: Map<number, number>
 ): void {
-  for (const beat of tx
-    .select()
-    .from(schema.shotBeats)
-    .where(eq(schema.shotBeats.shotId, shotId))
-    .all()) {
-    tx.insert(schema.shotBeats)
-      .values({ ...beat, id: undefined, shotId: toShotId })
-      .run()
-  }
-
   for (const thing of tx
     .select()
     .from(schema.shotAssets)
@@ -232,10 +222,10 @@ function copyShotContents(
 
   for (const line of tx
     .select()
-    .from(schema.dialogueLines)
-    .where(eq(schema.dialogueLines.shotId, shotId))
+    .from(schema.shotLines)
+    .where(eq(schema.shotLines.shotId, shotId))
     .all()) {
-    tx.insert(schema.dialogueLines)
+    tx.insert(schema.shotLines)
       .values({
         ...line,
         id: undefined,
@@ -317,33 +307,25 @@ export function readComposition(db: ProjectDatabase, clipId: number): ClipCompos
     .orderBy(asc(schema.shotAssets.position))
     .all()
 
-  const beatRows = db
+  const lineRows = db
     .select({
-      shotId: schema.shotBeats.shotId,
+      id: schema.shotLines.id,
+      shotId: schema.shotLines.shotId,
+      kind: schema.shotLines.kind,
+      assetId: schema.shotLines.assetId,
       subjectName: schema.assets.name,
-      text: schema.shotBeats.text,
+      speakerIds: schema.shotLines.speakerIds,
+      text: schema.shotLines.text,
+      language: schema.shotLines.language,
+      offScreen: schema.shotLines.offScreen,
+      crossesCut: schema.shotLines.crossesCut,
+      cutOff: schema.shotLines.cutOff,
     })
-    .from(schema.shotBeats)
-    .innerJoin(schema.shots, eq(schema.shots.id, schema.shotBeats.shotId))
-    .leftJoin(schema.assets, eq(schema.assets.id, schema.shotBeats.assetId))
+    .from(schema.shotLines)
+    .innerJoin(schema.shots, eq(schema.shots.id, schema.shotLines.shotId))
+    .leftJoin(schema.assets, eq(schema.assets.id, schema.shotLines.assetId))
     .where(eq(schema.shots.clipId, clipId))
-    .orderBy(asc(schema.shotBeats.position), asc(schema.shotBeats.id))
-    .all()
-
-  const dialogueRows = db
-    .select({
-      shotId: schema.dialogueLines.shotId,
-      speakerIds: schema.dialogueLines.speakerIds,
-      language: schema.dialogueLines.language,
-      text: schema.dialogueLines.text,
-      offScreen: schema.dialogueLines.offScreen,
-      crossesCut: schema.dialogueLines.crossesCut,
-      cutOff: schema.dialogueLines.cutOff,
-    })
-    .from(schema.dialogueLines)
-    .innerJoin(schema.shots, eq(schema.shots.id, schema.dialogueLines.shotId))
-    .where(eq(schema.shots.clipId, clipId))
-    .orderBy(asc(schema.dialogueLines.position))
+    .orderBy(asc(schema.shotLines.position), asc(schema.shotLines.id))
     .all()
 
   const shots: ShotComposition[] = shotRows.map((shot) => ({
@@ -357,15 +339,16 @@ export function readComposition(db: ProjectDatabase, clipId: number): ClipCompos
     things: thingRows
       .filter((thing) => thing.shotId === shot.id)
       .map(({ id, kind, name, description }) => ({ id, kind, name, description })),
-    beats: beatRows
-      .filter((beat) => beat.shotId === shot.id)
-      .map(({ subjectName, text }) => ({ subjectName, text })),
-    dialogue: dialogueRows
+    lines: lineRows
       .filter((line) => line.shotId === shot.id)
       .map((line) => ({
+        id: line.id,
+        kind: line.kind as LineKind,
+        assetId: line.assetId,
+        subjectName: line.subjectName,
         speakerIds: line.speakerIds,
-        language: line.language,
         text: line.text,
+        language: line.language,
         offScreen: line.offScreen,
         crossesCut: line.crossesCut,
         cutOff: line.cutOff,
@@ -380,6 +363,7 @@ export function readComposition(db: ProjectDatabase, clipId: number): ClipCompos
     shortEdge: clip.shortEdge,
     aspectRatio: clip.aspectRatio,
     frames: readFrames(db, clipId),
+    language: clip.language,
     style: clip.style,
     note: clip.note,
     musicNote: clip.musicNote,
@@ -519,25 +503,12 @@ export function setShotThings(db: ProjectDatabase, shotId: number, assetIds: num
 }
 
 /** Replaces what happens in a shot, in the order given. */
-export function setShotBeats(db: ProjectDatabase, shotId: number, beats: BeatInput[]): void {
+export function setShotLines(db: ProjectDatabase, shotId: number, lines: LineInput[]): void {
   clipOfShot(db, shotId)
   db.transaction((tx) => {
-    tx.delete(schema.shotBeats).where(eq(schema.shotBeats.shotId, shotId)).run()
-    beats.forEach((beat, position) => {
-      tx.insert(schema.shotBeats)
-        .values({ shotId, position, ...beat })
-        .run()
-    })
-  })
-}
-
-/** Replaces what is said in a shot, in the order given. */
-export function setShotDialogue(db: ProjectDatabase, shotId: number, lines: DialogueInput[]): void {
-  clipOfShot(db, shotId)
-  db.transaction((tx) => {
-    tx.delete(schema.dialogueLines).where(eq(schema.dialogueLines.shotId, shotId)).run()
+    tx.delete(schema.shotLines).where(eq(schema.shotLines.shotId, shotId)).run()
     lines.forEach((line, position) => {
-      tx.insert(schema.dialogueLines)
+      tx.insert(schema.shotLines)
         .values({ shotId, position, ...line })
         .run()
     })
@@ -596,15 +567,15 @@ export function deleteSpeaker(db: ProjectDatabase, speakerId: number): void {
   }
 
   db.transaction((tx) => {
-    for (const line of tx.select().from(schema.dialogueLines).all()) {
+    for (const line of tx.select().from(schema.shotLines).all()) {
       if (!line.speakerIds.includes(speakerId)) continue
       const left = line.speakerIds.filter((id) => id !== speakerId)
       if (left.length === 0) {
-        tx.delete(schema.dialogueLines).where(eq(schema.dialogueLines.id, line.id)).run()
+        tx.delete(schema.shotLines).where(eq(schema.shotLines.id, line.id)).run()
       } else {
-        tx.update(schema.dialogueLines)
+        tx.update(schema.shotLines)
           .set({ speakerIds: left })
-          .where(eq(schema.dialogueLines.id, line.id))
+          .where(eq(schema.shotLines.id, line.id))
           .run()
       }
     }

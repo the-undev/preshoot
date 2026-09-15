@@ -2,7 +2,24 @@ import { DndContext } from "@dnd-kit/core"
 import { SortableContext } from "@dnd-kit/sortable"
 import { fireEvent, render, screen } from "@testing-library/react"
 import { describe, expect, it, vi } from "vitest"
-import type { Asset, ShotComposition, Vocabularies } from "@renderer/lib/trpc"
+import type { Asset, LineComposition, ShotComposition, Vocabularies } from "@renderer/lib/trpc"
+
+/** One thing that happens, as the store hands it over. */
+function action(id: number, text: string, subjectName: string | null = null): LineComposition {
+  return {
+    id,
+    kind: "action",
+    assetId: null,
+    subjectName,
+    speakerIds: [],
+    text,
+    language: null,
+    offScreen: false,
+    crossesCut: false,
+    cutOff: false,
+  }
+}
+
 import { ShotRow } from "./shot-row"
 
 const vocabularies: Vocabularies = {
@@ -33,8 +50,7 @@ const shot: ShotComposition = {
   transition: null,
   lighting: null,
   things: [],
-  beats: [{ subjectName: null, text: "climbs the last steps" }],
-  dialogue: [],
+  lines: [action(21, "climbs the last steps")],
   soundNote: "",
 }
 
@@ -70,7 +86,7 @@ describe("ShotRow", () => {
 
     expect(screen.getByText("Shot 1")).toBeInTheDocument()
     expect(screen.getByLabelText("Seconds")).toHaveValue(4.5)
-    expect(screen.getByLabelText("Beat 1 of shot 11")).toHaveValue("climbs the last steps")
+    expect(screen.getByLabelText("Line 1 of shot 11")).toHaveValue("climbs the last steps")
   })
 
   it("reports the whole shot once the length box is left", () => {
@@ -97,29 +113,31 @@ describe("ShotRow", () => {
     expect(seconds).toHaveValue(4.5)
   })
 
-  it("reports what happens once the beat is left", () => {
+  it("reports what happens once the line is left", () => {
     const { onChange } = renderRow()
 
-    const beat = screen.getByLabelText("Beat 1 of shot 11")
-    fireEvent.change(beat, { target: { value: "reaches for the lamp" } })
+    const line = screen.getByLabelText("Line 1 of shot 11")
+    fireEvent.change(line, { target: { value: "reaches for the lamp" } })
     expect(onChange).not.toHaveBeenCalled()
 
-    fireEvent.blur(beat)
+    fireEvent.blur(line)
     expect(onChange).toHaveBeenCalledWith(
-      expect.objectContaining({ beats: [{ assetId: null, text: "reaches for the lamp" }] })
+      expect.objectContaining({
+        lines: [expect.objectContaining({ kind: "action", text: "reaches for the lamp" })],
+      })
     )
   })
 
   it("adds what happens next, after what happens first", () => {
     const { onChange } = renderRow()
 
-    fireEvent.click(screen.getByRole("button", { name: "Add what happens" }))
+    fireEvent.click(screen.getByRole("button", { name: "Add something that happens" }))
 
     expect(onChange).toHaveBeenCalledWith(
       expect.objectContaining({
-        beats: [
-          { assetId: null, text: "climbs the last steps" },
-          { assetId: null, text: "" },
+        lines: [
+          expect.objectContaining({ text: "climbs the last steps" }),
+          expect.objectContaining({ kind: "action", text: "" }),
         ],
       })
     )
@@ -142,7 +160,7 @@ describe("ShotRow", () => {
   it("opens on the first shot and folds the rest away", () => {
     renderRow({ index: 1 })
 
-    expect(screen.queryByLabelText("Beat 1 of shot 11")).not.toBeInTheDocument()
+    expect(screen.queryByLabelText("Line 1 of shot 11")).not.toBeInTheDocument()
     expect(screen.getByText(/4.5s · push in · climbs the last steps/)).toBeInTheDocument()
   })
 
@@ -150,10 +168,10 @@ describe("ShotRow", () => {
     renderRow()
 
     fireEvent.click(screen.getByRole("button", { name: /Shot 1/ }))
-    expect(screen.queryByLabelText("Beat 1 of shot 11")).not.toBeInTheDocument()
+    expect(screen.queryByLabelText("Line 1 of shot 11")).not.toBeInTheDocument()
 
     fireEvent.click(screen.getByRole("button", { name: /Shot 1/ }))
-    expect(screen.getByLabelText("Beat 1 of shot 11")).toBeInTheDocument()
+    expect(screen.getByLabelText("Line 1 of shot 11")).toBeInTheDocument()
   })
 
   it("offers a handle for dragging it into another place", () => {
@@ -191,11 +209,9 @@ describe("ShotRow", () => {
     expect(onAddPeople).toHaveBeenCalled()
   })
 
-  it("asks for dialogue only once the clip has a speaker", () => {
+  it("offers a line of dialogue only once the clip has a speaker", () => {
     renderRow()
 
-    expect(
-      screen.getByText("Add a speaker to the clip before writing dialogue.")
-    ).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Add a line of dialogue" })).toBeDisabled()
   })
 })

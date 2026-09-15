@@ -1,8 +1,25 @@
 import { describe, expect, it } from "vitest"
-import type { ClipComposition, ShotComposition } from "@renderer/lib/trpc"
+import type { ClipComposition, LineComposition, ShotComposition } from "@renderer/lib/trpc"
+
 import { clipReadiness } from "./readiness"
 
-function shot(id: number, action: string): ShotComposition {
+/** One thing that happens, as the store hands it over. */
+function line(id: number, text: string, subjectName: string | null = null): LineComposition {
+  return {
+    id,
+    kind: "action",
+    assetId: null,
+    subjectName,
+    speakerIds: [],
+    text,
+    language: null,
+    offScreen: false,
+    crossesCut: false,
+    cutOff: false,
+  }
+}
+
+function shot(id: number, text: string): ShotComposition {
   return {
     id,
     durationMs: 4000,
@@ -12,8 +29,7 @@ function shot(id: number, action: string): ShotComposition {
     transition: null,
     lighting: null,
     things: [],
-    beats: [{ subjectName: null, text: action }],
-    dialogue: [],
+    lines: [line(id, text)],
     soundNote: "",
   }
 }
@@ -28,6 +44,7 @@ const composition: ClipComposition = {
   style: "Live-action, cinematic",
   note: "",
   musicNote: "",
+  language: "English",
   speakers: [],
   shots: [shot(11, "climbs the stairs")],
 }

@@ -20,24 +20,30 @@ export interface SpeakerComposition {
   subjectName: string | null
 }
 
+/** What a line of a shot is: something someone does, or something someone says. */
+export type LineKind = "action" | "speech"
+
+/** Both kinds, for the picker and for what the router will accept. */
+export const LINE_KINDS: LineKind[] = ["action", "speech"]
+
 /**
- * One spoken line, kept verbatim because the target reproduces it word for word. A line can be
- * shared by several speakers, spoken off screen, carried across the cut that follows it, or cut
- * off by the end of the clip.
+ * One thing that happens in a shot. An action belongs to one of the shot's subjects or to nobody
+ * in particular, which means the scene. Speech is kept verbatim because the target reproduces it
+ * word for word, and can be shared by several speakers, spoken off screen, carried across the cut
+ * that follows it, or cut off by the end of the clip.
  */
-export interface DialogueComposition {
+export interface LineComposition {
+  id: number
+  kind: LineKind
+  assetId: number | null
+  subjectName: string | null
   speakerIds: number[]
-  language: string
   text: string
+  /** Nothing unless this line is spoken in another language than the rest of the clip. */
+  language: string | null
   offScreen: boolean
   crossesCut: boolean
   cutOff: boolean
-}
-
-/** One thing that happens in a shot, done by one of its subjects or by nobody in particular. */
-export interface BeatComposition {
-  subjectName: string | null
-  text: string
 }
 
 /**
@@ -54,8 +60,7 @@ export interface ShotComposition {
   transition: string | null
   lighting: string | null
   things: ThingComposition[]
-  beats: BeatComposition[]
-  dialogue: DialogueComposition[]
+  lines: LineComposition[]
   soundNote: string
 }
 
@@ -86,6 +91,8 @@ export interface ClipComposition {
   style: string
   note: string
   musicNote: string
+  /** What is spoken in this clip unless a line says otherwise. */
+  language: string
   speakers: SpeakerComposition[]
   shots: ShotComposition[]
 }

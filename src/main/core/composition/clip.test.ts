@@ -4,8 +4,25 @@ import {
   shotStartMs,
   speakerOf,
   type ClipComposition,
+  type LineComposition,
   type ShotComposition,
 } from "./clip"
+
+/** One thing that happens, as the store hands it over. */
+function action(id: number, text: string): LineComposition {
+  return {
+    id,
+    kind: "action",
+    assetId: null,
+    subjectName: null,
+    speakerIds: [],
+    text,
+    language: null,
+    offScreen: false,
+    crossesCut: false,
+    cutOff: false,
+  }
+}
 
 function shot(id: number, durationMs: number): ShotComposition {
   return {
@@ -17,8 +34,7 @@ function shot(id: number, durationMs: number): ShotComposition {
     transition: null,
     lighting: null,
     things: [],
-    beats: [{ subjectName: null, text: `Shot ${id} happens.` }],
-    dialogue: [],
+    lines: [action(id, `Shot ${id} happens.`)],
     soundNote: "",
   }
 }
@@ -28,11 +44,12 @@ const composition: ClipComposition = {
   name: "Lighthouse",
   form: "t2v",
   shortEdge: 768,
-  aspectRatio: "auto",
+  aspectRatio: "16:9",
   frames: [],
   style: "Live-action, cinematic",
   note: "A keeper lights the lamp.",
   musicNote: "",
+  language: "English",
   speakers: [
     { id: 7, label: "S1", description: "The keeper, weathered and low.", subjectName: null },
   ],

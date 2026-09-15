@@ -4,7 +4,7 @@ import {
   frameOf,
   shotStartMs,
   type ClipComposition,
-  type DialogueComposition,
+  type LineComposition,
   type ShotComposition,
 } from "../../composition/clip"
 import type { PromptTarget, TargetFields, Vocabularies } from "../target"
@@ -127,16 +127,16 @@ function cameraPhrase(shot: ShotComposition): string {
 }
 
 /** What the prompt calls the speakers of one line, which is compound when they share it. */
-function speakerLabel(composition: ClipComposition, line: DialogueComposition): string {
+function speakerLabel(composition: ClipComposition, line: LineComposition): string {
   const labels = line.speakerIds
     .map((id) => composition.speakers.find((speaker) => speaker.id === id)?.label)
     .filter(Boolean)
   return labels.length > 0 ? `(${labels.join(",")})` : "(S1)"
 }
 
-/** The lines of `shot` that have words in them. A line being typed has none yet. */
-function spokenLines(shot: ShotComposition): ShotComposition["dialogue"] {
-  return shot.dialogue.filter((line) => line.text.trim().length > 0)
+/** The lines of `shot` that have something in them. A line being typed has nothing yet. */
+function writtenLines(shot: ShotComposition): LineComposition[] {
+  return shot.lines.filter((line) => line.text.trim().length > 0)
 }
 
 /** Lowers an opening article so the prose reads on from the phrase written before it. */
@@ -149,13 +149,14 @@ function lowerOpeningArticle(text: string): string {
  * marker for a line that crosses a cut or runs past the end of the clip goes after the closing
  * tag rather than inside the span the model reproduces.
  */
-function dialogueSentence(composition: ClipComposition, line: DialogueComposition): string {
+function spokenSentence(composition: ClipComposition, line: LineComposition): string {
   const speaker = composition.speakers.find((entry) => entry.id === line.speakerIds[0])
   const who = [speaker?.description.trim(), speakerLabel(composition, line)]
     .filter((part) => part && part.length > 0)
     .join(" ")
   const says = line.offScreen ? "says in an off-screen voiceover" : "says"
-  const parts = [`${capitalise(who)} ${says}: ${dialogueTag(line.language, line.text)}`]
+  const language = line.language ?? composition.language
+  const parts = [`${capitalise(who)} ${says}: ${dialogueTag(language, line.text)}`]
 
   if (line.crossesCut) {
     parts.push(`<scenetrans> ${CONTINUES_ACROSS_CUT}`)
@@ -184,16 +185,18 @@ function describeShot(composition: ClipComposition, shotId: number): string {
   if (shot.lighting) {
     sentences.push(sentence(`The lighting is ${shot.lighting}`))
   }
-  for (const beat of shot.beats.filter((entry) => entry.text.trim().length > 0)) {
-    const who = beat.subjectName ? `${beat.subjectName} ` : ""
-    sentences.push(sentence(capitalise(`${who}${beat.text}`)))
-  }
   if (shot.cameraMotion) {
     // The vocabulary mixes verb phrases with nouns, so this states the move rather than conjugating it.
     sentences.push(sentence(`Camera: ${cameraPhrase(shot)}`))
   }
-  for (const line of spokenLines(shot)) {
-    sentences.push(dialogueSentence(composition, line))
+  // Then what happens, in the order it was written, which is where the dialogue sits as well.
+  for (const line of writtenLines(shot)) {
+    if (line.kind === "speech") {
+      sentences.push(spokenSentence(composition, line))
+      continue
+    }
+    const who = line.subjectName ? `${line.subjectName} ` : ""
+    sentences.push(sentence(capitalise(`${who}${line.text}`)))
   }
   return sentences.filter(Boolean).join(" ")
 }

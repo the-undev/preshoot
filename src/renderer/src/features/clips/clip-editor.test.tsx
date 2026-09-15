@@ -1,6 +1,28 @@
 import { fireEvent, render, screen } from "@testing-library/react"
 import { describe, expect, it, vi } from "vitest"
-import type { ClipComposition, ShotComposition, Vocabularies } from "@renderer/lib/trpc"
+import type {
+  ClipComposition,
+  LineComposition,
+  ShotComposition,
+  Vocabularies,
+} from "@renderer/lib/trpc"
+
+/** One thing that happens, as the store hands it over. */
+function action(id: number, text: string, subjectName: string | null = null): LineComposition {
+  return {
+    id,
+    kind: "action",
+    assetId: null,
+    subjectName,
+    speakerIds: [],
+    text,
+    language: null,
+    offScreen: false,
+    crossesCut: false,
+    cutOff: false,
+  }
+}
+
 import { ClipEditor } from "./clip-editor"
 
 const vocabularies: Vocabularies = {
@@ -22,8 +44,7 @@ function shot(id: number, durationMs: number): ShotComposition {
     transition: null,
     lighting: null,
     things: [],
-    beats: [{ subjectName: null, text: `Shot ${id}` }],
-    dialogue: [],
+    lines: [action(id, `Shot ${id}`)],
     soundNote: "",
   }
 }
@@ -38,6 +59,7 @@ const composition: ClipComposition = {
   style: "Live-action, cinematic",
   note: "A keeper lights the lamp.",
   musicNote: "",
+  language: "English",
   speakers: [],
   shots: [shot(11, 4500), shot(12, 3000)],
 }
@@ -134,7 +156,7 @@ describe("ClipEditor", () => {
     renderEditor({
       composition: {
         ...composition,
-        shots: [{ ...composition.shots[0], beats: [{ subjectName: null, text: "" }] }],
+        shots: [{ ...composition.shots[0], lines: [action(1, "")] }],
       },
     })
 

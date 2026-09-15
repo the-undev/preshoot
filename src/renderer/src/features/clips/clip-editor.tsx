@@ -87,6 +87,7 @@ export function ClipEditor({
   const [style, setStyle] = useState(composition.style)
   const [note, setNote] = useState(composition.note)
   const [musicNote, setMusicNote] = useState(composition.musicNote)
+  const [language, setLanguage] = useState(composition.language)
 
   const seconds = composition.shots.reduce((total, shot) => total + shot.durationMs, 0) / 1000
   const tooLong = seconds > MAX_CLIP_SECONDS
@@ -100,6 +101,7 @@ export function ClipEditor({
       form: composition.form,
       shortEdge: composition.shortEdge,
       aspectRatio: composition.aspectRatio,
+      language,
       ...over,
     })
   }
@@ -151,6 +153,30 @@ export function ClipEditor({
                 <option key={option} value={option} />
               ))}
             </datalist>
+          </div>
+
+          <div className="flex min-w-0 flex-col gap-1">
+            <div className="flex items-center gap-1.5">
+              <Label htmlFor="clip-language">Language</Label>
+              <FieldHelp label="the language">
+                What is spoken in this clip. A line can name another language of its own when
+                somebody in the clip speaks a different one.
+              </FieldHelp>
+            </div>
+            <Input
+              id="clip-language"
+              className="w-40"
+              value={language}
+              onChange={(event) => setLanguage(event.target.value)}
+              onBlur={() => {
+                const typed = language.trim()
+                if (typed.length === 0) {
+                  setLanguage(composition.language)
+                  return
+                }
+                commit({ language: typed })
+              }}
+            />
           </div>
 
           {FRAME_ROLES.filter((role) => role.forms.includes(composition.form)).map((role) => (

@@ -3,7 +3,7 @@ import {
   useTRPC,
   type ClipComposition,
   type ClipPrompt,
-  type DialogueLine,
+  type LineInput,
   type Vocabularies,
 } from "@renderer/lib/trpc"
 
@@ -16,9 +16,8 @@ export interface ShotFields {
   transition: string | null
   lighting: string | null
   soundNote: string
-  beats: { assetId: number | null; text: string }[]
   things: number[]
-  dialogue: DialogueLine[]
+  lines: LineInput[]
 }
 
 /** The clip's own fields, without its shots. Its name is set by saving it, not by editing it. */
@@ -29,6 +28,7 @@ export interface ClipFields {
   form: ClipComposition["form"]
   shortEdge: number
   aspectRatio: string
+  language: string
 }
 
 /** One open clip and every call that changes it. */

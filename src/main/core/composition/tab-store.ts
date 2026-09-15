@@ -63,17 +63,17 @@ export function readWorkspace(db: ProjectDatabase): Workspace {
   return { tabs, activeTabId: found ? active : tabs[0].id }
 }
 
-/** The first thing that happens in each of these clips, skipping beats with nothing typed in them. */
+/** The first thing that happens in each of these clips, skipping lines with nothing typed in them. */
 function firstBeats(db: ProjectDatabase, clipIds: number[]): Map<number, string> {
   if (clipIds.length === 0) {
     return new Map()
   }
   const rows = db
-    .select({ clipId: schema.shots.clipId, text: schema.shotBeats.text })
-    .from(schema.shotBeats)
-    .innerJoin(schema.shots, eq(schema.shotBeats.shotId, schema.shots.id))
+    .select({ clipId: schema.shots.clipId, text: schema.shotLines.text })
+    .from(schema.shotLines)
+    .innerJoin(schema.shots, eq(schema.shotLines.shotId, schema.shots.id))
     .where(inArray(schema.shots.clipId, clipIds))
-    .orderBy(asc(schema.shots.position), asc(schema.shotBeats.position))
+    .orderBy(asc(schema.shots.position), asc(schema.shotLines.position))
     .all()
 
   const first = new Map<number, string>()

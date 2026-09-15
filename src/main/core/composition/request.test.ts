@@ -12,8 +12,20 @@ function shot(id: number, durationMs: number): ShotComposition {
     transition: null,
     lighting: null,
     things: [],
-    beats: [{ subjectName: null, text: "something happens" }],
-    dialogue: [],
+    lines: [
+      {
+        id,
+        kind: "action" as const,
+        assetId: null,
+        subjectName: null,
+        speakerIds: [],
+        text: "something happens",
+        language: null,
+        offScreen: false,
+        crossesCut: false,
+        cutOff: false,
+      },
+    ],
     soundNote: "",
   }
 }
@@ -28,6 +40,7 @@ const composition: ClipComposition = {
   style: "Live-action, cinematic",
   note: "",
   musicNote: "",
+  language: "English",
   speakers: [],
   shots: [shot(11, 5000), shot(12, 3500)],
 }

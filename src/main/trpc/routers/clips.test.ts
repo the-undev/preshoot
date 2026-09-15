@@ -2,12 +2,32 @@ import { mkdtempSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
+import type { LineInput } from "../../core/composition/clip-store"
 import { ProjectSession } from "../../core/projects/session"
 import { AppSettingsStore } from "../../core/settings/app-settings"
 import type { Context } from "../context"
 import { appRouter } from "../router"
 
 const migrationsFolder = join(__dirname, "../../../../resources/migrations")
+
+/** Something happening, as the editor sends a shot back. */
+function action(assetId: number | null, text: string): LineInput {
+  return {
+    kind: "action",
+    assetId,
+    speakerIds: [],
+    text,
+    language: null,
+    offScreen: false,
+    crossesCut: false,
+    cutOff: false,
+  }
+}
+
+/** Something said, as the editor sends a shot back. */
+function speech(speakerIds: number[], text: string): LineInput {
+  return { ...action(null, text), kind: "speech", speakerIds }
+}
 
 describe("clips router", () => {
   let dir: string
@@ -108,17 +128,10 @@ describe("clips router", () => {
       transition: null,
       lighting: "night",
       soundNote: "wind on the glass",
-      beats: [{ assetId: null, text: "climbs the last steps" }],
       things: [keeper.id],
-      dialogue: [
-        {
-          speakerIds: [withSpeaker.speakers[0].id],
-          language: "English",
-          text: "Almost there.",
-          offScreen: false,
-          crossesCut: false,
-          cutOff: false,
-        },
+      lines: [
+        action(null, "climbs the last steps"),
+        speech([withSpeaker.speakers[0].id], "Almost there."),
       ],
     })
 
@@ -128,7 +141,8 @@ describe("clips router", () => {
     expect(shot.things).toEqual([
       { id: keeper.id, kind: "person", name: "Keeper", description: "an elderly man" },
     ])
-    expect(shot.dialogue[0].text).toBe("Almost there.")
+    expect(shot.lines.map((line) => line.kind)).toEqual(["action", "speech"])
+    expect(shot.lines[1].text).toBe("Almost there.")
     expect(composition.speakers[0].label).toBe("S1")
   })
 
@@ -149,21 +163,12 @@ describe("clips router", () => {
       transition: null,
       lighting: null,
       soundNote: "",
-      beats: [{ assetId: null, text: "climbs" }],
       things: [],
-      dialogue: [
-        {
-          speakerIds: [withSpeaker.speakers[0].id],
-          language: "English",
-          text: "",
-          offScreen: false,
-          crossesCut: false,
-          cutOff: false,
-        },
-      ],
+      lines: [action(null, "climbs"), speech([withSpeaker.speakers[0].id], "")],
     })
 
-    expect(composition.shots[0].dialogue).toEqual([
+    expect(composition.shots[0].lines).toEqual([
+      expect.objectContaining({ kind: "action", text: "climbs" }),
       expect.objectContaining({ speakerIds: [withSpeaker.speakers[0].id], text: "" }),
     ])
   })
@@ -196,9 +201,8 @@ describe("clips router", () => {
       transition: null,
       lighting: "night",
       soundNote: "wind",
-      beats: [{ assetId: null, text: "climbs the stairs" }],
       things: [],
-      dialogue: [],
+      lines: [action(null, "climbs the stairs")],
     })
 
     const branch = await caller.clips.branch({ id: clipId })
@@ -210,8 +214,12 @@ describe("clips router", () => {
     expect(copy.shots).toHaveLength(1)
     expect(copy.shots[0].id).not.toBe(shotId)
     expect(copy.shots[0].cameraMotion).toBe("push in")
-    expect(copy.shots[0].beats).toEqual([{ subjectName: null, text: "climbs the stairs" }])
-    expect(original.shots[0].beats).toEqual([{ subjectName: null, text: "climbs the stairs" }])
+    expect(copy.shots[0].lines).toEqual([
+      expect.objectContaining({ subjectName: null, text: "climbs the stairs" }),
+    ])
+    expect(original.shots[0].lines).toEqual([
+      expect.objectContaining({ subjectName: null, text: "climbs the stairs" }),
+    ])
   })
 
   it("keeps a branch pointing at the saved clip underneath, not at the branch it came from", async () => {
@@ -242,18 +250,8 @@ describe("clips router", () => {
       transition: null,
       lighting: null,
       soundNote: "",
-      beats: [],
       things: [],
-      dialogue: [
-        {
-          speakerIds: [speakerId],
-          language: "English",
-          text: "Almost there.",
-          offScreen: false,
-          crossesCut: false,
-          cutOff: false,
-        },
-      ],
+      lines: [speech([speakerId], "Almost there.")],
     })
 
     const branch = await caller.clips.branch({ id: clipId })
@@ -261,7 +259,7 @@ describe("clips router", () => {
 
     expect(copy.speakers).toHaveLength(1)
     expect(copy.speakers[0].id).not.toBe(speakerId)
-    expect(copy.shots[0].dialogue[0].speakerIds).toEqual([copy.speakers[0].id])
+    expect(copy.shots[0].lines[0].speakerIds).toEqual([copy.speakers[0].id])
   })
 
   it("refuses to branch a clip that is not there", async () => {
@@ -289,9 +287,8 @@ describe("clips router", () => {
         transition: null,
         lighting: null,
         soundNote: "",
-        beats: [{ assetId: null, text: "climbs" }],
         things: [],
-        dialogue: [],
+        lines: [action(null, "climbs")],
       })
     ).rejects.toThrow(expect.objectContaining({ message: expect.stringContaining("durationMs") }))
   })
@@ -309,9 +306,8 @@ describe("clips router", () => {
         transition: null,
         lighting: null,
         soundNote: "",
-        beats: [{ assetId: null, text: "climbs" }],
         things: [],
-        dialogue: [],
+        lines: [action(null, "climbs")],
       })
     ).rejects.toThrow(expect.objectContaining({ code: "BAD_REQUEST" }))
   })

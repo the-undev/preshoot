@@ -86,8 +86,11 @@ export type ShotComposition = ClipComposition["shots"][number]
 /** A voice in a clip. */
 export type SpeakerComposition = ClipComposition["speakers"][number]
 
-/** One spoken line in a shot. */
-export type DialogueLine = ShotComposition["dialogue"][number]
+/** One thing that happens in a shot, which is something done or something said. */
+export type LineComposition = ShotComposition["lines"][number]
+
+/** One line as the editor sends it back, which is a stored one without its id or its names. */
+export type LineInput = RouterInputs["clips"]["updateShot"]["lines"][number]
 
 /** The words the clip's target accepts, for the pickers in the editor. */
 export type Vocabularies = RouterOutputs["clips"]["vocabularies"]

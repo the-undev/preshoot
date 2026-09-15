@@ -20,8 +20,8 @@ export function clipReadiness(composition: ClipComposition): string[] {
   }
 
   const empty = composition.shots
-    .map((shot, index) => ({ number: index + 1, beats: shot.beats }))
-    .filter((shot) => !shot.beats.some((beat) => beat.text.trim().length > 0))
+    .map((shot, index) => ({ number: index + 1, lines: shot.lines }))
+    .filter((shot) => !shot.lines.some((line) => line.text.trim().length > 0))
   if (empty.length > 0) {
     const numbers = empty.map((shot) => shot.number).join(", ")
     missing.push(

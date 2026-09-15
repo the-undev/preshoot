@@ -210,9 +210,19 @@ describe("assets router", () => {
       transition: null,
       lighting: null,
       soundNote: "",
-      beats: [{ assetId: null, text: "climbs" }],
       things: [keeper.id],
-      dialogue: [],
+      lines: [
+        {
+          kind: "action",
+          assetId: null,
+          speakerIds: [],
+          text: "climbs",
+          language: null,
+          offScreen: false,
+          crossesCut: false,
+          cutOff: false,
+        },
+      ],
     })
 
     await expect(caller.assets.remove({ id: keeper.id })).rejects.toThrow(

@@ -74,9 +74,19 @@ describe("prompts router", () => {
         transition: null,
         lighting: null,
         soundNote: "",
-        beats: [{ assetId: null, text: `something happens in shot ${index + 1}` }],
         things: [],
-        dialogue: [],
+        lines: [
+          {
+            kind: "action",
+            assetId: null,
+            speakerIds: [],
+            text: `something happens in shot ${index + 1}`,
+            language: null,
+            offScreen: false,
+            crossesCut: false,
+            cutOff: false,
+          },
+        ],
       })
     }
     return clip.id

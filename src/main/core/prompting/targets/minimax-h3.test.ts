@@ -1,5 +1,28 @@
 import { describe, expect, it } from "vitest"
-import type { ClipComposition, ShotComposition } from "../../composition/clip"
+import type { ClipComposition, LineComposition, ShotComposition } from "../../composition/clip"
+
+let nextLineId = 1
+
+/** Something happening, done by a subject or by nobody in particular. */
+function action(text: string, subjectName: string | null = null): LineComposition {
+  return {
+    id: nextLineId++,
+    kind: "action",
+    assetId: null,
+    subjectName,
+    speakerIds: [],
+    text,
+    language: null,
+    offScreen: false,
+    crossesCut: false,
+    cutOff: false,
+  }
+}
+
+/** Something said, by the speakers given. */
+function speech(text: string, over: Partial<LineComposition> = {}): LineComposition {
+  return { ...action(text), kind: "speech", speakerIds: [7], ...over }
+}
 import { dialogueTag, formatCutTime, minimaxH3, renderH3Prompt } from "./minimax-h3"
 
 const fields = {
@@ -22,20 +45,10 @@ function shot(
     transition: null,
     lighting: null,
     things: [],
-    beats: [{ subjectName: null, text: `Something happens in shot ${id}` }],
-    dialogue: [],
+    lines: [action(`Something happens in shot ${id}`)],
     soundNote: "",
     ...over,
   }
-}
-
-const line = {
-  speakerIds: [7],
-  language: "English",
-  text: "Almost there.",
-  offScreen: false,
-  crossesCut: false,
-  cutOff: false,
 }
 
 const composition: ClipComposition = {
@@ -43,11 +56,12 @@ const composition: ClipComposition = {
   name: "Lighthouse",
   form: "t2v",
   shortEdge: 768,
-  aspectRatio: "auto",
+  aspectRatio: "16:9",
   frames: [],
   style: "Live-action, cinematic",
   note: "A keeper lights the lamp during a storm.",
   musicNote: "",
+  language: "English",
   speakers: [
     { id: 7, label: "S1", description: "The elderly keeper, low and weathered", subjectName: null },
   ],
@@ -60,13 +74,12 @@ const composition: ClipComposition = {
       things: [
         { id: 5, kind: "person", name: "Keeper", description: "an elderly man in oilskins" },
       ],
-      beats: [{ subjectName: null, text: "climbs the last steps of the tower" }],
-      dialogue: [line],
+      lines: [action("climbs the last steps of the tower"), speech("Almost there.")],
       soundNote: "wind battering the glass",
     }),
     shot(12, 3000, {
       transition: "the shot cuts to",
-      beats: [{ subjectName: null, text: "the lamp turns and catches" }],
+      lines: [action("the lamp turns and catches")],
     }),
   ],
 }
@@ -111,9 +124,9 @@ describe("what a shot says", () => {
     )
   })
 
-  it("names the subject a beat belongs to", () => {
+  it("names the subject a line belongs to", () => {
     const written = body({
-      shots: [shot(11, 4000, { beats: [{ subjectName: "Keeper", text: "reaches for the lamp" }] })],
+      shots: [shot(11, 4000, { lines: [action("reaches for the lamp", "Keeper")] })],
     })
 
     expect(written).toContain("Keeper reaches for the lamp.")
@@ -122,11 +135,31 @@ describe("what a shot says", () => {
   it("leaves out a camera move the shot does not name", () => {
     expect(body({ shots: [shot(11, 4000)] })).not.toContain("Camera:")
   })
+
+  it("keeps what happens and what is said in the order they were written", () => {
+    const written = body({
+      shots: [
+        shot(11, 4000, {
+          lines: [
+            action("the lamp turns"),
+            speech("Almost there."),
+            action("the beam sweeps the water"),
+          ],
+        }),
+      ],
+    })
+
+    const turns = written.indexOf("The lamp turns.")
+    const says = written.indexOf("says:")
+    const sweeps = written.indexOf("The beam sweeps the water.")
+    expect(turns).toBeLessThan(says)
+    expect(says).toBeLessThan(sweeps)
+  })
 })
 
 describe("what a line of dialogue says", () => {
-  function written(over: Partial<typeof line>): string {
-    return body({ shots: [shot(11, 4000, { dialogue: [{ ...line, ...over }] })] })
+  function written(over: Partial<LineComposition>): string {
+    return body({ shots: [shot(11, 4000, { lines: [speech("Almost there.", over)] })] })
   }
 
   it("gives a line two speakers share a compound id", () => {
@@ -135,10 +168,24 @@ describe("what a line of dialogue says", () => {
         ...composition.speakers,
         { id: 8, label: "S2", description: "The keeper's wife", subjectName: null },
       ],
-      shots: [shot(11, 4000, { dialogue: [{ ...line, speakerIds: [7, 8] }] })],
+      shots: [shot(11, 4000, { lines: [speech("Almost there.", { speakerIds: [7, 8] })] })],
     })
 
     expect(both).toContain("(S1,S2) says:")
+  })
+
+  it("speaks the clip's language unless the line names another", () => {
+    const clipLanguage = body({
+      language: "French",
+      shots: [shot(11, 4000, { lines: [speech("Presque.")] })],
+    })
+    const lineLanguage = body({
+      language: "French",
+      shots: [shot(11, 4000, { lines: [speech("Almost there.", { language: "English" })] })],
+    })
+
+    expect(clipLanguage).toContain(dialogueTag("French", "Presque."))
+    expect(lineLanguage).toContain(dialogueTag("English", "Almost there."))
   })
 
   it("writes the voiceover phrasing and the closed lips when a line is off screen", () => {

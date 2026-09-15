@@ -40,6 +40,8 @@ export const clips = sqliteTable("clips", {
   form: text("form").notNull().default("t2v"),
   shortEdge: integer("short_edge").notNull().default(768),
   aspectRatio: text("aspect_ratio").notNull().default("16:9"),
+  // What is spoken in this clip unless a line says otherwise, since most clips are in one language.
+  language: text("language").notNull().default("English"),
   // The saved clip this one was branched from, which a branch of a branch still points at. A plain
   // column rather than a key: a self-referencing key would be checked row by row on every insert.
   savedFromId: integer("saved_from_id"),
@@ -87,17 +89,29 @@ export const shots = sqliteTable("shots", {
 })
 
 /**
- * What happens in a shot, in order. A beat belongs to one of the shot's subjects, or to nobody
- * when it is about the scene rather than a person.
+ * What happens in a shot, in order: something someone does, or something someone says. Both are
+ * one list, because a shot reads as one run of events rather than as everything that happens and
+ * then everything that is said.
  */
-export const shotBeats = sqliteTable("shot_beats", {
+export const shotLines = sqliteTable("shot_lines", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   shotId: integer("shot_id")
     .notNull()
     .references(() => shots.id, { onDelete: "cascade" }),
-  assetId: integer("asset_id").references(() => assets.id, { onDelete: "set null" }),
   position: integer("position").notNull(),
+  // Either "action" or "speech", which decides which of the columns below carry anything.
+  kind: text("kind").notNull(),
+  // An action belongs to one of the shot's subjects, or to nobody when it is about the scene.
+  assetId: integer("asset_id").references(() => assets.id, { onDelete: "set null" }),
+  // Several speakers can share a line, which the target writes as a compound id such as (S1,S2).
+  speakerIds: text("speaker_ids", { mode: "json" }).$type<number[]>().notNull().default([]),
+  // Kept as typed, because the target reproduces what is said word for word.
   text: text("text").notNull(),
+  // Nothing unless this line is spoken in another language than the rest of the clip.
+  language: text("language"),
+  offScreen: integer("off_screen", { mode: "boolean" }).notNull().default(false),
+  crossesCut: integer("crosses_cut", { mode: "boolean" }).notNull().default(false),
+  cutOff: integer("cut_off", { mode: "boolean" }).notNull().default(false),
 })
 
 /** Which library things a shot shows. Restricted, so a thing in use cannot vanish under a clip. */
@@ -114,26 +128,6 @@ export const shotAssets = sqliteTable(
   },
   (table) => [primaryKey({ columns: [table.shotId, table.assetId] })]
 )
-
-/**
- * One spoken line, kept as typed because the target reproduces it word for word. Several speakers
- * can share a line, which the target writes as a compound id such as (S1,S2), so the speakers are
- * a list rather than a key. Nothing else in the schema points at speakers, so removing one has to
- * take itself out of these by hand.
- */
-export const dialogueLines = sqliteTable("dialogue_lines", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  shotId: integer("shot_id")
-    .notNull()
-    .references(() => shots.id, { onDelete: "cascade" }),
-  speakerIds: text("speaker_ids", { mode: "json" }).$type<number[]>().notNull().default([]),
-  position: integer("position").notNull(),
-  language: text("language").notNull(),
-  text: text("text").notNull(),
-  offScreen: integer("off_screen", { mode: "boolean" }).notNull().default(false),
-  crossesCut: integer("crosses_cut", { mode: "boolean" }).notNull().default(false),
-  cutOff: integer("cut_off", { mode: "boolean" }).notNull().default(false),
-})
 
 /**
  * The tabs open in the workspace, left to right. A tab with no clip shows the list of clips, so

@@ -16,16 +16,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@renderer/design-system"
-import type {
-  Asset,
-  DialogueLine,
-  ShotComposition,
-  SpeakerComposition,
-  Vocabularies,
-} from "@renderer/lib/trpc"
+import type { Asset, ShotComposition, SpeakerComposition, Vocabularies } from "@renderer/lib/trpc"
 import { Chip } from "./chip"
-import { ShotBeats } from "./shot-beats"
-import { ShotDialogue } from "./shot-dialogue"
+import { asLineInput } from "./line-input"
+import { ShotLines } from "./shot-lines"
 import type { ShotFields } from "./use-clip"
 
 /** Stands for "nothing chosen", since a picker cannot hold an empty value. */
@@ -74,11 +68,7 @@ export function ShotRow({
       lighting: shot.lighting,
       soundNote,
       things: shot.things.map((thing) => thing.id),
-      beats: shot.beats.map((beat) => ({
-        assetId: library.find((asset) => asset.name === beat.subjectName)?.id ?? null,
-        text: beat.text,
-      })),
-      dialogue: shot.dialogue,
+      lines: shot.lines.map(asLineInput),
       ...over,
     })
   }
@@ -238,17 +228,18 @@ export function ShotRow({
             <div className="flex items-center gap-1.5">
               <span className="text-sm font-medium">What happens</span>
               <FieldHelp label="what happens">
-                One thing at a time, in the order it happens. Each line says who it is about, or the
-                scene when it is about nobody in particular, and then what they do.
+                One thing at a time, in the order it happens, with what is said among it. Enter
+                makes the next line and backspace on an empty one takes it away.
               </FieldHelp>
             </div>
-            <ShotBeats
+            <ShotLines
               shotId={shot.id}
-              beats={shot.beats}
+              lines={shot.lines}
               subjects={library.filter((asset) =>
                 shot.things.some((thing) => thing.id === asset.id)
               )}
-              onChange={(beats) => commit({ beats })}
+              speakers={speakers}
+              onChange={(lines) => commit({ lines })}
             />
           </div>
 
@@ -267,16 +258,6 @@ export function ShotRow({
               onBlur={() => commit({ soundNote })}
             />
           </div>
-
-          <div className="flex flex-col gap-2">
-            <span className="text-sm font-medium">Dialogue</span>
-            <ShotDialogue
-              shotId={shot.id}
-              lines={shot.dialogue}
-              speakers={speakers}
-              onChange={(dialogue: DialogueLine[]) => commit({ dialogue })}
-            />
-          </div>
         </CollapsibleContent>
       </Collapsible>
     </article>
@@ -286,7 +267,7 @@ export function ShotRow({
 /** What a shot is, in one line, for when it is collapsed. */
 function summary(shot: ShotComposition): string {
   const seconds = `${(shot.durationMs / 1000).toFixed(1)}s`
-  const first = shot.beats.find((beat) => beat.text.trim().length > 0)?.text.trim()
+  const first = shot.lines.find((line) => line.text.trim().length > 0)?.text.trim()
   return [seconds, shot.cameraMotion, first].filter(Boolean).join(" · ")
 }
 

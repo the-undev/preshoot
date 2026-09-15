@@ -9,7 +9,7 @@ import {
   insertClip,
   insertShot,
   listClips,
-  setShotBeats,
+  setShotLines,
 } from "./clip-store"
 import {
   activateTab,
@@ -47,7 +47,18 @@ describe("tab store", () => {
       target: "minimax-h3",
       style: "Live-action",
     }).id
-    setShotBeats(handle.db, insertShot(handle.db, clipId), [{ assetId: null, text: beat }])
+    setShotLines(handle.db, insertShot(handle.db, clipId), [
+      {
+        kind: "action",
+        assetId: null,
+        speakerIds: [],
+        text: beat,
+        language: null,
+        offScreen: false,
+        crossesCut: false,
+        cutOff: false,
+      },
+    ])
     return clipId
   }
 
