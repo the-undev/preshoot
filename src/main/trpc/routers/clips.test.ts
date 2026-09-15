@@ -3,6 +3,7 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
 import type { LineInput } from "../../core/composition/clip-store"
+import { ClipHistory } from "../../core/composition/history"
 import { ProjectSession } from "../../core/projects/session"
 import { AppSettingsStore } from "../../core/settings/app-settings"
 import type { Context } from "../context"
@@ -39,6 +40,7 @@ describe("clips router", () => {
     const ctx: Context = {
       versions: { app: "0.0.0", electron: "0", chrome: "0", node: "0" },
       projects: session,
+      history: new ClipHistory(),
       settings: new AppSettingsStore(join(dir, "settings.json")),
       migrationsFolder,
       dialogs: {
@@ -476,6 +478,71 @@ describe("clips router", () => {
     await caller.clips.removeSavedShot({ shotId: saved.id })
 
     expect(await caller.clips.savedShots()).toEqual([])
+  })
+
+  it("puts a clip back the way it was before the last change", async () => {
+    const { clipId, shotId } = await clipWithShot()
+    await caller.clips.updateShot({
+      shotId,
+      durationMs: 4000,
+      cameraMotion: null,
+      amplitude: null,
+      speed: null,
+      transition: null,
+      lighting: null,
+      soundNote: "",
+      things: [],
+      lines: [action(null, "climbs the steps")],
+    })
+
+    expect((await caller.clips.reach({ clipId })).back).toBe(true)
+    const undone = await caller.clips.undo({ clipId })
+
+    expect(undone.shots[0].lines).toEqual([])
+  })
+
+  it("does an undone change again", async () => {
+    const { clipId, shotId } = await clipWithShot()
+    await caller.clips.updateShot({
+      shotId,
+      durationMs: 4000,
+      cameraMotion: null,
+      amplitude: null,
+      speed: null,
+      transition: null,
+      lighting: null,
+      soundNote: "",
+      things: [],
+      lines: [action(null, "climbs the steps")],
+    })
+    await caller.clips.undo({ clipId })
+
+    const redone = await caller.clips.redo({ clipId })
+
+    expect(redone.shots[0].lines[0].text).toBe("climbs the steps")
+  })
+
+  it("puts the cast back with the clip", async () => {
+    const clip = await caller.clips.create()
+    const added = await caller.clips.addSubject({
+      clipId: clip.id,
+      savedId: null,
+      kind: "person",
+      name: "Keeper",
+      description: "an elderly man",
+    })
+    await caller.clips.removeSubject({ subjectId: added.cast[0].id })
+
+    const undone = await caller.clips.undo({ clipId: clip.id })
+
+    expect(undone.cast.map((subject) => subject.name)).toEqual(["Keeper"])
+  })
+
+  it("does nothing when there is nothing to go back to", async () => {
+    const clip = await caller.clips.create()
+
+    expect(await caller.clips.reach({ clipId: clip.id })).toEqual({ back: false, forward: false })
+    await expect(caller.clips.undo({ clipId: clip.id })).resolves.toBeDefined()
   })
 
   it("refuses a clip that is not there", async () => {

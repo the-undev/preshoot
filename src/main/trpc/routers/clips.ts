@@ -26,6 +26,7 @@ import {
   moveShot,
   readClip,
   readComposition,
+  restoreComposition,
   saveClip,
   setShotLines,
   setShotThings,
@@ -143,8 +144,10 @@ export const clipsRouter = router({
       })
     )
     .mutation(({ ctx, input }) => {
+      const db = requireProject(ctx)
       try {
-        return updateClip(requireProject(ctx), input)
+        ctx.history.remember(input.id, readComposition(db, input.id))
+        return updateClip(db, input)
       } catch (error) {
         asClientError(error)
       }
@@ -155,6 +158,7 @@ export const clipsRouter = router({
     const project = requireOpenProject(ctx)
     try {
       deleteClip(project.db, project.directory, input.id)
+      ctx.history.forget(input.id)
       return { id: input.id }
     } catch (error) {
       asClientError(error)
@@ -207,6 +211,7 @@ export const clipsRouter = router({
     .mutation(({ ctx, input }) => {
       const db = requireProject(ctx)
       try {
+        ctx.history.remember(input.clipId, readComposition(db, input.clipId))
         if (input.imageId === null) {
           clearClipFrame(db, { clipId: input.clipId, role: input.role })
         } else {
@@ -222,6 +227,7 @@ export const clipsRouter = router({
   addShot: publicProcedure.input(z.object({ clipId })).mutation(({ ctx, input }) => {
     const db = requireProject(ctx)
     try {
+      ctx.history.remember(input.clipId, readComposition(db, input.clipId))
       insertShot(db, input.clipId)
       return readComposition(db, input.clipId)
     } catch (error) {
@@ -234,6 +240,7 @@ export const clipsRouter = router({
     const db = requireProject(ctx)
     try {
       const id = clipIdOfShot(db, input.shotId)
+      ctx.history.remember(id, readComposition(db, id))
       const { vocabularies } = targetOfClip(db, id)
       updateShot(db, {
         id: input.shotId,
@@ -276,8 +283,40 @@ export const clipsRouter = router({
     const db = requireProject(ctx)
     try {
       const id = clipIdOfShot(db, input.shotId)
+      ctx.history.remember(id, readComposition(db, id))
       deleteShot(db, input.shotId)
       return readComposition(db, id)
+    } catch (error) {
+      asClientError(error)
+    }
+  }),
+
+  /** Whether there is anything to go back to or forward to in this clip. */
+  reach: publicProcedure
+    .input(z.object({ clipId }))
+    .query(({ ctx, input }) => ctx.history.reach(input.clipId)),
+
+  /** Puts the clip back the way it was before the last change. */
+  undo: publicProcedure.input(z.object({ clipId })).mutation(({ ctx, input }) => {
+    const db = requireProject(ctx)
+    try {
+      const now = readComposition(db, input.clipId)
+      const previous = ctx.history.back(input.clipId, now)
+      if (previous) restoreComposition(db, previous)
+      return readComposition(db, input.clipId)
+    } catch (error) {
+      asClientError(error)
+    }
+  }),
+
+  /** Puts back a change that was undone. */
+  redo: publicProcedure.input(z.object({ clipId })).mutation(({ ctx, input }) => {
+    const db = requireProject(ctx)
+    try {
+      const now = readComposition(db, input.clipId)
+      const next = ctx.history.forward(input.clipId, now)
+      if (next) restoreComposition(db, next)
+      return readComposition(db, input.clipId)
     } catch (error) {
       asClientError(error)
     }
@@ -303,6 +342,7 @@ export const clipsRouter = router({
     .mutation(({ ctx, input }) => {
       const db = requireProject(ctx)
       try {
+        ctx.history.remember(input.clipId, readComposition(db, input.clipId))
         addSavedShot(db, input.clipId, input.savedShotId)
         return readComposition(db, input.clipId)
       } catch (error) {
@@ -334,6 +374,7 @@ export const clipsRouter = router({
     .mutation(({ ctx, input }) => {
       const db = requireProject(ctx)
       try {
+        ctx.history.remember(input.clipId, readComposition(db, input.clipId))
         if (input.savedId === null) {
           insertAsset(db, {
             clipId: input.clipId,
@@ -379,6 +420,7 @@ export const clipsRouter = router({
       const project = requireOpenProject(ctx)
       try {
         const id = clipIdOfSubject(project.db, input.subjectId)
+        ctx.history.remember(id, readComposition(project.db, id))
         deleteAsset(project.db, project.directory, input.subjectId)
         return readComposition(project.db, id)
       } catch (error) {

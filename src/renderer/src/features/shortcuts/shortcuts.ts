@@ -15,6 +15,8 @@ export const SHORTCUTS = [
   { id: "saveClip", keys: "ctrl+s", group: "Clips", label: "Save this clip" },
   { id: "branchClip", keys: "ctrl+d", group: "Clips", label: "Branch this clip into a new tab" },
   { id: "clipSettings", keys: "ctrl+,", group: "Clips", label: "What this clip is generated at" },
+  { id: "undo", keys: "ctrl+z", group: "Clips", label: "Undo the last change to this clip" },
+  { id: "redo", keys: "ctrl+shift+z", group: "Clips", label: "Do it again" },
   { id: "addShot", keys: "ctrl+shift+n", group: "Clips", label: "Add a shot" },
   { id: "copyPrompt", keys: "ctrl+shift+c", group: "Clips", label: "Copy the prompt" },
   { id: "showShortcuts", keys: "?", group: "Help", label: "Show the keyboard shortcuts" },

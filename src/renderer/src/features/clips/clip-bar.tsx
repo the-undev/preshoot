@@ -1,4 +1,4 @@
-import { Copy, Pencil, Save, SlidersHorizontal } from "lucide-react"
+import { Copy, Pencil, Redo2, Save, SlidersHorizontal, Undo2 } from "lucide-react"
 import { Button } from "@renderer/design-system"
 import type { AspectRatio, ClipComposition, OpenTab } from "@renderer/lib/trpc"
 import { pixelSize } from "./resolution"
@@ -29,6 +29,10 @@ interface ClipBarProps {
   composition: ClipComposition
   aspectRatios: AspectRatio[]
   isSaving: boolean
+  canUndo: boolean
+  canRedo: boolean
+  onUndo: () => void
+  onRedo: () => void
   onSave: () => void
   onBranch: () => void
   onSettings: () => void
@@ -43,6 +47,10 @@ export function ClipBar({
   composition,
   aspectRatios,
   isSaving,
+  canUndo,
+  canRedo,
+  onUndo,
+  onRedo,
   onSave,
   onBranch,
   onSettings,
@@ -89,6 +97,29 @@ export function ClipBar({
       </div>
 
       <div className="flex shrink-0 items-center gap-1">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="size-8"
+          aria-label="Undo"
+          title="Undo the last change (Ctrl Z)"
+          disabled={!canUndo}
+          onClick={onUndo}
+        >
+          <Undo2 className="size-4" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="size-8"
+          aria-label="Redo"
+          title="Do it again (Ctrl Shift Z)"
+          disabled={!canRedo}
+          onClick={onRedo}
+        >
+          <Redo2 className="size-4" />
+        </Button>
+
         <Button
           variant="ghost"
           size="sm"

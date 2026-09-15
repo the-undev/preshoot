@@ -3,6 +3,7 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
 import type { DescribeRequest, LlamaServerClient } from "../../core/prompting/llama-server-client"
+import { ClipHistory } from "../../core/composition/history"
 import { ProjectSession } from "../../core/projects/session"
 import { AppSettingsStore } from "../../core/settings/app-settings"
 import type { Context } from "../context"
@@ -25,6 +26,7 @@ describe("assets router", () => {
     const ctx: Context = {
       versions: { app: "0.0.0", electron: "0", chrome: "0", node: "0" },
       projects: session,
+      history: new ClipHistory(),
       settings: new AppSettingsStore(join(dir, "settings.json")),
       migrationsFolder,
       dialogs: {

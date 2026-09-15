@@ -30,15 +30,14 @@ says so.
   to come out the same. The request takes one; nothing holds it.
 - The language of a clip is free text rather than a picklist, and so is the
   override on a line.
-- The shot editor saves as it is changed, so there is no undo.
-- Closing the tab of a clip that was never saved throws the clip away. There
-  is no undo and no reopening of a closed tab, only the question asked first.
+- Undo is per clip and lasts as long as the app runs. Closing the project and
+  opening it again starts from nothing to go back to.
+- Closing the tab of a clip that was never saved throws the clip away. The app
+  asks first, and Ctrl Shift T only brings back a clip that was saved.
 - The save dialog offers no file type filter, and appends nothing when a
   name is typed without an extension.
 - Streaming tokens to the renderer as they arrive needs a subscription link
   over the `trpc://` scheme, which nothing implements yet.
-- A tab can be moved only by closing it and opening the clip again, since
-  nothing reorders them.
 
 ## What the prompt still gets wrong
 
@@ -74,18 +73,16 @@ wrong here is wrong every time rather than some of the time.
   said. It has to be removed and written again as the other kind.
 - The library screen puts the form on the left and the list on the right,
   which reads backwards: you pick from the list, then edit.
+- A saved shot keeps a copy of the subjects it showed. Two saved shots of the
+  same person hold two copies of them, and editing one leaves the other.
 - A library thing cannot be added without leaving the clip that needs it.
 - The prompt that describes a picture is a constant in the code, so it cannot
   be tuned without an edit and a rebuild.
-- A drafted description replaces whatever is in the box. There is no way to
-  keep both and choose.
-- A picture is shown at whatever size it was imported at, so a large one is
-  read into the page in full to be drawn as a thumbnail.
+- A thumbnail is resized on every request rather than kept, so scrolling a
+  library of large pictures does the work again each time.
 - Image editing (Qwen Image Edit) as a shot type that edits a library image.
 - Saving a branch always makes a new saved clip. There is no way to write one
   back over the clip it came from.
-- The tab bar scrolls sideways once there are more tabs than fit, with nothing
-  to say that tabs are off screen.
 
 ## Environment and tooling
 
@@ -105,11 +102,10 @@ wrong here is wrong every time rather than some of the time.
   SQLite ignores the pragma there. The keys are turned off around the whole
   migration in `openProjectDatabase` instead, and turned back on after.
 
-- Nothing exercises the main process's start-up. Registering a second
-  scheme broke every request the renderer makes and no test noticed, because
-  the window, the protocol handlers and the context are wired together in
-  `index.ts` where nothing can reach them. The menu the app now sets is in the
-  same place and is untested for the same reason.
+- The window, the protocol handlers and the context are still wired together in
+  `index.ts`, where nothing can reach them, so nothing exercises start-up
+  itself. The two things that once broke it are now data in modules of their
+  own and are covered: the list of schemes, and the menu the app sets.
 
 - The multimodal projector has to stay off the GPU on this card. Loaded onto
   it, an image encode aborted inside CUDA while another model held VRAM.

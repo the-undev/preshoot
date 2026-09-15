@@ -3,6 +3,7 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { PROJECT_MARKER_FILENAME } from "../../core/projects/marker"
+import { ClipHistory } from "../../core/composition/history"
 import { ProjectSession } from "../../core/projects/session"
 import { AppSettingsStore } from "../../core/settings/app-settings"
 import type { Context, Dialogs } from "../context"
@@ -23,6 +24,7 @@ describe("projects router", () => {
     const ctx: Context = {
       versions: { app: "0.0.0", electron: "0", chrome: "0", node: "0" },
       projects: session,
+      history: new ClipHistory(),
       settings: new AppSettingsStore(join(dir, "settings.json")),
       migrationsFolder,
       dialogs: {

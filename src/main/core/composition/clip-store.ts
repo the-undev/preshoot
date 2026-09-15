@@ -701,3 +701,82 @@ function copySubjects(tx: ProjectDb, shotId: number, toClipId: number | null): M
   }
   return copies
 }
+
+/**
+ * Puts a clip back the way `composition` had it: its own fields, its cast, its shots and what
+ * happens in them. Everything is written again rather than compared, since a clip is small and a
+ * step back has to land exactly where it was.
+ */
+export function restoreComposition(db: ProjectDatabase, composition: ClipComposition): void {
+  db.transaction((tx) => {
+    tx.update(schema.clips)
+      .set({
+        name: composition.name,
+        style: composition.style,
+        note: composition.note,
+        musicNote: composition.musicNote,
+        language: composition.language,
+        form: composition.form,
+        shortEdge: composition.shortEdge,
+        aspectRatio: composition.aspectRatio,
+      })
+      .where(eq(schema.clips.id, composition.id))
+      .run()
+
+    // The ids are kept, so the lines and the shots that name a subject still find it.
+    tx.delete(schema.assets).where(eq(schema.assets.clipId, composition.id)).run()
+    for (const subject of composition.cast) {
+      tx.insert(schema.assets)
+        .values({ ...subject, clipId: composition.id, createdAt: new Date() })
+        .run()
+    }
+
+    tx.delete(schema.shots).where(eq(schema.shots.clipId, composition.id)).run()
+    composition.shots.forEach((shot, position) => {
+      tx.insert(schema.shots)
+        .values({
+          id: shot.id,
+          clipId: composition.id,
+          name: null,
+          position,
+          durationMs: shot.durationMs,
+          cameraMotion: shot.cameraMotion,
+          amplitude: shot.amplitude,
+          speed: shot.speed,
+          transition: shot.transition,
+          lighting: shot.lighting,
+          soundNote: shot.soundNote,
+        })
+        .run()
+
+      shot.things.forEach((thing, at) => {
+        tx.insert(schema.shotAssets)
+          .values({ shotId: shot.id, assetId: thing.id, position: at })
+          .run()
+      })
+      shot.lines.forEach((line, at) => {
+        tx.insert(schema.shotLines)
+          .values({
+            id: line.id,
+            shotId: shot.id,
+            position: at,
+            kind: line.kind,
+            subjectIds: line.subjectIds,
+            text: line.text,
+            language: line.language,
+            offScreen: line.offScreen,
+            crossesCut: line.crossesCut,
+            cutOff: line.cutOff,
+          })
+          .run()
+      })
+    })
+
+    tx.delete(schema.clipFrames).where(eq(schema.clipFrames.clipId, composition.id)).run()
+    for (const frame of composition.frames) {
+      tx.insert(schema.clipFrames)
+        .values({ clipId: composition.id, imageId: frame.imageId, role: frame.role })
+        .run()
+    }
+  })
+}

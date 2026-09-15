@@ -156,6 +156,8 @@ function OpenClip({ clipId, tab, onBranched }: OpenClipProps): React.JSX.Element
     saveClip: () => setNaming(true),
     branchClip: () => clip.branch(onBranched),
     clipSettings: () => setSettingsOpen(true),
+    undo: clip.undo,
+    redo: clip.redo,
   })
 
   if (!clip.composition || !clip.vocabularies) {
@@ -178,6 +180,10 @@ function OpenClip({ clipId, tab, onBranched }: OpenClipProps): React.JSX.Element
         composition={clip.composition}
         aspectRatios={shapes.data ?? []}
         isSaving={clip.isSaving}
+        canUndo={clip.canUndo}
+        canRedo={clip.canRedo}
+        onUndo={clip.undo}
+        onRedo={clip.redo}
         onSave={() => setNaming(true)}
         onBranch={() => clip.branch(onBranched)}
         onSettings={() => setSettingsOpen(true)}

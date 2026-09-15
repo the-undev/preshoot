@@ -43,6 +43,10 @@ export interface ClipPanel {
   isSaving: boolean
   errorMessage: string | null
   updateClip(fields: ClipFields): void
+  undo(): void
+  redo(): void
+  canUndo: boolean
+  canRedo: boolean
   save(name: string): void
   branch(opened: (clipId: number) => void): void
   isSaved: boolean
@@ -72,11 +76,14 @@ export function useClip(clipId: number): ClipPanel {
   const composition = useQuery(compositionOptions)
   const vocabularies = useQuery(trpc.clips.vocabularies.queryOptions({ clipId }))
   const prompt = useQuery(promptOptions)
+  const reachOptions = trpc.clips.reach.queryOptions({ clipId })
+  const reach = useQuery(reachOptions)
 
-  // Every change rewrites the prompt, so the panel beside the editor never shows a stale one.
+  // Every change rewrites the prompt and what there is to go back to, so neither goes stale.
   const replace = async (next: ClipComposition): Promise<void> => {
     queryClient.setQueryData(compositionOptions.queryKey, next)
     await queryClient.invalidateQueries({ queryKey: promptOptions.queryKey })
+    await queryClient.invalidateQueries({ queryKey: reachOptions.queryKey })
   }
 
   const composed = { onSuccess: replace }
@@ -96,6 +103,8 @@ export function useClip(clipId: number): ClipPanel {
   const addSubject = useMutation(trpc.clips.addSubject.mutationOptions(composed))
   const updateSubject = useMutation(trpc.clips.updateSubject.mutationOptions(composed))
   const removeSubject = useMutation(trpc.clips.removeSubject.mutationOptions(composed))
+  const undo = useMutation(trpc.clips.undo.mutationOptions(composed))
+  const redo = useMutation(trpc.clips.redo.mutationOptions(composed))
   const saveSubject = useMutation(
     trpc.assets.save.mutationOptions({
       onSuccess: async () => {
@@ -128,6 +137,8 @@ export function useClip(clipId: number): ClipPanel {
     removeSubject,
     saveSubject,
     updateClip,
+    undo,
+    redo,
     save,
     branch,
   ]
@@ -140,6 +151,10 @@ export function useClip(clipId: number): ClipPanel {
     // The message from main already says what the user can do about it.
     errorMessage: writes.map((write) => write.error?.message).find(Boolean) ?? null,
     updateClip: (fields) => updateClip.mutate({ id: clipId, ...fields }),
+    undo: () => undo.mutate({ clipId }),
+    redo: () => redo.mutate({ clipId }),
+    canUndo: reach.data?.back ?? false,
+    canRedo: reach.data?.forward ?? false,
     save: (name) => save.mutate({ id: clipId, name }),
     branch: (opened) => branch.mutate({ id: clipId }, { onSuccess: (copy) => opened(copy.id) }),
     isSaved: (composition.data?.name ?? null) !== null,
