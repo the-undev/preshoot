@@ -23,8 +23,7 @@ const composition: ClipComposition = {
   name: "Lighthouse",
   form: "t2v",
   shortEdge: 768,
-  aspectRatio: "auto",
-  seed: 0,
+  aspectRatio: "16:9",
   frames: [],
   style: "Live-action, cinematic",
   note: "",
@@ -35,33 +34,27 @@ const composition: ClipComposition = {
 
 describe("clipReadiness", () => {
   it("says nothing about a clip that is ready", () => {
-    expect(clipReadiness(composition, true)).toEqual([])
-  })
-
-  it("asks for a model", () => {
-    expect(clipReadiness(composition, false)).toEqual([
-      "No model chosen. Settings hold one model for the whole app.",
-    ])
+    expect(clipReadiness(composition)).toEqual([])
   })
 
   it("asks for a shot", () => {
-    expect(clipReadiness({ ...composition, shots: [] }, true)).toEqual(["This clip has no shots."])
+    expect(clipReadiness({ ...composition, shots: [] })).toEqual(["This clip has no shots."])
   })
 
   it("names the one shot with nothing happening in it", () => {
-    expect(clipReadiness({ ...composition, shots: [shot(11, "  ")] }, true)).toEqual([
+    expect(clipReadiness({ ...composition, shots: [shot(11, "  ")] })).toEqual([
       "Shot 1 has nothing happening in it.",
     ])
   })
 
   it("names several empty shots together", () => {
     expect(
-      clipReadiness({ ...composition, shots: [shot(11, ""), shot(12, "a"), shot(13, "")] }, true)
+      clipReadiness({ ...composition, shots: [shot(11, ""), shot(12, "a"), shot(13, "")] })
     ).toEqual(["Shots 1, 3 have nothing happening in them."])
   })
 
   it("asks for the pictures the form anchors to", () => {
-    expect(clipReadiness({ ...composition, form: "fl2v" }, true)).toEqual([
+    expect(clipReadiness({ ...composition, form: "fl2v" })).toEqual([
       "Choose the picture this clip opens on.",
       "Choose the picture this clip ends on.",
     ])
@@ -82,6 +75,6 @@ describe("clipReadiness", () => {
       ],
     }
 
-    expect(clipReadiness(withFirst, true)).toEqual(["Choose the picture this clip ends on."])
+    expect(clipReadiness(withFirst)).toEqual(["Choose the picture this clip ends on."])
   })
 })

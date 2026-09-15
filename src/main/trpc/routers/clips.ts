@@ -3,6 +3,7 @@ import { z } from "zod"
 import { ASPECT_RATIOS } from "../../core/composition/aspect"
 import { CLIP_FORMS, type ClipForm } from "../../core/composition/clip"
 import {
+  branchClip,
   clearClipFrame,
   clipIdOfShot,
   clipIdOfSpeaker,
@@ -16,6 +17,7 @@ import {
   moveShot,
   readClip,
   readComposition,
+  saveClip,
   setShotBeats,
   setShotDialogue,
   setShotThings,
@@ -25,6 +27,7 @@ import {
   updateSpeaker,
 } from "../../core/composition/clip-store"
 import type { ProjectDatabase } from "../../core/db"
+import { composeClip } from "../../core/prompting/compose"
 import type { PromptTarget } from "../../core/prompting/target"
 import { DEFAULT_TARGET_ID, targetById } from "../../core/prompting/targets"
 import { asClientError } from "../client-errors"
@@ -86,22 +89,36 @@ function fromVocabulary(
 }
 
 export const clipsRouter = router({
-  /** The project's clips, newest first. */
+  /** The project's saved clips, newest first. */
   list: publicProcedure.query(({ ctx }) => listClips(requireProject(ctx))),
 
-  /** Starts a clip with no shots. */
-  create: publicProcedure
-    .input(z.object({ name: z.string().trim().min(1) }))
+  /** Starts a scratch clip, which has no name until it is saved. */
+  create: publicProcedure.mutation(({ ctx }) => {
+    const db = requireProject(ctx)
+    // Every clip needs a shot, so it starts with one rather than with a button to add one.
+    const clip = insertClip(db, { name: null, target: DEFAULT_TARGET_ID, style: DEFAULT_STYLE })
+    insertShot(db, clip.id)
+    return readClip(db, clip.id)
+  }),
+
+  /** Copies a clip into a new scratch one, leaving the clip it came from alone. */
+  branch: publicProcedure.input(z.object({ id: clipId })).mutation(({ ctx, input }) => {
+    try {
+      return branchClip(requireProject(ctx), input.id)
+    } catch (error) {
+      asClientError(error)
+    }
+  }),
+
+  /** Saves a clip under a name, which is what puts it in the project's list. */
+  save: publicProcedure
+    .input(z.object({ id: clipId, name: z.string().trim().min(1) }))
     .mutation(({ ctx, input }) => {
-      const db = requireProject(ctx)
-      // Every clip needs a shot, so it starts with one rather than with a button to add one.
-      const clip = insertClip(db, {
-        name: input.name,
-        target: DEFAULT_TARGET_ID,
-        style: DEFAULT_STYLE,
-      })
-      insertShot(db, clip.id)
-      return readClip(db, clip.id)
+      try {
+        return saveClip(requireProject(ctx), input.id, input.name)
+      } catch (error) {
+        asClientError(error)
+      }
     }),
 
   /** Rewrites the clip's own fields. */
@@ -109,14 +126,12 @@ export const clipsRouter = router({
     .input(
       z.object({
         id: clipId,
-        name: z.string(),
         style: z.string(),
         note: z.string(),
         musicNote: z.string(),
         form: z.enum(CLIP_FORMS as [ClipForm, ...ClipForm[]]),
         shortEdge: z.number().int().min(128).max(4096),
         aspectRatio: z.enum(ASPECT_RATIOS.map((entry) => entry.value) as [string, ...string[]]),
-        seed: z.number().int().min(0),
       })
     )
     .mutation(({ ctx, input }) => {
@@ -127,10 +142,11 @@ export const clipsRouter = router({
       }
     }),
 
-  /** Removes a clip and everything under it, saying how many prompts went with it. */
+  /** Removes a clip and everything under it. */
   remove: publicProcedure.input(z.object({ id: clipId })).mutation(({ ctx, input }) => {
     try {
-      return { prompts: deleteClip(requireProject(ctx), input.id) }
+      deleteClip(requireProject(ctx), input.id)
+      return { id: input.id }
     } catch (error) {
       asClientError(error)
     }
@@ -140,6 +156,19 @@ export const clipsRouter = router({
   composition: publicProcedure.input(z.object({ clipId })).query(({ ctx, input }) => {
     try {
       return readComposition(requireProject(ctx), input.clipId)
+    } catch (error) {
+      asClientError(error)
+    }
+  }),
+
+  /**
+   * The prompt this clip makes. Writing it calls no model, so it is read back after every change
+   * rather than produced on demand.
+   */
+  prompt: publicProcedure.input(z.object({ clipId })).query(({ ctx, input }) => {
+    try {
+      const db = requireProject(ctx)
+      return composeClip(readComposition(db, input.clipId), targetOfClip(db, input.clipId))
     } catch (error) {
       asClientError(error)
     }

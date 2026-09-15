@@ -33,8 +33,7 @@ const composition: ClipComposition = {
   name: "Lighthouse",
   form: "t2v",
   shortEdge: 768,
-  aspectRatio: "auto",
-  seed: 0,
+  aspectRatio: "16:9",
   frames: [],
   style: "Live-action, cinematic",
   note: "A keeper lights the lamp.",
@@ -44,11 +43,9 @@ const composition: ClipComposition = {
 }
 
 function renderEditor(over: Partial<React.ComponentProps<typeof ClipEditor>> = {}): {
-  onGenerate: ReturnType<typeof vi.fn>
   onClipChange: ReturnType<typeof vi.fn>
   onAddShot: ReturnType<typeof vi.fn>
 } {
-  const onGenerate = vi.fn()
   const onClipChange = vi.fn()
   const onAddShot = vi.fn()
   render(
@@ -58,29 +55,11 @@ function renderEditor(over: Partial<React.ComponentProps<typeof ClipEditor>> = {
       library={[]}
       libraryImages={[]}
       aspectRatios={[
-        { value: "auto", name: "Whatever suits (auto)" },
-        { value: "16:9", name: "Landscape 16:9" },
+        { value: "16:9", name: "Widescreen", width: 16, height: 9 },
+        { value: "1:1", name: "Square", width: 1, height: 1 },
+        { value: "9:16", name: "Widescreen", width: 9, height: 16 },
       ]}
-      composers={[
-        { id: "prose", name: "Model prose per shot" },
-        { id: "assembled", name: "Assembled without the model" },
-      ]}
-      composerId="prose"
-      variants={[
-        {
-          id: "builtin:minimax-h3:prose",
-          targetId: "minimax-h3",
-          strategy: "prose",
-          name: "Built-in, prose per shot",
-          systemPrompt: "You write the prose of each shot.",
-          editable: false,
-        },
-      ]}
-      variantId={null}
       isSaving={false}
-      isGenerating={false}
-      hasModel={true}
-      canRegenerate={false}
       onClipChange={onClipChange}
       onAddShot={onAddShot}
       onShotChange={vi.fn()}
@@ -89,26 +68,27 @@ function renderEditor(over: Partial<React.ComponentProps<typeof ClipEditor>> = {
       onAddSpeaker={vi.fn()}
       onUpdateSpeaker={vi.fn()}
       onRemoveSpeaker={vi.fn()}
-      onChooseComposer={vi.fn()}
-      onChooseVariant={vi.fn()}
       onSetFrame={vi.fn()}
-      onOpenSettings={vi.fn()}
       onAddPeople={vi.fn()}
-      onGenerate={onGenerate}
-      onRegenerateShot={vi.fn()}
       {...over}
     />
   )
-  return { onGenerate, onClipChange, onAddShot }
+  return { onClipChange, onAddShot }
 }
 
 describe("ClipEditor", () => {
   it("shows the clip's own fields", () => {
     renderEditor()
 
-    expect(screen.getByLabelText("Clip")).toHaveValue("Lighthouse")
     expect(screen.getByLabelText("Style")).toHaveValue("Live-action, cinematic")
-    expect(screen.getByLabelText("What this clip is")).toHaveValue("A keeper lights the lamp.")
+    expect(screen.getByLabelText("Note")).toHaveValue("A keeper lights the lamp.")
+  })
+
+  it("explains a field rather than showing an example inside it", () => {
+    renderEditor()
+
+    expect(screen.getByLabelText("Note")).not.toHaveAttribute("placeholder")
+    expect(screen.getByRole("button", { name: "What the note is for" })).toBeInTheDocument()
   })
 
   it("adds up the shots", () => {
@@ -132,16 +112,14 @@ describe("ClipEditor", () => {
     expect(screen.getByText("Shot 2")).toBeInTheDocument()
   })
 
-  it("reports the clip's name once the field is left", () => {
+  it("reports the style once the field is left", () => {
     const { onClipChange } = renderEditor()
 
-    const name = screen.getByLabelText("Clip")
-    fireEvent.change(name, { target: { value: "Lamp room" } })
-    fireEvent.blur(name)
+    const style = screen.getByLabelText("Style")
+    fireEvent.change(style, { target: { value: "vintage film" } })
+    fireEvent.blur(style)
 
-    expect(onClipChange).toHaveBeenCalledWith(
-      expect.objectContaining({ name: "Lamp room", style: "Live-action, cinematic" })
-    )
+    expect(onClipChange).toHaveBeenCalledWith(expect.objectContaining({ style: "vintage film" }))
   })
 
   it("asks for another shot", () => {
@@ -152,25 +130,7 @@ describe("ClipEditor", () => {
     expect(onAddShot).toHaveBeenCalled()
   })
 
-  it("writes the clip the chosen way", () => {
-    const { onGenerate } = renderEditor()
-
-    expect(screen.getByLabelText("Written by")).toHaveTextContent("Model prose per shot")
-    fireEvent.click(screen.getByRole("button", { name: "Generate" }))
-
-    expect(onGenerate).toHaveBeenCalled()
-  })
-
-  it("says so when no model has been chosen", () => {
-    renderEditor({ hasModel: false })
-
-    expect(
-      screen.getByText("No model chosen. Settings hold one model for the whole app.")
-    ).toBeInTheDocument()
-    expect(screen.getByRole("button", { name: "Open settings" })).toBeInTheDocument()
-  })
-
-  it("names a shot with nothing happening in it before Generate is pressed", () => {
+  it("names a shot with nothing happening in it", () => {
     renderEditor({
       composition: {
         ...composition,
@@ -181,50 +141,17 @@ describe("ClipEditor", () => {
     expect(screen.getByText("Shot 1 has nothing happening in it.")).toBeInTheDocument()
   })
 
-  it("writes the clip on ctrl and enter", () => {
-    const { onGenerate } = renderEditor()
-
-    fireEvent.keyDown(screen.getByLabelText("Clip"), { key: "Enter", ctrlKey: true })
-
-    expect(onGenerate).toHaveBeenCalled()
-  })
-
   it("says what kind of generation the clip is for", () => {
     renderEditor()
 
     expect(screen.getByLabelText("Generation type")).toHaveTextContent("Text to video (t2va)")
   })
 
-  it("holds the shape, the short edge and the seed it is generated at", () => {
-    renderEditor({
-      composition: { ...composition, aspectRatio: "16:9", shortEdge: 1080, seed: 42 },
-    })
+  it("shows the resolution it is generated at", () => {
+    renderEditor({ composition: { ...composition, aspectRatio: "16:9", shortEdge: 1080 } })
 
-    expect(screen.getByLabelText("Shape")).toHaveTextContent("Landscape 16:9")
-    expect(screen.getByLabelText("Short edge")).toHaveValue(1080)
-    expect(screen.getByLabelText("Seed")).toHaveValue(42)
-  })
-
-  it("keeps the short edge it had when the box is emptied", () => {
-    const { onClipChange } = renderEditor()
-
-    const edge = screen.getByLabelText("Short edge")
-    fireEvent.change(edge, { target: { value: "" } })
-    fireEvent.blur(edge)
-
-    expect(onClipChange).not.toHaveBeenCalled()
-    expect(edge).toHaveValue(768)
-  })
-
-  it("says what auto will do, which depends on the generation type", () => {
-    renderEditor()
-    expect(screen.getByText("The model chooses the shape.")).toBeInTheDocument()
-  })
-
-  it("says auto follows the picture when the clip has one", () => {
-    renderEditor({ composition: { ...composition, form: "i2v" } })
-
-    expect(screen.getByText("The shape follows the reference picture.")).toBeInTheDocument()
+    expect(screen.getByRole("radio", { name: "16:9 Widescreen" })).toBeChecked()
+    expect(screen.getByText("1920 × 1080")).toBeInTheDocument()
   })
 
   it("asks for a picture when the form needs one", () => {
@@ -241,9 +168,9 @@ describe("ClipEditor", () => {
     expect(screen.getByLabelText("Generation type")).toHaveTextContent("Text to video")
   })
 
-  it("will not write a clip with no shots", () => {
+  it("says a clip with no shots cannot be written yet", () => {
     renderEditor({ composition: { ...composition, shots: [] } })
 
-    expect(screen.getByRole("button", { name: "Generate" })).toBeDisabled()
+    expect(screen.getByText("This clip has no shots.")).toBeInTheDocument()
   })
 })

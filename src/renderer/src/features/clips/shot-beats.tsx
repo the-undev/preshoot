@@ -102,7 +102,6 @@ export function ShotBeats({
           <Input
             className="min-w-40 flex-1"
             aria-label={`Beat ${index + 1} of shot ${shotId}`}
-            placeholder="climbs the last steps and reaches for the lamp"
             value={beat.text}
             onChange={(event) => replace(index, { ...beat, text: event.target.value })}
             onBlur={commit}

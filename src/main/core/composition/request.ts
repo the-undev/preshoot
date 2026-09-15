@@ -1,4 +1,4 @@
-import { ASPECT_RATIOS } from "./aspect"
+import { ASPECT_RATIOS, type AspectRatio } from "./aspect"
 import { clipDurationMs, type ClipComposition, type ClipForm } from "./clip"
 
 /** What the model calls each form in the `task` field of a request. */
@@ -30,8 +30,28 @@ export interface GenerationRequest {
   shortEdge: number
   aspectRatio: string
   aspectRatioName: string
-  seed: number
+  width: number
+  height: number
   conditions: GenerationCondition[]
+}
+
+/**
+ * The size in pixels a clip generates at. The short edge is the smaller of the two sides, so the
+ * other one follows from the shape, rounded to a whole pixel.
+ */
+export function pixelSize(
+  shortEdge: number,
+  shape: AspectRatio | undefined
+): { width: number; height: number } {
+  if (!shape) {
+    return { width: shortEdge, height: shortEdge }
+  }
+  const longEdge = Math.round(
+    (shortEdge * Math.max(shape.width, shape.height)) / Math.min(shape.width, shape.height)
+  )
+  return shape.width >= shape.height
+    ? { width: longEdge, height: shortEdge }
+    : { width: shortEdge, height: longEdge }
 }
 
 /** Gathers what a generation needs from the clip it was written for and the prompt it produced. */
@@ -44,7 +64,7 @@ export function buildRequest(composition: ClipComposition, rendered: string): Ge
     shortEdge: composition.shortEdge,
     aspectRatio: composition.aspectRatio,
     aspectRatioName: shape?.name ?? composition.aspectRatio,
-    seed: composition.seed,
+    ...pixelSize(composition.shortEdge, shape),
     conditions: composition.frames.map((frame) => ({
       type: "image",
       role: "keyframe",

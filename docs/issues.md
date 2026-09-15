@@ -10,14 +10,6 @@ says so.
 
 ## Bugs
 
-- Everything milestone 2 generated before clips existed has no clip, and the
-  history is read per clip, so those prompts cannot be reached from the app.
-- An edit can rewrite dialogue. Asked to make a character happier as a bus
-  arrived, the model changed "It is late again." to "It's here!", leaving the
-  clip holding a line its own prompt no longer says. Arguably the better
-  prompt, but the two now disagree. The built-in edit prompt says spoken
-  words stay word for word; tightening it is a copy and an edit in the
-  Prompts tab rather than a code change.
 - The recent projects list drops an entry whose folder is missing when the
   list is read, so a project on an unmounted drive is forgotten rather than
   hidden.
@@ -33,36 +25,40 @@ says so.
   second window would need a session per window.
 - Export writes one prompt at a time. There is no way to write out a whole
   clip or a whole project at once.
-- An edit is made from the prompt as it was, not from the clip as it is now,
-  so editing an old prompt after changing its clip keeps the old wording.
-  That is what makes an edit chain readable, but it will surprise someone.
 - A clip has one style for every shot, so it cannot change style at a cut.
+- A clip carries no seed, so two generations of the same clip cannot be asked
+  to come out the same. The request takes one; nothing holds it.
 - The language of a line of dialogue is free text rather than a picklist.
 - The shot editor saves as it is changed, so there is no undo.
-- Nothing checks that the prose the model returns holds the camera motion it
-  was given, only that it holds the dialogue.
+- Closing the tab of a clip that was never saved throws the clip away. There
+  is no undo and no reopening of a closed tab, only the question asked first.
 - The save dialog offers no file type filter, and appends nothing when a
   name is typed without an extension.
 - Streaming tokens to the renderer as they arrive needs a subscription link
   over the `trpc://` scheme, which nothing implements yet.
+- A tab can be moved only by closing it and opening the clip again, since
+  nothing reorders them.
 
 ## What the prompt still gets wrong
 
-Checked against the H3 prompt guides and against the system prompt in
-`targets/minimax-h3.ts`. What has been fixed is gone from this list; what is
-left was found by generating against the model.
+Checked against the H3 prompt guides, which are linked from
+`docs/minimax-h3.md`. The prompt is written from the clip alone, so what is
+wrong here is wrong every time rather than some of the time.
 
-- The identity in the speaker example leaks into the answer. Asked for a
-  clip about a young woman, one run in four still writes "The elderly keeper
-  with a low, weathered voice (S1)", which is the example. Saying to take the
-  identity from the Speakers list cut it from every run to about one in four.
-  Removing the example instead was worse: the model dropped the `<d>` tags
-  and the speaker id altogether.
-- `<scenetrans>` is asked for on a line that crosses a cut and is rarely
-  written. The check cannot insist on it, because a split line has no single
-  form to look for.
+- The prose is mechanical. It states each thing in turn rather than writing a
+  scene, which is what a prompt written from a clip and nothing else can do.
+- A line of dialogue carried across a cut is not actually split. The app holds
+  one line, so it writes the whole line in the shot it belongs to and marks it
+  `<scenetrans>`, where the guide splits the words between the two shots and
+  marks both halves.
+- `<scenetrans>` and `<cutoff>` go after the closing `</d>`, which keeps the
+  spoken words exactly as typed. The guide says what the markers mean but
+  shows no example placing them against the tag, so this is a choice rather
+  than a quotation.
 - Unintelligible speech in reference audio is written `[unclear]` rather than
   guessed at. Nothing says so.
+- Nothing counts the words of the main field, which the guide wants between
+  350 and 500 for a generation body.
 
 ## Improvements
 
@@ -71,27 +67,23 @@ left was found by generating against the model.
   rather than which frame.
 - Nothing turns the fields into a request body. That wants a real endpoint
   to build against, which arrives with Runpod or ComfyUI.
-- Results written before the request was kept show their prompt alone, since
-  there is nothing else stored against them.
-
 - A shot is reordered by dragging its handle. From the keyboard that means
   focusing the handle, pressing space to lift it, moving with the arrows and
   pressing space again, which nothing on screen says.
-- A comparison run is listed by the time it ran, so telling two runs of the
-  same minute apart means reading their results.
 - The library screen puts the form on the left and the list on the right,
   which reads backwards: you pick from the list, then edit.
 - A library thing cannot be added without leaving the clip that needs it.
-- Ctrl and enter writes the clip, and only a line of grey text beside the
-  button says so. Nothing else in the app has a shortcut.
-- `readVariant` lists every variant of a target to find one of them.
-- The prompt that describes a picture is a constant, not a variant, so it
-  cannot be tuned in the app the way the prompts that write clips can.
+- The prompt that describes a picture is a constant in the code, so it cannot
+  be tuned without an edit and a rebuild.
 - A drafted description replaces whatever is in the box. There is no way to
   keep both and choose.
 - A picture is shown at whatever size it was imported at, so a large one is
   read into the page in full to be drawn as a thumbnail.
 - Image editing (Qwen Image Edit) as a shot type that edits a library image.
+- Saving a branch always makes a new saved clip. There is no way to write one
+  back over the clip it came from.
+- The tab bar scrolls sideways once there are more tabs than fit, with nothing
+  to say that tabs are off screen.
 
 ## Environment and tooling
 
@@ -107,7 +99,8 @@ left was found by generating against the model.
 - Nothing exercises the main process's start-up. Registering a second
   scheme broke every request the renderer makes and no test noticed, because
   the window, the protocol handlers and the context are wired together in
-  `index.ts` where nothing can reach them.
+  `index.ts` where nothing can reach them. The menu the app now sets is in the
+  same place and is untested for the same reason.
 
 - The multimodal projector has to stay off the GPU on this card. Loaded onto
   it, an image encode aborted inside CUDA while another model held VRAM.

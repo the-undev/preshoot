@@ -13,7 +13,6 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as ProjectRouteImport } from './routes/project'
 import { Route as ProjectIndexRouteImport } from './routes/project.index'
 import { Route as ProjectLibraryRouteImport } from './routes/project.library'
-import { Route as ProjectPromptsRouteImport } from './routes/project.prompts'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -35,23 +34,16 @@ const ProjectLibraryRoute = ProjectLibraryRouteImport.update({
   path: '/library',
   getParentRoute: () => ProjectRoute,
 } as any)
-const ProjectPromptsRoute = ProjectPromptsRouteImport.update({
-  id: '/prompts',
-  path: '/prompts',
-  getParentRoute: () => ProjectRoute,
-} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/project': typeof ProjectRouteWithChildren
   '/project/library': typeof ProjectLibraryRoute
-  '/project/prompts': typeof ProjectPromptsRoute
   '/project/': typeof ProjectIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/project/library': typeof ProjectLibraryRoute
-  '/project/prompts': typeof ProjectPromptsRoute
   '/project': typeof ProjectIndexRoute
 }
 export interface FileRoutesById {
@@ -59,22 +51,14 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/project': typeof ProjectRouteWithChildren
   '/project/library': typeof ProjectLibraryRoute
-  '/project/prompts': typeof ProjectPromptsRoute
   '/project/': typeof ProjectIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths:
-    '/' | '/project' | '/project/library' | '/project/prompts' | '/project/'
+  fullPaths: '/' | '/project' | '/project/library' | '/project/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/project/library' | '/project/prompts' | '/project'
-  id:
-    | '__root__'
-    | '/'
-    | '/project'
-    | '/project/library'
-    | '/project/prompts'
-    | '/project/'
+  to: '/' | '/project/library' | '/project'
+  id: '__root__' | '/' | '/project' | '/project/library' | '/project/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -112,25 +96,16 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProjectLibraryRouteImport
       parentRoute: typeof ProjectRoute
     }
-    '/project/prompts': {
-      id: '/project/prompts'
-      path: '/prompts'
-      fullPath: '/project/prompts'
-      preLoaderRoute: typeof ProjectPromptsRouteImport
-      parentRoute: typeof ProjectRoute
-    }
   }
 }
 
 interface ProjectRouteChildren {
   ProjectLibraryRoute: typeof ProjectLibraryRoute
-  ProjectPromptsRoute: typeof ProjectPromptsRoute
   ProjectIndexRoute: typeof ProjectIndexRoute
 }
 
 const ProjectRouteChildren: ProjectRouteChildren = {
   ProjectLibraryRoute: ProjectLibraryRoute,
-  ProjectPromptsRoute: ProjectPromptsRoute,
   ProjectIndexRoute: ProjectIndexRoute,
 }
 

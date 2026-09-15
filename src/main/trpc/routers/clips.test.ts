@@ -47,21 +47,20 @@ describe("clips router", () => {
   })
 
   async function clipWithShot(): Promise<{ clipId: number; shotId: number }> {
-    const clip = await caller.clips.create({ name: "Lighthouse" })
+    const clip = await caller.clips.create()
     const composition = await caller.clips.composition({ clipId: clip.id })
     return { clipId: clip.id, shotId: composition.shots[0].id }
   }
 
   it("starts a clip on the default target and style", async () => {
-    const clip = await caller.clips.create({ name: "Lighthouse" })
+    const clip = await caller.clips.create()
 
     expect(clip.target).toBe("minimax-h3")
     expect(clip.style).toBe("Live-action, cinematic")
-    expect(await caller.clips.list()).toEqual([clip])
   })
 
   it("offers the target's vocabularies", async () => {
-    const clip = await caller.clips.create({ name: "Lighthouse" })
+    const clip = await caller.clips.create()
 
     const vocabularies = await caller.clips.vocabularies({ clipId: clip.id })
 
@@ -70,7 +69,7 @@ describe("clips router", () => {
   })
 
   it("starts a clip with the shot it will need", async () => {
-    const clip = await caller.clips.create({ name: "Lighthouse" })
+    const clip = await caller.clips.create()
 
     const composition = await caller.clips.composition({ clipId: clip.id })
 
@@ -79,7 +78,7 @@ describe("clips router", () => {
   })
 
   it("adds shots and gives back the whole clip each time", async () => {
-    const clip = await caller.clips.create({ name: "Lighthouse" })
+    const clip = await caller.clips.create()
 
     await caller.clips.addShot({ clipId: clip.id })
     const composition = await caller.clips.addShot({ clipId: clip.id })
@@ -169,22 +168,112 @@ describe("clips router", () => {
     ])
   })
 
-  it("keeps a clip whose name is being retyped", async () => {
-    const clip = await caller.clips.create({ name: "Lighthouse" })
+  it("starts a clip with no name, so it is not in the project's list", async () => {
+    const clip = await caller.clips.create()
 
-    const emptied = await caller.clips.update({
-      id: clip.id,
-      name: "",
-      style: "",
-      note: "",
-      musicNote: "",
-      form: "t2v",
-      shortEdge: 768,
-      aspectRatio: "auto",
-      seed: 0,
+    expect(clip.name).toBeNull()
+    expect(await caller.clips.list()).toEqual([])
+  })
+
+  it("puts a clip in the project's list once it is saved", async () => {
+    const clip = await caller.clips.create()
+
+    const saved = await caller.clips.save({ id: clip.id, name: "  Lamp room  " })
+
+    expect(saved.name).toBe("Lamp room")
+    expect((await caller.clips.list()).map((entry) => entry.name)).toEqual(["Lamp room"])
+  })
+
+  it("branches a clip into a new scratch clip, leaving the original alone", async () => {
+    const { clipId, shotId } = await clipWithShot()
+    await caller.clips.save({ id: clipId, name: "Lighthouse" })
+    await caller.clips.updateShot({
+      shotId,
+      durationMs: 4000,
+      cameraMotion: "push in",
+      amplitude: null,
+      speed: null,
+      transition: null,
+      lighting: "night",
+      soundNote: "wind",
+      beats: [{ assetId: null, text: "climbs the stairs" }],
+      things: [],
+      dialogue: [],
     })
 
-    expect(emptied.name).toBe("")
+    const branch = await caller.clips.branch({ id: clipId })
+    const copy = await caller.clips.composition({ clipId: branch.id })
+    const original = await caller.clips.composition({ clipId })
+
+    expect(branch.name).toBeNull()
+    expect(branch.savedFromId).toBe(clipId)
+    expect(copy.shots).toHaveLength(1)
+    expect(copy.shots[0].id).not.toBe(shotId)
+    expect(copy.shots[0].cameraMotion).toBe("push in")
+    expect(copy.shots[0].beats).toEqual([{ subjectName: null, text: "climbs the stairs" }])
+    expect(original.shots[0].beats).toEqual([{ subjectName: null, text: "climbs the stairs" }])
+  })
+
+  it("keeps a branch pointing at the saved clip underneath, not at the branch it came from", async () => {
+    const clip = await caller.clips.create()
+    await caller.clips.save({ id: clip.id, name: "Lighthouse" })
+
+    const first = await caller.clips.branch({ id: clip.id })
+    const second = await caller.clips.branch({ id: first.id })
+
+    expect(first.savedFromId).toBe(clip.id)
+    expect(second.savedFromId).toBe(clip.id)
+  })
+
+  it("copies the speakers of a clip and renumbers the lines that name them", async () => {
+    const { clipId, shotId } = await clipWithShot()
+    const withSpeaker = await caller.clips.addSpeaker({
+      clipId,
+      assetId: null,
+      description: "The keeper",
+    })
+    const speakerId = withSpeaker.speakers[0].id
+    await caller.clips.updateShot({
+      shotId,
+      durationMs: 4000,
+      cameraMotion: null,
+      amplitude: null,
+      speed: null,
+      transition: null,
+      lighting: null,
+      soundNote: "",
+      beats: [],
+      things: [],
+      dialogue: [
+        {
+          speakerIds: [speakerId],
+          language: "English",
+          text: "Almost there.",
+          offScreen: false,
+          crossesCut: false,
+          cutOff: false,
+        },
+      ],
+    })
+
+    const branch = await caller.clips.branch({ id: clipId })
+    const copy = await caller.clips.composition({ clipId: branch.id })
+
+    expect(copy.speakers).toHaveLength(1)
+    expect(copy.speakers[0].id).not.toBe(speakerId)
+    expect(copy.shots[0].dialogue[0].speakerIds).toEqual([copy.speakers[0].id])
+  })
+
+  it("refuses to branch a clip that is not there", async () => {
+    await expect(caller.clips.branch({ id: 99 })).rejects.toThrow(
+      expect.objectContaining({ code: "NOT_FOUND" })
+    )
+  })
+
+  it("refuses to save a clip under nothing but space", async () => {
+    const clip = await caller.clips.create()
+
+    await expect(caller.clips.save({ id: clip.id, name: "   " })).rejects.toThrow()
   })
 
   it("says which field a bad input was, rather than answering with the schema", async () => {
@@ -228,7 +317,7 @@ describe("clips router", () => {
   })
 
   it("moves a shot and removes one", async () => {
-    const clip = await caller.clips.create({ name: "Lighthouse" })
+    const clip = await caller.clips.create()
     await caller.clips.addShot({ clipId: clip.id })
     const three = await caller.clips.addShot({ clipId: clip.id })
     const ids = three.shots.map((shot) => shot.id)
@@ -241,7 +330,7 @@ describe("clips router", () => {
   })
 
   it("gives one of the subjects a voice, and describes it by that subject", async () => {
-    const clip = await caller.clips.create({ name: "Lighthouse" })
+    const clip = await caller.clips.create()
     const keeper = await caller.assets.create({
       kind: "person",
       name: "Keeper",
@@ -265,7 +354,7 @@ describe("clips router", () => {
   })
 
   it("renumbers the speakers when one goes", async () => {
-    const clip = await caller.clips.create({ name: "Lighthouse" })
+    const clip = await caller.clips.create()
     await caller.clips.addSpeaker({ clipId: clip.id, assetId: null, description: "The keeper" })
     const both = await caller.clips.addSpeaker({
       clipId: clip.id,
@@ -286,10 +375,10 @@ describe("clips router", () => {
     )
   })
 
-  it("removes a clip and says nothing had been generated for it", async () => {
-    const clip = await caller.clips.create({ name: "Lighthouse" })
+  it("removes a clip and everything under it", async () => {
+    const clip = await caller.clips.create()
 
-    expect(await caller.clips.remove({ id: clip.id })).toEqual({ prompts: 0 })
+    expect(await caller.clips.remove({ id: clip.id })).toEqual({ id: clip.id })
     expect(await caller.clips.list()).toEqual([])
   })
 })

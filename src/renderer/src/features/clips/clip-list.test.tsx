@@ -13,11 +13,10 @@ const clips: ClipSummary[] = [
     musicNote: "",
     form: "t2v",
     shortEdge: 768,
-    aspectRatio: "auto",
-    seed: 0,
+    aspectRatio: "16:9",
+    savedFromId: null,
     shots: 2,
     durationMs: 7500,
-    prompts: 3,
     createdAt: "2026-09-12T08:00:00.000Z",
   },
   {
@@ -29,11 +28,10 @@ const clips: ClipSummary[] = [
     musicNote: "",
     form: "i2v",
     shortEdge: 768,
-    aspectRatio: "auto",
-    seed: 0,
+    aspectRatio: "16:9",
+    savedFromId: null,
     shots: 1,
     durationMs: 4000,
-    prompts: 0,
     createdAt: "2026-09-11T08:00:00.000Z",
   },
 ]
@@ -43,9 +41,9 @@ describe("ClipList", () => {
     render(
       <ClipList
         clips={clips}
-        selectedId={1}
-        onSelect={vi.fn()}
+        onOpen={vi.fn()}
         onCreate={vi.fn()}
+        onBranch={vi.fn()}
         onRemove={vi.fn()}
       />
     )
@@ -59,9 +57,9 @@ describe("ClipList", () => {
     render(
       <ClipList
         clips={clips}
-        selectedId={1}
-        onSelect={vi.fn()}
+        onOpen={vi.fn()}
         onCreate={vi.fn()}
+        onBranch={vi.fn()}
         onRemove={vi.fn()}
       />
     )
@@ -70,39 +68,55 @@ describe("ClipList", () => {
     expect(screen.getByText("Image · 1 shot · 4.0s")).toBeInTheDocument()
   })
 
-  it("reports the clip that was chosen", () => {
-    const onSelect = vi.fn()
+  it("opens the clip that was chosen", () => {
+    const onOpen = vi.fn()
     render(
       <ClipList
         clips={clips}
-        selectedId={1}
-        onSelect={onSelect}
+        onOpen={onOpen}
         onCreate={vi.fn()}
+        onBranch={vi.fn()}
         onRemove={vi.fn()}
       />
     )
 
     fireEvent.click(screen.getByRole("button", { name: /^Lamp room/ }))
 
-    expect(onSelect).toHaveBeenCalledWith(2)
+    expect(onOpen).toHaveBeenCalledWith(2)
   })
 
-  it("starts a clip with the name typed, without its surrounding space", () => {
+  it("starts a clip", () => {
     const onCreate = vi.fn()
     render(
       <ClipList
         clips={clips}
-        selectedId={null}
-        onSelect={vi.fn()}
+        onOpen={vi.fn()}
         onCreate={onCreate}
+        onBranch={vi.fn()}
         onRemove={vi.fn()}
       />
     )
 
-    fireEvent.change(screen.getByLabelText("New clip name"), { target: { value: "  Storm  " } })
-    fireEvent.click(screen.getByRole("button", { name: "Add" }))
+    fireEvent.click(screen.getByRole("button", { name: "New clip" }))
 
-    expect(onCreate).toHaveBeenCalledWith("Storm")
+    expect(onCreate).toHaveBeenCalled()
+  })
+
+  it("reports the clip to branch", () => {
+    const onBranch = vi.fn()
+    render(
+      <ClipList
+        clips={clips}
+        onOpen={vi.fn()}
+        onCreate={vi.fn()}
+        onBranch={onBranch}
+        onRemove={vi.fn()}
+      />
+    )
+
+    fireEvent.click(screen.getByRole("button", { name: "Branch Lamp room" }))
+
+    expect(onBranch).toHaveBeenCalledWith(2)
   })
 
   it("reports the clip to delete", () => {
@@ -110,9 +124,9 @@ describe("ClipList", () => {
     render(
       <ClipList
         clips={clips}
-        selectedId={null}
-        onSelect={vi.fn()}
+        onOpen={vi.fn()}
         onCreate={vi.fn()}
+        onBranch={vi.fn()}
         onRemove={onRemove}
       />
     )
@@ -126,13 +140,13 @@ describe("ClipList", () => {
     render(
       <ClipList
         clips={[]}
-        selectedId={null}
-        onSelect={vi.fn()}
+        onOpen={vi.fn()}
         onCreate={vi.fn()}
+        onBranch={vi.fn()}
         onRemove={vi.fn()}
       />
     )
 
-    expect(screen.getByText("No clips in this project yet.")).toBeInTheDocument()
+    expect(screen.getByText(/Nothing saved yet/)).toBeInTheDocument()
   })
 })

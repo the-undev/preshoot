@@ -83,7 +83,7 @@ export function ClipSpeakers({
           <Input
             className="min-w-40 flex-1"
             aria-label="Someone not in the library"
-            placeholder="Or someone heard and not seen: a low, weathered voice"
+            placeholder="Someone not in the library"
             value={description}
             onChange={(event) => setDescription(event.target.value)}
           />

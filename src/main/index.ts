@@ -1,4 +1,4 @@
-import { app, protocol, shell, BrowserWindow, nativeTheme } from "electron"
+import { app, protocol, shell, BrowserWindow, Menu, nativeTheme } from "electron"
 import { join } from "path"
 import { electronApp, optimizer, is } from "@electron-toolkit/utils"
 import icon from "../../resources/icon.png?asset"
@@ -15,6 +15,17 @@ import type { Context } from "./trpc/context"
 protocol.registerSchemesAsPrivileged(PRIVILEGED_SCHEMES)
 
 const projects = new ProjectSession()
+
+/**
+ * The app's own menu, which is an accelerator table rather than something to look at: the bar is
+ * hidden. Electron's default menu binds Ctrl and W to closing the window, and the renderer uses it
+ * to close a tab, so the window menu is left out.
+ */
+function setMenu(): void {
+  Menu.setApplicationMenu(
+    Menu.buildFromTemplate([{ role: "fileMenu" }, { role: "editMenu" }, { role: "viewMenu" }])
+  )
+}
 
 /** Migrations ship beside the app once packaged and come from the repo in development. */
 function migrationsFolder(): string {
@@ -87,6 +98,8 @@ app.whenReady().then(() => {
 
   // The app is dark whatever the desktop is set to, native dialogs included.
   nativeTheme.themeSource = "dark"
+
+  setMenu()
 
   app.on("browser-window-created", (_, window) => {
     optimizer.watchWindowShortcuts(window)

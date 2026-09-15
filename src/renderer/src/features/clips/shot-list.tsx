@@ -24,12 +24,9 @@ interface ShotListProps {
   speakers: SpeakerComposition[]
   library: Asset[]
   vocabularies: Vocabularies
-  canRegenerate: boolean
-  isBusy: boolean
   onChange: (shotId: number, fields: ShotFields) => void
   onMove: (shotId: number, toPosition: number) => void
   onRemove: (shotId: number) => void
-  onRegenerate: (shotId: number) => void
   onAddPeople: () => void
 }
 
@@ -39,12 +36,9 @@ export function ShotList({
   speakers,
   library,
   vocabularies,
-  canRegenerate,
-  isBusy,
   onChange,
   onMove,
   onRemove,
-  onRegenerate,
   onAddPeople,
 }: ShotListProps): React.JSX.Element {
   const [removing, setRemoving] = useState<{ id: number; number: number } | null>(null)
@@ -81,11 +75,8 @@ export function ShotList({
               speakers={speakers}
               library={library}
               vocabularies={vocabularies}
-              canRegenerate={canRegenerate}
-              isBusy={isBusy}
               onChange={(fields) => onChange(shot.id, fields)}
               onRemove={() => setRemoving({ id: shot.id, number: index + 1 })}
-              onRegenerate={() => onRegenerate(shot.id)}
               onAddPeople={onAddPeople}
             />
           ))}

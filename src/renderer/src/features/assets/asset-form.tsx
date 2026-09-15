@@ -1,5 +1,6 @@
 import {
   Button,
+  FieldHelp,
   Input,
   Label,
   Select,
@@ -74,20 +75,24 @@ export function AssetForm({
           id="asset-name"
           value={fields.name}
           onChange={(event) => onChange({ ...fields, name: event.target.value })}
-          placeholder="Keeper"
         />
       </div>
 
       {children}
 
       <div className="flex flex-col gap-2">
-        <Label htmlFor="asset-description">Description</Label>
+        <div className="flex items-center gap-1.5">
+          <Label htmlFor="asset-description">Description</Label>
+          <FieldHelp label="the description">
+            How this looks and sounds, written into the prompt wherever a shot holds it. What stays
+            the same every time it appears belongs here.
+          </FieldHelp>
+        </div>
         <Textarea
           id="asset-description"
           rows={6}
           value={fields.description}
           onChange={(event) => onChange({ ...fields, description: event.target.value })}
-          placeholder="An elderly man in oilskins, grey stubble, a slow and deliberate walk."
         />
       </div>
 

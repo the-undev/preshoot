@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import {
   useTRPC,
   type ClipComposition,
+  type ClipPrompt,
   type DialogueLine,
   type Vocabularies,
 } from "@renderer/lib/trpc"
@@ -20,25 +21,27 @@ export interface ShotFields {
   dialogue: DialogueLine[]
 }
 
-/** The clip's own fields, without its shots. */
+/** The clip's own fields, without its shots. Its name is set by saving it, not by editing it. */
 export interface ClipFields {
-  name: string
   style: string
   note: string
   musicNote: string
   form: ClipComposition["form"]
   shortEdge: number
   aspectRatio: string
-  seed: number
 }
 
 /** One open clip and every call that changes it. */
 export interface ClipPanel {
   composition: ClipComposition | null
   vocabularies: Vocabularies | null
+  prompt: ClipPrompt | null
   isSaving: boolean
   errorMessage: string | null
   updateClip(fields: ClipFields): void
+  save(name: string): void
+  branch(opened: (clipId: number) => void): void
+  isSaved: boolean
   setFrame(role: "first" | "last", imageId: number | null): void
   addShot(): void
   updateShot(shotId: number, fields: ShotFields): void
@@ -58,11 +61,15 @@ export function useClip(clipId: number): ClipPanel {
   const queryClient = useQueryClient()
 
   const compositionOptions = trpc.clips.composition.queryOptions({ clipId })
+  const promptOptions = trpc.clips.prompt.queryOptions({ clipId })
   const composition = useQuery(compositionOptions)
   const vocabularies = useQuery(trpc.clips.vocabularies.queryOptions({ clipId }))
+  const prompt = useQuery(promptOptions)
 
-  const replace = (next: ClipComposition): void => {
+  // Every change rewrites the prompt, so the panel beside the editor never shows a stale one.
+  const replace = async (next: ClipComposition): Promise<void> => {
     queryClient.setQueryData(compositionOptions.queryKey, next)
+    await queryClient.invalidateQueries({ queryKey: promptOptions.queryKey })
   }
 
   const composed = { onSuccess: replace }
@@ -75,14 +82,16 @@ export function useClip(clipId: number): ClipPanel {
   const updateSpeaker = useMutation(trpc.clips.updateSpeaker.mutationOptions(composed))
   const removeSpeaker = useMutation(trpc.clips.removeSpeaker.mutationOptions(composed))
 
-  // The clip's own fields change the list beside the editor, so that query is refreshed instead.
-  const updateClip = useMutation(
-    trpc.clips.update.mutationOptions({
-      onSuccess: async () => {
-        await queryClient.invalidateQueries({ queryKey: trpc.clips.pathKey() })
-      },
-    })
-  )
+  // The clip's own fields change what its tab says, so those queries are refreshed instead.
+  const refreshed = {
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: trpc.clips.pathKey() })
+      await queryClient.invalidateQueries({ queryKey: trpc.tabs.pathKey() })
+    },
+  }
+  const updateClip = useMutation(trpc.clips.update.mutationOptions(refreshed))
+  const save = useMutation(trpc.clips.save.mutationOptions(refreshed))
+  const branch = useMutation(trpc.clips.branch.mutationOptions(refreshed))
 
   const writes = [
     setFrame,
@@ -94,15 +103,21 @@ export function useClip(clipId: number): ClipPanel {
     updateSpeaker,
     removeSpeaker,
     updateClip,
+    save,
+    branch,
   ]
 
   return {
     composition: composition.data ?? null,
     vocabularies: vocabularies.data ?? null,
+    prompt: prompt.data ?? null,
     isSaving: writes.some((write) => write.isPending),
     // The message from main already says what the user can do about it.
     errorMessage: writes.map((write) => write.error?.message).find(Boolean) ?? null,
     updateClip: (fields) => updateClip.mutate({ id: clipId, ...fields }),
+    save: (name) => save.mutate({ id: clipId, name }),
+    branch: (opened) => branch.mutate({ id: clipId }, { onSuccess: (copy) => opened(copy.id) }),
+    isSaved: (composition.data?.name ?? null) !== null,
     setFrame: (role, imageId) => setFrame.mutate({ clipId, role, imageId }),
     addShot: () => addShot.mutate({ clipId }),
     updateShot: (shotId, fields) => updateShot.mutate({ shotId, ...fields }),

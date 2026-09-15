@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query"
+import { useState } from "react"
 import { createFileRoute, Link, Outlet, redirect, useNavigate } from "@tanstack/react-router"
-import { Settings } from "lucide-react"
+import { Keyboard, Settings } from "lucide-react"
 import {
   Button,
   buttonVariants,
@@ -10,6 +11,8 @@ import {
 } from "@renderer/design-system"
 import { useOpenSettings } from "@renderer/features/settings/settings-dialog-context"
 import { SettingsDialogProvider } from "@renderer/features/settings/use-settings-dialog"
+import { ShortcutsDialog } from "@renderer/features/shortcuts/shortcuts-dialog"
+import { useShortcuts } from "@renderer/features/shortcuts/use-shortcuts"
 import { useTRPC } from "@renderer/lib/trpc"
 
 export const Route = createFileRoute("/project")({
@@ -42,6 +45,8 @@ function Workspace(): React.JSX.Element {
   const trpc = useTRPC()
   const queryClient = useQueryClient()
   const navigate = useNavigate()
+  const [showingShortcuts, setShowingShortcuts] = useState(false)
+  useShortcuts({ showShortcuts: () => setShowingShortcuts(true) })
   const close = useMutation(
     trpc.projects.close.mutationOptions({
       onSuccess: async () => {
@@ -71,12 +76,22 @@ function Workspace(): React.JSX.Element {
             <Link to="/project/library" className={tabClass} activeProps={activeTab}>
               Library
             </Link>
-            <Link to="/project/prompts" className={tabClass} activeProps={activeTab}>
-              Prompts
-            </Link>
           </nav>
         </div>
         <div className="flex items-center gap-2">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label="Keyboard shortcuts"
+                onClick={() => setShowingShortcuts(true)}
+              >
+                <Keyboard />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Keyboard shortcuts (?)</TooltipContent>
+          </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
               <Button variant="ghost" size="icon" aria-label="Settings" onClick={openSettings}>
@@ -94,6 +109,8 @@ function Workspace(): React.JSX.Element {
       <div className="min-h-0 flex-1 overflow-hidden">
         <Outlet />
       </div>
+
+      <ShortcutsDialog open={showingShortcuts} onOpenChange={setShowingShortcuts} />
     </div>
   )
 }

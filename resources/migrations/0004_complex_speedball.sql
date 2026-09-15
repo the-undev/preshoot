@@ -1,0 +1,1 @@
+ALTER TABLE `clips` ADD `saved_from_id` integer;

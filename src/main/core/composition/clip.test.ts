@@ -29,7 +29,6 @@ const composition: ClipComposition = {
   form: "t2v",
   shortEdge: 768,
   aspectRatio: "auto",
-  seed: 0,
   frames: [],
   style: "Live-action, cinematic",
   note: "A keeper lights the lamp.",

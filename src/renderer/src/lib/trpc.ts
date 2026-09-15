@@ -36,15 +36,6 @@ export type TrpcError = TRPCClientErrorLike<AppRouter>
 /** One entry in the recent projects list. */
 export type RecentProject = RouterOutputs["projects"]["recent"][number]
 
-/** One prompt generated in the open project. */
-export type GenerationRecord = RouterOutputs["prompts"]["list"][number]
-
-/** One comparison run of a clip. */
-export type RunSummary = RouterOutputs["prompts"]["runs"][number]
-
-/** One system prompt a clip can be written with. */
-export type PromptVariant = RouterOutputs["prompts"]["variants"][number]
-
 /** One model the llama-server can serve. */
 export type ServerModel = RouterOutputs["settings"]["checkLlamaServer"]["models"][number]
 
@@ -68,14 +59,23 @@ export type AssetKind = RouterInputs["assets"]["create"]["kind"]
 /** A clip without its shots. */
 export type ClipSummary = RouterOutputs["clips"]["list"][number]
 
+/** The open tabs and which one is being looked at. */
+export type Workspace = RouterOutputs["tabs"]["list"]
+
+/** One open tab. A tab with no clip shows the list of clips. */
+export type OpenTab = Workspace["tabs"][number]
+
 /** A whole clip: its speakers, its shots, what they show and what is said. */
 export type ClipComposition = RouterOutputs["clips"]["composition"]
 
 /** A shape a clip can be generated at. */
 export type AspectRatio = RouterOutputs["clips"]["aspectRatios"][number]
 
+/** The prompt a clip makes, or why it cannot make one yet. */
+export type ClipPrompt = RouterOutputs["clips"]["prompt"]
+
 /** Everything a generation of a clip needs, the prompt being one field of it. */
-export type GenerationRequest = NonNullable<GenerationRecord["request"]>
+export type GenerationRequest = Extract<ClipPrompt, { ready: true }>["request"]
 
 /** A picture a clip is anchored to. */
 export type FrameComposition = ClipComposition["frames"][number]

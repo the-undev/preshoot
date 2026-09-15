@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, sum } from "drizzle-orm"
+import { and, asc, count, desc, eq, isNotNull, sum } from "drizzle-orm"
 import { schema, type ProjectDatabase, type ProjectDb } from "../db"
 import type { ClipComposition, ClipForm, FrameComposition, ShotComposition } from "./clip"
 import { CompositionError } from "./errors"
@@ -9,7 +9,10 @@ const DEFAULT_SHOT_MS = 4000
 /** A clip without its shots, for the list beside the editor. */
 export interface ClipSummary {
   id: number
-  name: string
+  /** The name it was saved under, or nothing while it is a scratch clip. */
+  name: string | null
+  /** The saved clip this one was branched from, for saying what it is based on. */
+  savedFromId: number | null
   target: string
   style: string
   note: string
@@ -17,10 +20,8 @@ export interface ClipSummary {
   form: ClipForm
   shortEdge: number
   aspectRatio: string
-  seed: number
   shots: number
   durationMs: number
-  prompts: number
   createdAt: string
 }
 
@@ -54,16 +55,16 @@ export interface DialogueInput {
 
 type ClipRow = typeof schema.clips.$inferSelect
 
-/** Every clip in the project, newest first. */
+/** The project's saved clips, newest first. A scratch clip is reached from its tab, not here. */
 export function listClips(db: ProjectDatabase): ClipSummary[] {
-  const prompts = promptCounts(db)
   const shots = shotTotals(db)
   return db
     .select()
     .from(schema.clips)
+    .where(isNotNull(schema.clips.name))
     .orderBy(desc(schema.clips.createdAt), desc(schema.clips.id))
     .all()
-    .map((row) => toSummary(row, prompts.get(row.id) ?? 0, shots.get(row.id)))
+    .map((row) => toSummary(row, shots.get(row.id)))
 }
 
 /** How many shots each clip has and how long they run to. */
@@ -82,38 +83,26 @@ function shotTotals(db: ProjectDatabase): Map<number, { shots: number; durationM
   )
 }
 
-/** How many prompts have been generated for each clip. */
-function promptCounts(db: ProjectDatabase): Map<number, number> {
-  const rows = db
-    .select({ clipId: schema.generations.clipId, written: count() })
-    .from(schema.generations)
-    .groupBy(schema.generations.clipId)
-    .all()
-  return new Map(
-    rows.filter((row) => row.clipId !== null).map((row) => [row.clipId as number, row.written])
-  )
-}
-
 /** One clip's own fields, without its shots. */
 export function readClip(db: ProjectDatabase, clipId: number): ClipSummary {
   const row = db.select().from(schema.clips).where(eq(schema.clips.id, clipId)).get()
   if (!row) {
     throw CompositionError.notFound(`Clip ${clipId}`)
   }
-  return toSummary(row, promptCounts(db).get(row.id) ?? 0, shotTotals(db).get(row.id))
+  return toSummary(row, shotTotals(db).get(row.id))
 }
 
 /** Starts a clip with no shots. */
 export function insertClip(
   db: ProjectDatabase,
-  input: { name: string; target: string; style: string }
+  input: { name: string | null; target: string; style: string }
 ): ClipSummary {
   const [row] = db
     .insert(schema.clips)
     .values({ ...input, note: "", musicNote: "", createdAt: new Date() })
     .returning()
     .all()
-  return toSummary(row, 0, undefined)
+  return toSummary(row, undefined)
 }
 
 /** Rewrites the clip's own fields, leaving its shots and speakers alone. */
@@ -121,27 +110,23 @@ export function updateClip(
   db: ProjectDatabase,
   input: {
     id: number
-    name: string
     style: string
     note: string
     musicNote: string
     form: ClipForm
     shortEdge: number
     aspectRatio: string
-    seed: number
   }
 ): ClipSummary {
   const [row] = db
     .update(schema.clips)
     .set({
-      name: input.name,
       style: input.style,
       note: input.note,
       musicNote: input.musicNote,
       form: input.form,
       shortEdge: input.shortEdge,
       aspectRatio: input.aspectRatio,
-      seed: input.seed,
     })
     .where(eq(schema.clips.id, input.id))
     .returning()
@@ -149,26 +134,144 @@ export function updateClip(
   if (!row) {
     throw CompositionError.notFound(`Clip ${input.id}`)
   }
-  return toSummary(row, promptCounts(db).get(row.id) ?? 0, shotTotals(db).get(row.id))
+  return toSummary(row, shotTotals(db).get(row.id))
 }
 
 /**
- * Removes a clip and everything under it, prompts included. Left behind, a prompt would have no
- * clip to be read under, so it would be unreachable rather than kept.
+ * Copies a clip into a new scratch one and hands it back, so a version can be tried without
+ * touching what it came from. A branch of a branch still points at the saved clip underneath, so
+ * the trail is one step long rather than a history to walk.
  */
-export function deleteClip(db: ProjectDatabase, clipId: number): number {
+export function branchClip(db: ProjectDatabase, clipId: number): ClipSummary {
   return db.transaction((tx) => {
-    const prompts = tx
-      .delete(schema.generations)
-      .where(eq(schema.generations.clipId, clipId))
-      .returning()
-      .all()
-    const removed = tx.delete(schema.clips).where(eq(schema.clips.id, clipId)).returning().all()
-    if (removed.length === 0) {
+    const source = tx.select().from(schema.clips).where(eq(schema.clips.id, clipId)).get()
+    if (!source) {
       throw CompositionError.notFound(`Clip ${clipId}`)
     }
-    return prompts.length
+
+    const branch = tx
+      .insert(schema.clips)
+      .values({
+        ...source,
+        id: undefined,
+        name: null,
+        savedFromId: source.name === null ? source.savedFromId : source.id,
+        createdAt: new Date(),
+      })
+      .returning()
+      .get()
+
+    // A line of dialogue names its speakers by id, so the copies have to be renumbered to match.
+    const speakers = new Map<number, number>()
+    for (const speaker of tx
+      .select()
+      .from(schema.speakers)
+      .where(eq(schema.speakers.clipId, clipId))
+      .all()) {
+      const copy = tx
+        .insert(schema.speakers)
+        .values({ ...speaker, id: undefined, clipId: branch.id })
+        .returning()
+        .get()
+      speakers.set(speaker.id, copy.id)
+    }
+
+    for (const frame of tx
+      .select()
+      .from(schema.clipFrames)
+      .where(eq(schema.clipFrames.clipId, clipId))
+      .all()) {
+      tx.insert(schema.clipFrames)
+        .values({ ...frame, id: undefined, clipId: branch.id })
+        .run()
+    }
+
+    for (const shot of tx
+      .select()
+      .from(schema.shots)
+      .where(eq(schema.shots.clipId, clipId))
+      .all()) {
+      const copy = tx
+        .insert(schema.shots)
+        .values({ ...shot, id: undefined, clipId: branch.id })
+        .returning()
+        .get()
+      copyShotContents(tx, shot.id, copy.id, speakers)
+    }
+
+    return toSummary(branch, shotTotals(db).get(branch.id))
   })
+}
+
+/** Everything hanging off one shot, copied onto another, with the speakers renumbered. */
+function copyShotContents(
+  tx: ProjectDb,
+  shotId: number,
+  toShotId: number,
+  speakers: Map<number, number>
+): void {
+  for (const beat of tx
+    .select()
+    .from(schema.shotBeats)
+    .where(eq(schema.shotBeats.shotId, shotId))
+    .all()) {
+    tx.insert(schema.shotBeats)
+      .values({ ...beat, id: undefined, shotId: toShotId })
+      .run()
+  }
+
+  for (const thing of tx
+    .select()
+    .from(schema.shotAssets)
+    .where(eq(schema.shotAssets.shotId, shotId))
+    .all()) {
+    tx.insert(schema.shotAssets)
+      .values({ ...thing, shotId: toShotId })
+      .run()
+  }
+
+  for (const line of tx
+    .select()
+    .from(schema.dialogueLines)
+    .where(eq(schema.dialogueLines.shotId, shotId))
+    .all()) {
+    tx.insert(schema.dialogueLines)
+      .values({
+        ...line,
+        id: undefined,
+        shotId: toShotId,
+        speakerIds: line.speakerIds.map((id) => speakers.get(id) ?? id),
+      })
+      .run()
+  }
+}
+
+/** Saves a scratch clip under a name, which is what puts it in the project's list of clips. */
+export function saveClip(db: ProjectDatabase, clipId: number, name: string): ClipSummary {
+  const [row] = db
+    .update(schema.clips)
+    .set({ name })
+    .where(eq(schema.clips.id, clipId))
+    .returning()
+    .all()
+  if (!row) {
+    throw CompositionError.notFound(`Clip ${clipId}`)
+  }
+  return toSummary(row, shotTotals(db).get(row.id))
+}
+
+/** Whether a clip has been saved, which decides whether closing its tab throws it away. */
+export function isScratchClip(db: ProjectDatabase, clipId: number): boolean {
+  const clip = db.select().from(schema.clips).where(eq(schema.clips.id, clipId)).get()
+  return clip !== undefined && clip.name === null
+}
+
+/** Removes a clip and everything under it. */
+export function deleteClip(db: ProjectDatabase, clipId: number): void {
+  const removed = db.delete(schema.clips).where(eq(schema.clips.id, clipId)).returning().all()
+  if (removed.length === 0) {
+    throw CompositionError.notFound(`Clip ${clipId}`)
+  }
 }
 
 /** The whole clip, with its speakers, shots, the things they show and what is said. */
@@ -276,7 +379,6 @@ export function readComposition(db: ProjectDatabase, clipId: number): ClipCompos
     form: clip.form as ClipForm,
     shortEdge: clip.shortEdge,
     aspectRatio: clip.aspectRatio,
-    seed: clip.seed,
     frames: readFrames(db, clipId),
     style: clip.style,
     note: clip.note,
@@ -534,7 +636,6 @@ export function speakerLabel(position: number): string {
 
 function toSummary(
   row: ClipRow,
-  prompts: number,
   shots: { shots: number; durationMs: number } | undefined
 ): ClipSummary {
   return {
@@ -542,7 +643,6 @@ function toSummary(
     form: row.form as ClipForm,
     shots: shots?.shots ?? 0,
     durationMs: shots?.durationMs ?? 0,
-    prompts,
     createdAt: row.createdAt.toISOString(),
   }
 }

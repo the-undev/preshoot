@@ -61,18 +61,16 @@ describe("clip store", () => {
   it("rewrites the clip's own fields", () => {
     updateClip(handle.db, {
       id: clipId,
-      name: "Lamp room",
       style: "vintage film",
       note: "A keeper lights the lamp.",
       musicNote: "A slow piano figure.",
       form: "t2v",
       shortEdge: 768,
       aspectRatio: "auto",
-      seed: 0,
     })
 
     const composition = readComposition(handle.db, clipId)
-    expect(composition.name).toBe("Lamp room")
+    expect(composition.style).toBe("vintage film")
     expect(composition.note).toBe("A keeper lights the lamp.")
     expect(composition.musicNote).toBe("A slow piano figure.")
   })
@@ -262,10 +260,6 @@ describe("clip store", () => {
         cutOff: false,
       },
     ])
-  })
-
-  it("counts what has been generated for each clip", () => {
-    expect(listClips(handle.db)[0].prompts).toBe(0)
   })
 
   it("takes the shots and their dialogue when the clip goes", () => {

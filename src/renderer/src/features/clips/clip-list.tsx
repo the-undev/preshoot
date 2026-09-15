@@ -1,5 +1,4 @@
-import { useState } from "react"
-import { Button, Input } from "@renderer/design-system"
+import { Button } from "@renderer/design-system"
 import type { ClipSummary } from "@renderer/lib/trpc"
 
 /** What each form is called where there is only room for a few words. */
@@ -12,60 +11,54 @@ const FORM_NAMES: Record<string, string> = {
 
 interface ClipListProps {
   clips: ClipSummary[]
-  selectedId: number | null
-  onSelect: (id: number) => void
-  onCreate: (name: string) => void
+  onCreate: () => void
+  onOpen: (clipId: number) => void
+  onBranch: (clipId: number) => void
   onRemove: (clip: ClipSummary) => void
 }
 
-/** The project's clips, newest first, with the box that starts another. */
+/** What an empty tab shows: the project's clips, newest first, and the box that starts another. */
 export function ClipList({
   clips,
-  selectedId,
-  onSelect,
   onCreate,
+  onOpen,
+  onBranch,
   onRemove,
 }: ClipListProps): React.JSX.Element {
-  const [name, setName] = useState("")
-  const trimmedName = name.trim()
-
   return (
-    <div className="flex flex-col gap-4">
-      <form
-        className="flex gap-2"
-        onSubmit={(event) => {
-          event.preventDefault()
-          if (trimmedName.length === 0) return
-          onCreate(trimmedName)
-          setName("")
-        }}
-      >
-        <Input
-          aria-label="New clip name"
-          placeholder="New clip"
-          value={name}
-          onChange={(event) => setName(event.target.value)}
-        />
-        <Button type="submit" disabled={trimmedName.length === 0}>
-          Add
+    <div className="mx-auto flex h-full w-full max-w-2xl min-w-0 flex-col gap-6 overflow-y-auto">
+      <div className="flex items-center justify-between gap-4">
+        <h2 className="font-heading text-sm font-semibold text-muted-foreground">Saved clips</h2>
+        <Button onClick={onCreate} title="Ctrl and N">
+          New clip
         </Button>
-      </form>
+      </div>
 
       {clips.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No clips in this project yet.</p>
+        <p className="text-sm text-muted-foreground">
+          Nothing saved yet. Start a clip, and save it when it is worth coming back to.
+        </p>
       ) : (
         <ul className="flex flex-col gap-1">
           {clips.map((clip) => (
             <li key={clip.id} className="flex items-center gap-1">
               <Button
-                variant={clip.id === selectedId ? "secondary" : "ghost"}
+                variant="ghost"
                 className="h-auto flex-1 justify-start px-3 py-2 text-left"
-                onClick={() => onSelect(clip.id)}
+                onClick={() => onOpen(clip.id)}
               >
                 <span className="flex min-w-0 flex-col">
                   <span className="text-sm font-medium">{clip.name}</span>
                   <span className="truncate text-xs text-muted-foreground">{summary(clip)}</span>
                 </span>
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                aria-label={`Branch ${clip.name}`}
+                onClick={() => onBranch(clip.id)}
+              >
+                Branch
               </Button>
               <Button
                 variant="ghost"

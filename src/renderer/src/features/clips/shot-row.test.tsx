@@ -53,11 +53,8 @@ function renderRow(over: Partial<React.ComponentProps<typeof ShotRow>> = {}): {
           speakers={[]}
           library={library}
           vocabularies={vocabularies}
-          canRegenerate={false}
-          isBusy={false}
           onChange={onChange}
           onRemove={vi.fn()}
-          onRegenerate={vi.fn()}
           onAddPeople={onAddPeople}
           {...over}
         />
@@ -181,12 +178,6 @@ describe("ShotRow", () => {
     fireEvent.click(screen.getByRole("button", { name: "Keeper" }))
 
     expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ things: [] }))
-  })
-
-  it("cannot rewrite one shot until the clip has been written once", () => {
-    renderRow()
-
-    expect(screen.getByRole("button", { name: "Write shot 1 again" })).toBeDisabled()
   })
 
   it("says where people come from, and offers to go there", () => {

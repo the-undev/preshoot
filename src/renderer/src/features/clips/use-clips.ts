@@ -4,7 +4,9 @@ import { useTRPC, type ClipSummary } from "@renderer/lib/trpc"
 /** The project's clips and the calls that add and remove them. */
 export interface ClipsPanel {
   clips: ClipSummary[]
-  create(name: string): void
+  /** Adds a scratch clip and hands back its id, since a new clip opens in the tab that made it. */
+  create(opened: (clipId: number) => void): void
+  branch(id: number, opened: (clipId: number) => void): void
   remove(id: number): void
   isSaving: boolean
   errorMessage: string | null
@@ -21,13 +23,22 @@ export function useClips(): ClipsPanel {
   }
 
   const create = useMutation(trpc.clips.create.mutationOptions({ onSuccess: refresh }))
-  const remove = useMutation(trpc.clips.remove.mutationOptions({ onSuccess: refresh }))
+  const branch = useMutation(trpc.clips.branch.mutationOptions({ onSuccess: refresh }))
+  const remove = useMutation(
+    trpc.clips.remove.mutationOptions({
+      onSuccess: async () => {
+        await refresh()
+        await queryClient.invalidateQueries({ queryKey: trpc.tabs.pathKey() })
+      },
+    })
+  )
 
   return {
     clips: clips.data ?? [],
-    create: (name) => create.mutate({ name }),
+    create: (opened) => create.mutate(undefined, { onSuccess: (clip) => opened(clip.id) }),
+    branch: (id, opened) => branch.mutate({ id }, { onSuccess: (clip) => opened(clip.id) }),
     remove: (id) => remove.mutate({ id }),
-    isSaving: create.isPending || remove.isPending,
-    errorMessage: create.error?.message ?? remove.error?.message ?? null,
+    isSaving: create.isPending || branch.isPending || remove.isPending,
+    errorMessage: create.error?.message ?? branch.error?.message ?? remove.error?.message ?? null,
   }
 }

@@ -2,6 +2,7 @@
 export { Alert, AlertAction, AlertDescription, AlertTitle } from "./ui/alert"
 export { Button, buttonVariants } from "./ui/button"
 export { ConfirmDialog } from "./confirm-dialog"
+export { FieldHelp } from "./field-help"
 export {
   Card,
   CardAction,

@@ -11,16 +11,10 @@ const FRAME_NEEDS: Record<string, { role: "first" | "last"; said: string }[]> = 
   l2v: [{ role: "last", said: "Choose the picture this clip ends on." }],
 }
 
-/**
- * Everything standing between this clip and a prompt, said plainly. Written here rather than found
- * out by generating, so the answer arrives before the button is pressed.
- */
-export function clipReadiness(composition: ClipComposition, hasModel: boolean): string[] {
+/** Everything standing between this clip and a prompt, said plainly beside the editor. */
+export function clipReadiness(composition: ClipComposition): string[] {
   const missing: string[] = []
 
-  if (!hasModel) {
-    missing.push("No model chosen. Settings hold one model for the whole app.")
-  }
   if (composition.shots.length === 0) {
     missing.push("This clip has no shots.")
   }

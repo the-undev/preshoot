@@ -77,11 +77,11 @@ export interface FrameComposition {
 /** A clip as the composers see it. Knows nothing of any target, model or database. */
 export interface ClipComposition {
   id: number
-  name: string
+  /** The name it was saved under, or nothing while it is a scratch clip. */
+  name: string | null
   form: ClipForm
   shortEdge: number
   aspectRatio: string
-  seed: number
   frames: FrameComposition[]
   style: string
   note: string

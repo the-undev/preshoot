@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest"
 import type { ClipComposition, ShotComposition } from "../../composition/clip"
-import type { ClipProse } from "../../composition/prose"
 import { dialogueTag, formatCutTime, minimaxH3, renderH3Prompt } from "./minimax-h3"
 
 const fields = {
@@ -45,7 +44,6 @@ const composition: ClipComposition = {
   form: "t2v",
   shortEdge: 768,
   aspectRatio: "auto",
-  seed: 0,
   frames: [],
   style: "Live-action, cinematic",
   note: "A keeper lights the lamp during a storm.",
@@ -73,13 +71,9 @@ const composition: ClipComposition = {
   ],
 }
 
-const prose: ClipProse = {
-  shots: [
-    { shotId: 11, prose: `The keeper (S1) climbs. ${dialogueTag("English", "Almost there.")}` },
-    { shotId: 12, prose: "the shot cuts to the lamp turning and catching." },
-  ],
-  soundscape: "Wind batters the glass.",
-  music: "N/A",
+/** The clip's main field, which is where everything a shot says ends up. */
+function body(over: Partial<ClipComposition> = {}): string {
+  return minimaxH3.assemble({ ...composition, ...over }).integrated_multimodal_description
 }
 
 describe("renderH3Prompt", () => {
@@ -104,261 +98,117 @@ describe("formatCutTime", () => {
   })
 })
 
-describe("the brief strategy", () => {
-  it("follows the note with the clip length", () => {
-    const message = minimaxH3.brief.userMessage("A baker opens the shutters.")
+describe("what a shot says", () => {
+  it("writes the things, the lighting, the action, the camera and the dialogue", () => {
+    const written = body()
 
-    expect(message.startsWith("A baker opens the shutters.")).toBe(true)
-    expect(message.trimEnd().endsWith("Target length: one clip under 15 seconds.")).toBe(true)
-  })
-
-  it("reads the three fields out of an answer", () => {
-    expect(minimaxH3.brief.readFields(JSON.stringify(fields))).toEqual(fields)
-  })
-
-  it("refuses an answer with a field missing", () => {
-    const withoutMusic = {
-      integrated_multimodal_description: fields.integrated_multimodal_description,
-      overall_soundscape: fields.overall_soundscape,
-    }
-
-    expect(() => minimaxH3.brief.readFields(JSON.stringify(withoutMusic))).toThrow(
-      expect.objectContaining({ code: "bad-response" })
+    expect(written).toContain("Keeper: an elderly man in oilskins.")
+    expect(written).toContain("The lighting is night.")
+    expect(written).toContain("Climbs the last steps of the tower.")
+    expect(written).toContain("Camera: push in with small amplitude at slow speed.")
+    expect(written).toContain(
+      `The elderly keeper, low and weathered (S1) says: ${dialogueTag("English", "Almost there.")}`
     )
   })
 
-  it("refuses an answer that is not JSON", () => {
-    expect(() => minimaxH3.brief.readFields("Here is your prompt!")).toThrow(
-      expect.objectContaining({ code: "bad-response" })
-    )
-  })
-})
-
-describe("the edit strategy", () => {
-  it("gives the prompt as it stands and the change to make", () => {
-    const message = minimaxH3.edit.userMessage(
-      "integrated_multimodal_description: a woman waits",
-      "She is happier."
-    )
-
-    expect(message).toContain("integrated_multimodal_description: a woman waits")
-    expect(message).toContain("She is happier.")
-  })
-
-  it("reads the rewritten fields back", () => {
-    expect(minimaxH3.edit.readFields(JSON.stringify(fields))).toEqual(fields)
-  })
-})
-
-describe("the prose instruction", () => {
-  it("describes every shot with its camera move and its timing", () => {
-    const instruction = minimaxH3.prose.instruction(composition, { kind: "all" })
-
-    expect(instruction).toContain("Shot 1 (starts at 00:00.000, runs 4.5 seconds)")
-    expect(instruction).toContain("Shot 2 (starts at 00:04.500, runs 3.0 seconds)")
-    expect(instruction).toContain("push in with small amplitude at slow speed")
-    expect(instruction).toContain("Begin shot 2 with exactly: the shot cuts to")
-    expect(instruction).toContain("Subject (person) Keeper: an elderly man in oilskins")
-  })
-
-  it("says when a voice is one of the subjects", () => {
-    const instruction = minimaxH3.prose.instruction(
-      {
-        ...composition,
-        speakers: [
-          { id: 7, label: "S1", description: "an elderly man in oilskins", subjectName: "Keeper" },
-        ],
-      },
-      { kind: "all" }
-    )
-
-    expect(instruction).toContain("(S1) is the subject Keeper: an elderly man in oilskins")
-  })
-
-  it("lists what happens in order, saying who does each thing", () => {
-    const withBeats = {
-      ...composition,
-      shots: [
-        {
-          ...composition.shots[0],
-          beats: [
-            { subjectName: "Keeper", text: "climbs the last steps" },
-            { subjectName: null, text: "rain runs off the rail" },
-          ],
-        },
-        composition.shots[1],
-      ],
-    }
-
-    const instruction = minimaxH3.prose.instruction(withBeats, { kind: "all" })
-
-    expect(instruction).toContain("Happens, in this order:")
-    expect(instruction).toContain("1. Keeper: climbs the last steps.")
-    expect(instruction).toContain("2. Rain runs off the rail.".replace("R", "r"))
-  })
-
-  it("carries the speakers and the dialogue word for word", () => {
-    const instruction = minimaxH3.prose.instruction(composition, { kind: "all" })
-
-    expect(instruction).toContain("(S1) The elderly keeper, low and weathered")
-    expect(instruction).toContain("<d>[English] Almost there.</d>")
-  })
-
-  it("asks for one shot and hands back what is already written", () => {
-    const instruction = minimaxH3.prose.instruction(composition, {
-      kind: "shot",
-      shotId: 12,
-      previous: prose,
+  it("names the subject a beat belongs to", () => {
+    const written = body({
+      shots: [shot(11, 4000, { beats: [{ subjectName: "Keeper", text: "reaches for the lamp" }] })],
     })
 
-    expect(instruction).toContain("Write shot 2 again, and only that shot")
-    expect(instruction).toContain("Shot 1: The keeper (S1) climbs.")
-    expect(instruction).not.toContain("Shot 2: The lamp turns and catches.")
+    expect(written).toContain("Keeper reaches for the lamp.")
+  })
+
+  it("leaves out a camera move the shot does not name", () => {
+    expect(body({ shots: [shot(11, 4000)] })).not.toContain("Camera:")
   })
 })
 
-describe("what a line can say", () => {
-  function withLine(over: Partial<typeof line>): ClipComposition {
-    return {
-      ...composition,
-      speakers: [
-        ...composition.speakers,
-        {
-          id: 8,
-          label: "S2",
-          description: "The radio operator, clipped and flat",
-          subjectName: null,
-        },
-      ],
-      shots: [{ ...composition.shots[0], dialogue: [{ ...line, ...over }] }, composition.shots[1]],
-    }
+describe("what a line of dialogue says", () => {
+  function written(over: Partial<typeof line>): string {
+    return body({ shots: [shot(11, 4000, { dialogue: [{ ...line, ...over }] })] })
   }
 
   it("gives a line two speakers share a compound id", () => {
-    const instruction = minimaxH3.prose.instruction(withLine({ speakerIds: [7, 8] }), {
-      kind: "all",
-    })
-
-    expect(instruction).toContain("Says (S1,S2):")
-  })
-
-  it("asks for the voiceover phrasing when a line is off screen", () => {
-    const instruction = minimaxH3.prose.instruction(withLine({ offScreen: true }), { kind: "all" })
-
-    expect(instruction).toContain("says in an off-screen voiceover")
-    expect(instruction).toContain("lips remain closed")
-  })
-
-  it("asks for scenetrans when a line carries across the cut", () => {
-    const instruction = minimaxH3.prose.instruction(withLine({ crossesCut: true }), { kind: "all" })
-
-    expect(instruction).toContain("<scenetrans>")
-  })
-
-  it("asks for cutoff when the clip ends over a line", () => {
-    const instruction = minimaxH3.prose.instruction(withLine({ cutOff: true }), { kind: "all" })
-
-    expect(instruction).toContain("<cutoff>")
-  })
-
-  it("offers the three transitions the guide allows when they are asked for", () => {
-    expect(minimaxH3.vocabularies.transitions).toContain("the shot cross-dissolves to")
-    expect(minimaxH3.vocabularies.transitions).toContain("the shot fades to")
-    expect(minimaxH3.vocabularies.transitions).toContain("the shot wipes to")
-  })
-})
-
-describe("a line of dialogue with nothing typed in it yet", () => {
-  const typing: ClipComposition = {
-    ...composition,
-    shots: [{ ...composition.shots[0], dialogue: [{ ...line, text: "" }] }, composition.shots[1]],
-  }
-
-  it("is left out of the instruction", () => {
-    const instruction = minimaxH3.prose.instruction(typing, { kind: "all" })
-
-    expect(instruction).not.toContain("reproduce exactly")
-  })
-
-  it("is not required back from the model", () => {
-    const answer = {
-      shots: [
-        { shot: 1, prose: "The keeper (S1) climbs." },
-        { shot: 2, prose: "the shot cuts to the lamp turning." },
+    const both = body({
+      speakers: [
+        ...composition.speakers,
+        { id: 8, label: "S2", description: "The keeper's wife", subjectName: null },
       ],
-      overall_soundscape: "Wind.",
-      non_diegetic_music: "N/A",
-    }
-
-    expect(() =>
-      minimaxH3.prose.readProse(JSON.stringify(answer), typing, { kind: "all" })
-    ).not.toThrow()
-  })
-})
-
-describe("a clip whose style has been emptied", () => {
-  it("opens on shot one without it", () => {
-    const assembled = minimaxH3.prose.assemble({ ...composition, style: "" }, prose)
-
-    expect(
-      assembled.integrated_multimodal_description.startsWith("[Shot 1] The keeper (S1) climbs.")
-    ).toBe(true)
-  })
-})
-
-describe("reading prose back", () => {
-  const answer = {
-    shots: [
-      { shot: 1, prose: `The keeper (S1) climbs. ${dialogueTag("English", "Almost there.")}` },
-      { shot: 2, prose: "the shot cuts to the lamp turning and catching." },
-    ],
-    overall_soundscape: "Wind batters the glass.",
-    non_diegetic_music: "N/A",
-  }
-
-  it("keys the prose back to the shots it belongs to", () => {
-    const read = minimaxH3.prose.readProse(JSON.stringify(answer), composition, { kind: "all" })
-
-    expect(read.shots.map((entry) => entry.shotId)).toEqual([11, 12])
-    expect(read.soundscape).toBe("Wind batters the glass.")
-    expect(read.music).toBe("N/A")
-  })
-
-  it("refuses an answer with a shot missing", () => {
-    const short = { ...answer, shots: [answer.shots[0]] }
-
-    expect(() =>
-      minimaxH3.prose.readProse(JSON.stringify(short), composition, { kind: "all" })
-    ).toThrow(expect.objectContaining({ code: "bad-response" }))
-  })
-
-  it("refuses an answer that drops a line of dialogue", () => {
-    const silent = {
-      ...answer,
-      shots: [{ shot: 1, prose: "The keeper (S1) climbs." }, answer.shots[1]],
-    }
-
-    expect(() =>
-      minimaxH3.prose.readProse(JSON.stringify(silent), composition, { kind: "all" })
-    ).toThrow(expect.objectContaining({ code: "bad-response" }))
-  })
-
-  it("keeps the other shots when only one was rewritten", () => {
-    const one = {
-      ...answer,
-      shots: [{ shot: 2, prose: "the shot cuts to the lamp sweeping the water." }],
-    }
-
-    const read = minimaxH3.prose.readProse(JSON.stringify(one), composition, {
-      kind: "shot",
-      shotId: 12,
-      previous: prose,
+      shots: [shot(11, 4000, { dialogue: [{ ...line, speakerIds: [7, 8] }] })],
     })
 
-    expect(read.shots).toEqual([
-      { shotId: 11, prose: `The keeper (S1) climbs. ${dialogueTag("English", "Almost there.")}` },
-      { shotId: 12, prose: "the shot cuts to the lamp sweeping the water." },
-    ])
+    expect(both).toContain("(S1,S2) says:")
+  })
+
+  it("writes the voiceover phrasing and the closed lips when a line is off screen", () => {
+    const off = written({ offScreen: true })
+
+    expect(off).toContain("says in an off-screen voiceover")
+    expect(off).toContain("Their lips remain closed.")
+  })
+
+  it("marks a line that carries across the cut, keeping the words inside the tag", () => {
+    const across = written({ crossesCut: true })
+
+    expect(across).toContain(`${dialogueTag("English", "Almost there.")} <scenetrans>`)
+    expect(across).toContain("continues seamlessly across the cut")
+  })
+
+  it("marks a line the clip ends over", () => {
+    expect(written({ cutOff: true })).toContain(
+      `${dialogueTag("English", "Almost there.")} <cutoff>`
+    )
+  })
+
+  it("leaves out a line with nothing typed in it yet", () => {
+    expect(written({ text: "   " })).not.toContain("(S1) says:")
+  })
+})
+
+describe("assembling the prompt", () => {
+  it("puts the style on the first shot and a cut time on the rest", () => {
+    const written = body()
+
+    expect(written).toContain("[Shot 1] Live-action, cinematic.")
+    expect(written).toContain("[Shot 2] At 00:04.500, the shot cuts to")
+  })
+
+  it("writes a plain camera cut when the shot names no transition", () => {
+    expect(body({ shots: [composition.shots[0], shot(12, 3000)] })).toContain(
+      "[Shot 2] At 00:04.500, the camera cuts to"
+    )
+  })
+
+  it("opens on shot one without the style when the style has been emptied", () => {
+    const written = body({ style: "" })
+
+    expect(written.startsWith("[Shot 1] Keeper:")).toBe(true)
+  })
+
+  it("gathers the sound of every shot into the soundscape", () => {
+    const assembled = minimaxH3.assemble({
+      ...composition,
+      shots: [
+        shot(11, 4000, { soundNote: "wind battering the glass" }),
+        shot(12, 3000, { soundNote: "the lamp motor grinding" }),
+      ],
+    })
+
+    expect(assembled.overall_soundscape).toBe("Wind battering the glass. The lamp motor grinding.")
+  })
+
+  it("says N/A for a field the clip gives nothing to", () => {
+    const assembled = minimaxH3.assemble({ ...composition, shots: [shot(11, 4000)] })
+
+    expect(assembled.overall_soundscape).toBe("N/A")
+    expect(assembled.non_diegetic_music).toBe("N/A")
+  })
+
+  it("carries the music note into its own field", () => {
+    const assembled = minimaxH3.assemble({ ...composition, musicNote: "A slow piano figure" })
+
+    expect(assembled.non_diegetic_music).toBe("A slow piano figure.")
   })
 })
 
@@ -415,90 +265,5 @@ describe("the line the prompt opens with", () => {
     expect(() =>
       minimaxH3.instructionLine({ ...composition, form: "fl2v", frames: [picture] })
     ).toThrow(expect.objectContaining({ code: "nothing-to-write" }))
-  })
-})
-
-describe("assembling the prompt", () => {
-  it("puts the style on the first shot and a cut time on the rest", () => {
-    const assembled = minimaxH3.prose.assemble(composition, prose)
-
-    expect(assembled.integrated_multimodal_description).toBe(
-      `[Shot 1] Live-action, cinematic. The keeper (S1) climbs. ${dialogueTag("English", "Almost there.")} ` +
-        "[Shot 2] At 00:04.500, the shot cuts to the lamp turning and catching."
-    )
-    expect(assembled.overall_soundscape).toBe("Wind batters the glass.")
-    expect(assembled.non_diegetic_music).toBe("N/A")
-  })
-
-  it("takes off a marker or a cut time the model wrote anyway, keeping its cut phrase", () => {
-    const wordy: ClipProse = {
-      ...prose,
-      shots: [
-        { shotId: 11, prose: "[Shot 1] The keeper climbs." },
-        { shotId: 12, prose: "[Shot 2] At 00:04.500, the shot cuts to the lamp turning." },
-      ],
-    }
-
-    const assembled = minimaxH3.prose.assemble(composition, wordy)
-
-    expect(assembled.integrated_multimodal_description).toBe(
-      "[Shot 1] Live-action, cinematic. The keeper climbs. " +
-        "[Shot 2] At 00:04.500, the shot cuts to the lamp turning."
-    )
-  })
-
-  it("asks for a plain camera cut when the shot names no transition", () => {
-    const withoutTransition = {
-      ...composition,
-      shots: [composition.shots[0], { ...composition.shots[1], transition: null }],
-    }
-
-    const instruction = minimaxH3.prose.instruction(withoutTransition, { kind: "all" })
-
-    expect(instruction).toContain("Begin shot 2 with exactly: the camera cuts to")
-  })
-
-  it("refuses an answer whose later shot does not carry its cut phrase", () => {
-    const answer = {
-      shots: [
-        { shot: 1, prose: `The keeper (S1) climbs. ${dialogueTag("English", "Almost there.")}` },
-        { shot: 2, prose: "the lamp turns and catches." },
-      ],
-      overall_soundscape: "Wind.",
-      non_diegetic_music: "N/A",
-    }
-
-    expect(() =>
-      minimaxH3.prose.readProse(JSON.stringify(answer), composition, { kind: "all" })
-    ).toThrow(expect.objectContaining({ code: "bad-response" }))
-  })
-
-  it("refuses an answer that leaves out the id of someone who speaks", () => {
-    const answer = {
-      shots: [
-        { shot: 1, prose: `The keeper climbs. ${dialogueTag("English", "Almost there.")}` },
-        { shot: 2, prose: "the shot cuts to the lamp turning." },
-      ],
-      overall_soundscape: "Wind.",
-      non_diegetic_music: "N/A",
-    }
-
-    expect(() =>
-      minimaxH3.prose.readProse(JSON.stringify(answer), composition, { kind: "all" })
-    ).toThrow(expect.objectContaining({ code: "bad-response" }))
-  })
-})
-
-describe("describing a shot without the model", () => {
-  it("writes the lighting, the things, the action, the camera and the dialogue", () => {
-    const described = minimaxH3.prose.describeShot(composition, 11)
-
-    expect(described).toContain("The lighting is night.")
-    expect(described).toContain("Keeper: an elderly man in oilskins.")
-    expect(described).toContain("Climbs the last steps of the tower.")
-    expect(described).toContain("Camera: push in with small amplitude at slow speed.")
-    expect(described).toContain(
-      `The elderly keeper, low and weathered (S1) says: ${dialogueTag("English", "Almost there.")}`
-    )
   })
 })

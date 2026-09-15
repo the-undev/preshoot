@@ -1,9 +1,10 @@
 # preshoot
 
 A desktop app for building storyboards and turning them into prompts for
-video generation models. It writes prompts for MiniMax H3. Generation runs
-elsewhere: the app owns the project, its assets, the shot list, the prompts,
-and the history of what was written.
+video generation models. It writes prompts for MiniMax H3, from the clip you
+build and nothing else, so the same clip always gives the same prompt and it
+is rewritten as you type. Generation runs elsewhere: the app owns the project,
+its assets, the shot list and the prompts.
 
 A project is a folder you choose, like a video editor. It holds a marker
 file, a SQLite database, and subfolders for assets and outputs.
@@ -19,16 +20,17 @@ by hand.
 
 - Node 22.12, 24 or 26 and pnpm 11. `engines` in `package.json` carries the
   same range, which comes from the narrowest the toolchain declares.
-- A [llama-server](https://github.com/ggml-org/llama.cpp) answering on a URL
-  you can reach, serving at least one model. The app attaches to a server,
-  it never starts or stops one.
+- Optionally, a [llama-server](https://github.com/ggml-org/llama.cpp)
+  answering on a URL you can reach, serving a model with vision. It drafts the
+  description of a reference picture in the library, and nothing else uses it.
+  The app attaches to a server, it never starts or stops one.
 
 ## Running
 
 ```bash
 pnpm install
-pnpm llama    # the model server, in its own terminal
 pnpm dev      # the app
+pnpm llama    # optional, in its own terminal: the model that describes pictures
 ```
 
 `pnpm llama` starts llama-server in router mode: every model under
@@ -38,9 +40,11 @@ default. Arguments are passed through, so `pnpm llama --port 9000` moves it.
 `docs/llama-server.md` says what each flag is for and how to reach a server
 somewhere else.
 
-Then open Settings with the gear in the workspace header, press Check, choose
-a model, and press Save. Generate refuses until a model is chosen, because a
-request that names none is refused by the server.
+To use it, open Settings with the gear in the workspace header, press Check,
+choose a model, and press Save. Everything except drafting a picture's
+description works without it.
+
+Press `?` anywhere in a project for the keyboard shortcuts.
 
 ## Building
 

@@ -71,9 +71,9 @@ Four label kinds, assigned once and used the same way in every section:
 | `<Audio N>`                                                  | Audio files, on a library thing for a voice and on a clip for music or ambience                                                                                                                                           | Missing entirely                                                         |
 | `<Video N>`, for editing or continuing a source video        | A video input                                                                                                                                                                                                             | Out of scope: the app generates rather than edits                        |
 | `<Subject 2> (S1)` when a referenced subject speaks          | A speaker that points at a library thing                                                                                                                                                                                  | Have it                                                                  |
-| `subject_definitions`, one line per label                    | The above, written by the model from it                                                                                                                                                                                   | Follows once the inputs exist                                            |
+| `subject_definitions`, one line per label                    | The above, written out from it                                                                                                                                                                                            | Follows once the inputs exist                                            |
 | `summary` with a task-type prefix                            | The task types, some derivable from what is attached                                                                                                                                                                      | Derivable, except which of reuse or reference an audio asset is          |
-| `retention_analysis`, one line per label with a fixed marker | A marker per asset, chosen by the user: `fully_preserved`, `partially_preserved`, `attribute_transfer`, `weak_reference` for visible content, and `fully_copy`, `partially_copy`, `reference`, `weak_reference` for audio | Missing. This is intent, not something the model should invent           |
+| `retention_analysis`, one line per label with a fixed marker | A marker per asset, chosen by the user: `fully_preserved`, `partially_preserved`, `attribute_transfer`, `weak_reference` for visible content, and `fully_copy`, `partially_copy`, `reference`, `weak_reference` for audio | Missing. This is intent, so it is chosen rather than derived             |
 
 ## What a generation request actually takes
 
@@ -104,8 +104,8 @@ the rest.
 | `conditions[].frame_index`    | Which frame a keyframe lands on. Derivable for the first frame; the last frame needs the frame count, which needs a frame rate nothing holds. |
 | `target.duration_seconds`     | The clip's duration. Have it, and never show it.                                                                                              |
 | `target.short_edge`           | The clip's short edge. Have it.                                                                                                               |
-| `target.aspect_ratio`         | The clip's aspect ratio, `auto` unless set. Have it.                                                                                          |
-| `seed`                        | The clip's seed. Have it.                                                                                                                     |
+| `target.aspect_ratio`         | The clip's aspect ratio, which is always one of the shapes offered. Have it.                                                                  |
+| `seed`                        | Nothing. A clip does not carry one, so whatever runs the generation picks it.                                                                 |
 
 A finished prompt is not enough to generate from, and the app now holds the
 rest and shows it as fields to copy. Nothing submits them, because there is
@@ -122,9 +122,8 @@ no endpoint to submit to.
    and no voice, and a clip has a note about music and no music. Both are
    conditions on a request as much as a picture is, and full reference needs
    them labelled.
-4. Full reference is a second target, not a mode of the first. Six fields
-   against three means a different schema, a different render and a different
-   system prompt, which is what the target seam is for.
-5. The retention markers are inputs, not outputs. A person decides whether a
-   subject is fully preserved or only loosely referenced, and the model is
-   told which.
+4. Full reference is a second target rather than a mode of the first. Six
+   fields against three means a different way of writing them and a different
+   render, which is what the target seam is for.
+5. The retention markers are chosen. A person decides whether a subject is
+   fully preserved or only loosely referenced, and the prompt says which.

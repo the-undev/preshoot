@@ -17,10 +17,11 @@ plus a settings schema, not new code paths.
 
 ## Machine
 
-RTX 3070 Ti with 8GB VRAM, 31GB RAM. The local LLM for prompt writing is
-Qwen3.5-9B at Q4_K_M (5.68GB) with its vision projector (0.92GB), served by
-llama-server. H3 itself does not run locally. Qwen Image runs locally only
-at Q2 or Q3 with the Lightning LoRA.
+RTX 3070 Ti with 8GB VRAM, 31GB RAM. The local model is Qwen3.5-9B at Q4_K_M
+(5.68GB) with its vision projector (0.92GB), served by llama-server, and it
+describes reference pictures. Nothing else in the app calls a model. H3 itself
+does not run locally. Qwen Image runs locally only at Q2 or Q3 with the
+Lightning LoRA.
 
 ## Decisions
 
@@ -51,20 +52,50 @@ at Q2 or Q3 with the Lightning LoRA.
   and stops nothing: llama-server's router mode already hosts every model it
   can find from one process, loads one on demand when a request names it, and
   frees it again on `POST /models/unload`. So the app names its model, shows
-  what is loaded, and can hand the card back. Start it once with
-  `llama-server --models-dir <dir> --models-max 1 --mmproj-device none`.
-- System prompts are data, not constants. Each target ships with one per way
-  of writing, a project can hold its own, and every generation keeps the
-  prompt it used and that prompt's text, so editing a prompt does not rewrite
-  what earlier ones were made with.
-- A target owns one model's vocabularies, system prompts and formatting; a
-  composer owns how the model is asked. Both are looked up by id, so another
-  target or another way of writing a prompt is one file and one line in an
-  index. Every stored generation records which composer wrote it and the
-  composition it was given, so two ways can be compared on the same clip.
-- The app writes the mechanical parts of a prompt itself: shot markers, cut
-  times, transition phrases and the dialogue tags. The model writes only the
-  prose, in one request per clip so a look or a voice carries across a cut.
+  what is loaded, and can hand the card back. Start it with `pnpm llama`.
+- The app writes the whole prompt itself, from the clip and nothing else: the
+  shot markers, the cut times, the transition phrases, the subjects, what
+  happens, the camera moves and the dialogue tags. A model wrote the prose
+  once and was taken out again. It produced a good prompt some of the time and
+  a mess the rest, it borrowed the characters out of the examples in its own
+  system prompt, and an edited prompt was a dead end because nothing carried
+  it back to the clip. The builder is the product; a model may come back later
+  to improve one field at a time, where its job is small enough to check.
+- The prompt is a function of the clip rather than a thing to produce. It is
+  read back after every change and shown beside the editor as it is typed, and
+  nothing is stored, because the same clip always writes the same prompt.
+- A target owns one model's vocabularies and how its fields are written and
+  rendered, and is looked up by id, so another target is one file and one line
+  in an index.
+- A clip has no name until it is saved. An unsaved clip is a scratch one that
+  lives as long as its tab, so an idea can be tried without being titled and
+  without leaving anything behind. Saving names it and puts it in the list an
+  empty tab shows. Branching copies any clip into a new scratch clip in its
+  own tab, which is how a version is tried without losing what it came from.
+  A branch records the saved clip underneath it and nothing further, so there
+  is a way back without a history to walk.
+- The workspace holds tabs, kept in the project database so reopening a
+  project lands where it was left. A tab holds a clip or the list of clips,
+  and any tab can go back to the list. Naming, saving and branching sit in a
+  bar under the tabs rather than in the editor, because they are about the
+  clip as a document rather than about its contents, and a name is only ever
+  typed into the dialog that saves or renames one.
+- A clip carries a short edge and an aspect ratio, which is what the request
+  takes. The controls are an orientation toggle, the ratios drawn in
+  proportion, and a row of short edges, so the same controls read either as a
+  resolution and an orientation or as a ratio and a short edge. There is no
+  mode switch, because there is only one pair of numbers underneath. The
+  `auto` ratio is gone: a clip that cannot say what it generates at cannot be
+  reproduced. The seed is gone too; the request takes one, so whatever runs
+  the generation picks it.
+- A field explains itself behind a question mark beside its label, never with
+  an example inside it. An example in an empty field reads as something the
+  clip already holds.
+- Every keyboard shortcut is one entry in one list, which both the bindings
+  and the dialog behind `?` read, so a shortcut cannot work without being
+  documented or be listed without working. The app sets its own Electron menu,
+  leaving out the window menu, because the default one binds Ctrl and W to
+  closing the window and the renderer needs it for closing a tab.
 - The workspace is a centred band no wider than 1400px, on the ultrawide as
   everywhere else.
 - Reference pictures are copied into the project rather than referenced where
@@ -78,14 +109,10 @@ at Q2 or Q3 with the Lightning LoRA.
 - Describing a picture is not writing a prompt for a particular model, so it
   sits beside the targets rather than inside one, and goes through a client
   call of its own: a vision answer is prose, not JSON.
-- Editing a prompt is not a composer. A composer turns a clip into a prompt;
-  editing turns a prompt into another prompt, and widening that interface
-  would make every composer accept an input it cannot use. An edit is stored
-  as an ordinary generation carrying what it came from, so it can be copied,
-  judged, compared and edited again with no special cases.
 - An exported prompt is a text file holding the prompt and nothing else, so
-  it pastes straight into the model's own form, with the clip, the way, the
-  variant, the model and any edit instruction in a json beside it.
+  it pastes straight into the model's own form, with the clip, its note, the
+  target and the request fields in a json beside it. It is written from the
+  clip as it stands at the moment it is asked for.
 - A prompt is one field of a generation request, and the app holds the rest:
   the task, the duration, the shape, the short edge, the seed and the
   pictures. They are shown as fields to copy rather than sent anywhere,
@@ -102,47 +129,55 @@ at Q2 or Q3 with the Lightning LoRA.
   Electron's installer uses `yauzl`, and CI runs the binary after install so
   the failure cannot pass silently again.
 
-## Done
+## What the app does
 
-1. Welcome screen, project create and open, recent projects, and an empty
-   project workspace.
-2. Prompt generation: a brief becomes a MiniMax H3 text-to-video prompt
-   through llama-server, kept in the project and listed in the workspace.
-3. Shot composition: a text library of people, places and objects, clips
-   built from shots with camera moves, cuts, timings and dialogue, and
-   three ways of turning one into a prompt.
-4. Models and iteration: the model is named per request and chosen from
-   what the server offers, system prompts are editable data, and one clip
-   can be written several ways at once and the results judged side by side.
-5. Editing and export: a finished prompt is rewritten from a change asked
-   for in words, edits chain under what they came from, and a prompt can be
-   written into the project or saved where the user chooses.
-6. Closing the loop: comparison runs are kept and read back, a run that
-   fails part way says where it stopped, a verdict and a note are written
-   apart, and nothing is deleted without asking.
-7. Asset images: reference pictures copied into the project and shown in the
-   library, with a description drafted from them by the local vision model.
-8. The keyframe forms: a clip says which form it is written for, the image
-   forms anchor to pictures from the library, and the prompt opens with the
-   line the guide gives for that form.
-9. The complete output: a clip holds the shape, the short edge and the seed
-   it is generated at, and a result shows every field a generation needs,
-   each copyable on its own.
+1. Projects: a welcome screen, create and open, and a recent list.
+2. A library of the people, places and objects a project refers to, with
+   reference pictures copied in and a description drafted from them by the
+   local vision model.
+3. Clips built from shots, with camera moves, cuts, timings, subjects, what
+   happens in each shot, sound and dialogue, including who speaks, off-screen
+   voices, lines carried across a cut and lines the clip ends over.
+4. The four H3 forms. A clip says which one it is written for, the image forms
+   anchor to pictures from the library, and the prompt opens with the line the
+   guide gives for that form.
+5. The complete output: the prompt beside the shape, the short edge, the seed
+   and the duration a generation needs, each copyable on its own, rewritten as
+   the clip is edited, and exportable into the project or to a chosen file.
+6. A workspace of tabs holding scratch clips, saved clips and branches of
+   either, with keyboard shortcuts and a list of them behind `?`.
 
 ## Milestones
 
-10. Full reference mode: pictures and audio labelled as `<Picture N>` and
-    `<Audio N>`, subjects built from them, retention markers chosen rather
-    than invented, and a second target whose answer is six sections rather
-    than three. `docs/h3-mapping.md` says what is missing before it can be
-    built.
-11. Storyboard editor: clips in order across a film, chained by last frame
-    to first frame, with prompts versioned per clip.
-12. Runpod link: connect to a pod, pull outputs into the project, show each
+7. The shot editor: a shot as something you type into rather than a wall of
+   dropdowns. Subjects referred to inline, the way `@` works in a chat app, so
+   naming someone in what happens is what puts them in the shot; fields added
+   as they are wanted rather than all present and empty; slash commands for
+   the same from the keyboard. This changes how a beat is stored, from a row
+   naming one subject to text carrying references, so it wants its own plan.
+8. Reusable shots: a saved shot dropped into any clip, with its subjects
+   swappable once it lands.
+9. Improving a field with a model: an enhance action on one text field at a
+   time, which is a job small enough to check, rather than a model writing the
+   whole prompt. Worth looking at what the ComfyUI prompt enhancer nodes do
+   and which models they use.
+10. Subject variants: the same person dressed differently or with different
+    hair, as rows under one library subject, each with its own pictures, so a
+    shot picks a look rather than a person.
+11. Full reference mode: pictures and audio labelled as `<Picture N>` and
+    `<Audio N>`, subjects built from them, retention markers, and a second
+    target whose prompt is six sections rather than three.
+    `docs/h3-mapping.md` says what is missing before it can be built.
+12. Storyboard editor: clips in order across a film, chained by last frame
+    to first frame.
+13. Runpod link: connect to a pod, pull outputs into the project, show each
     take next to its shot, mark good or bad with notes, export chosen takes.
-13. ComfyUI templates: API-format workflow JSON per target with named slots,
+    Four separate features, none assuming the others: takes, remote files over
+    SSH, a provider interface with Runpod as one implementation, and a
+    generation backend such as ComfyUI.
+14. ComfyUI templates: API-format workflow JSON per target with named slots,
     filled and submitted by the app.
-14. Local ComfyUI management: model downloads, start and stop, RefMod
+15. Local ComfyUI management: model downloads, start and stop, RefMod
     creation if the H3 VAE fits in 8GB with offload (TBD).
 
 ## Open questions

@@ -24,7 +24,6 @@ const composition: ClipComposition = {
   form: "t2v",
   shortEdge: 768,
   aspectRatio: "16:9",
-  seed: 0,
   frames: [],
   style: "Live-action, cinematic",
   note: "",
@@ -52,13 +51,22 @@ describe("buildRequest", () => {
     expect(buildRequest(composition, "a prompt").durationSeconds).toBe(8.5)
   })
 
-  it("carries the size and the seed the clip was given", () => {
-    const request = buildRequest({ ...composition, shortEdge: 1080, seed: 42 }, "a prompt")
+  it("carries the shape and the short edge the clip was given", () => {
+    const request = buildRequest({ ...composition, shortEdge: 1080 }, "a prompt")
 
     expect(request.shortEdge).toBe(1080)
     expect(request.aspectRatio).toBe("16:9")
-    expect(request.aspectRatioName).toBe("Landscape 16:9")
-    expect(request.seed).toBe(42)
+    expect(request.aspectRatioName).toBe("Widescreen")
+  })
+
+  it("works the pixel size out from the short edge and the shape", () => {
+    const wide = buildRequest({ ...composition, shortEdge: 1080 }, "a prompt")
+    const tall = buildRequest({ ...composition, shortEdge: 1080, aspectRatio: "9:16" }, "a prompt")
+    const square = buildRequest({ ...composition, shortEdge: 1080, aspectRatio: "1:1" }, "a prompt")
+
+    expect([wide.width, wide.height]).toEqual([1920, 1080])
+    expect([tall.width, tall.height]).toEqual([1080, 1920])
+    expect([square.width, square.height]).toEqual([1080, 1080])
   })
 
   it("hands over nothing when the clip is written from text", () => {

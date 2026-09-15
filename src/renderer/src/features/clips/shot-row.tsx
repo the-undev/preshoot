@@ -7,6 +7,7 @@ import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
+  FieldHelp,
   Input,
   Label,
   Select,
@@ -39,11 +40,8 @@ interface ShotRowProps {
   speakers: SpeakerComposition[]
   library: Asset[]
   vocabularies: Vocabularies
-  canRegenerate: boolean
-  isBusy: boolean
   onChange: (fields: ShotFields) => void
   onRemove: () => void
-  onRegenerate: () => void
   onAddPeople: () => void
 }
 
@@ -54,11 +52,8 @@ export function ShotRow({
   speakers,
   library,
   vocabularies,
-  canRegenerate,
-  isBusy,
   onChange,
   onRemove,
-  onRegenerate,
   onAddPeople,
 }: ShotRowProps): React.JSX.Element {
   const [open, setOpen] = useState(index === 0)
@@ -128,15 +123,6 @@ export function ShotRow({
           </CollapsibleTrigger>
 
           <div className="flex shrink-0 items-center gap-1">
-            <Button
-              variant="ghost"
-              size="sm"
-              disabled={!canRegenerate || isBusy}
-              onClick={onRegenerate}
-              aria-label={`Write shot ${index + 1} again`}
-            >
-              Regenerate
-            </Button>
             <Button
               variant="ghost"
               size="sm"
@@ -249,7 +235,13 @@ export function ShotRow({
           </div>
 
           <div className="flex flex-col gap-2">
-            <span className="text-sm font-medium">What happens</span>
+            <div className="flex items-center gap-1.5">
+              <span className="text-sm font-medium">What happens</span>
+              <FieldHelp label="what happens">
+                One thing at a time, in the order it happens. Each line says who it is about, or the
+                scene when it is about nobody in particular, and then what they do.
+              </FieldHelp>
+            </div>
             <ShotBeats
               shotId={shot.id}
               beats={shot.beats}
@@ -261,11 +253,16 @@ export function ShotRow({
           </div>
 
           <div className="flex flex-col gap-2">
-            <Label htmlFor={id("sound")}>Sound</Label>
+            <div className="flex items-center gap-1.5">
+              <Label htmlFor={id("sound")}>Sound</Label>
+              <FieldHelp label="sound">
+                What is heard in this shot that nobody says: weather, footfalls, machinery,
+                breathing. The sound of every shot is gathered into one field of the prompt.
+              </FieldHelp>
+            </div>
             <Input
               id={id("sound")}
               value={soundNote}
-              placeholder="wind battering the glass"
               onChange={(event) => setSoundNote(event.target.value)}
               onBlur={() => commit({ soundNote })}
             />

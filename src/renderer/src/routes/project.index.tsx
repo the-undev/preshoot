@@ -1,228 +1,225 @@
 import { useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { createFileRoute, useNavigate } from "@tanstack/react-router"
-import {
-  Alert,
-  AlertDescription,
-  ConfirmDialog,
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@renderer/design-system"
+import { Alert, AlertDescription, ConfirmDialog } from "@renderer/design-system"
 import { useAssetImages } from "@renderer/features/assets/use-asset-images"
-import { useOpenSettings } from "@renderer/features/settings/settings-dialog-context"
 import { useAssets } from "@renderer/features/assets/use-assets"
 import { ClipEditor } from "@renderer/features/clips/clip-editor"
 import { ClipList } from "@renderer/features/clips/clip-list"
-import { ComparePanel } from "@renderer/features/clips/compare-panel"
+import { ClipBar } from "@renderer/features/clips/clip-bar"
+import { ClipPromptPanel } from "@renderer/features/clips/clip-prompt"
+import { SaveClipDialog } from "@renderer/features/clips/save-clip-dialog"
+import { TabBar } from "@renderer/features/clips/tab-bar"
+import { tabTitle } from "@renderer/features/clips/tab-title"
 import { useClip } from "@renderer/features/clips/use-clip"
-import { useCompare, type ComparePair } from "@renderer/features/clips/use-compare"
 import { useClips } from "@renderer/features/clips/use-clips"
-import { useTRPC, type ClipSummary } from "@renderer/lib/trpc"
-import { useGenerateClip } from "@renderer/features/clips/use-generate-clip"
-import { GenerationHistory } from "@renderer/features/prompts/generation-history"
-import { usePromptActions } from "@renderer/features/prompts/use-prompt-actions"
-import { useVariants } from "@renderer/features/prompts/use-variants"
-import { PromptResult } from "@renderer/features/prompts/prompt-result"
+import { useExportPrompt } from "@renderer/features/clips/use-export-prompt"
+import { useTabs } from "@renderer/features/clips/use-tabs"
+import { useShortcuts } from "@renderer/features/shortcuts/use-shortcuts"
+import { useTRPC, type ClipSummary, type OpenTab } from "@renderer/lib/trpc"
 
 export const Route = createFileRoute("/project/")({
-  component: Clips,
+  component: Workspace,
 })
 
-function Clips(): React.JSX.Element {
+/** Whether closing this tab would throw away work: it holds a clip that has never been saved. */
+function discardsWork(tab: OpenTab): boolean {
+  return tab.clipId !== null && tab.clipName === null && tab.firstBeat !== null
+}
+
+function Workspace(): React.JSX.Element {
+  const tabs = useTabs()
   const clips = useClips()
-  const [chosenId, setChosenId] = useState<number | null>(null)
   const [removing, setRemoving] = useState<ClipSummary | null>(null)
-  const clipId = chosenId ?? clips.clips[0]?.id ?? null
+  const [discarding, setDiscarding] = useState<OpenTab | null>(null)
+  const clipId = tabs.active?.clipId ?? null
+
+  const startClip = (): void => clips.create(tabs.openClip)
+  const branchClip = (id: number): void => clips.branch(id, tabs.openClip)
+
+  // A tab holding a clip that was never saved is the only way back to it, so closing it asks first.
+  const closeTab = (tabId: number): void => {
+    const tab = tabs.tabs.find((open) => open.id === tabId)
+    if (tab && discardsWork(tab)) {
+      setDiscarding(tab)
+      return
+    }
+    tabs.close(tabId)
+  }
+
+  useShortcuts({
+    newTab: tabs.openEmpty,
+    closeTab: () => {
+      if (tabs.active) closeTab(tabs.active.id)
+    },
+    nextTab: () => tabs.step(1),
+    previousTab: () => tabs.step(-1),
+    firstTab: () => tabs.jumpTo(0),
+    lastTab: () => tabs.jumpTo(-1),
+    clipList: tabs.showClipList,
+    newClip: startClip,
+  })
 
   return (
-    <main className="mx-auto grid h-full w-full max-w-[1400px] gap-8 p-8 lg:grid-cols-[16rem_1fr]">
-      <section className="flex min-h-0 min-w-0 flex-col gap-4 overflow-y-auto pr-1">
-        <ClipList
-          clips={clips.clips}
-          selectedId={clipId}
-          onSelect={setChosenId}
-          onCreate={clips.create}
-          onRemove={setRemoving}
+    <div className="flex h-full min-h-0 flex-col">
+      <div className="shrink-0 border-b px-4 pt-2">
+        <TabBar
+          tabs={tabs.tabs}
+          activeId={tabs.active?.id ?? null}
+          onActivate={tabs.activate}
+          onClose={closeTab}
+          onOpenEmpty={tabs.openEmpty}
         />
-        {clips.errorMessage && (
-          <Alert variant="destructive">
-            <AlertDescription>{clips.errorMessage}</AlertDescription>
-          </Alert>
-        )}
-      </section>
+      </div>
+
+      {(tabs.errorMessage ?? clips.errorMessage) && (
+        <Alert variant="destructive" className="mx-4 mt-4">
+          <AlertDescription>{tabs.errorMessage ?? clips.errorMessage}</AlertDescription>
+        </Alert>
+      )}
 
       {removing && (
         <ConfirmDialog
           title={`Delete ${removing.name}?`}
-          description={
-            removing.prompts === 0
-              ? "Its shots go with it. Nothing has been generated for it."
-              : `Its shots and the ${removing.prompts} prompts written for it go with it.`
-          }
+          description="Its shots go with it, and its tab closes."
           confirmLabel="Delete"
           onCancel={() => setRemoving(null)}
           onConfirm={() => {
             clips.remove(removing.id)
-            if (chosenId === removing.id) setChosenId(null)
             setRemoving(null)
           }}
         />
       )}
 
-      {clipId === null ? (
-        <p className="text-sm text-muted-foreground">Start a clip to write a prompt for it.</p>
-      ) : (
-        <OpenClip
-          clipId={clipId}
-          targetId={clips.clips.find((clip) => clip.id === clipId)?.target ?? ""}
+      {discarding && (
+        <ConfirmDialog
+          title={`Discard ${tabTitle(discarding)}?`}
+          description="This clip has never been saved, so closing its tab throws it away."
+          confirmLabel="Discard"
+          onCancel={() => setDiscarding(null)}
+          onConfirm={() => {
+            tabs.close(discarding.id)
+            setDiscarding(null)
+          }}
         />
       )}
-    </main>
+
+      {clipId === null ? (
+        <main className="mx-auto min-h-0 w-full max-w-[1400px] flex-1 overflow-hidden p-8">
+          <ClipList
+            clips={clips.clips}
+            onCreate={startClip}
+            onOpen={tabs.openClip}
+            onBranch={branchClip}
+            onRemove={setRemoving}
+          />
+        </main>
+      ) : (
+        <OpenClip
+          key={clipId}
+          clipId={clipId}
+          tab={tabs.active as OpenTab}
+          onBranched={tabs.openClip}
+        />
+      )}
+    </div>
   )
 }
 
 interface OpenClipProps {
   clipId: number
-  targetId: string
+  tab: OpenTab
+  onBranched: (clipId: number) => void
 }
 
-/** The clip being written, its result and everything written for it before. */
-function OpenClip({ clipId, targetId }: OpenClipProps): React.JSX.Element {
+/** The clip being written, and the prompt it makes as it is written. */
+function OpenClip({ clipId, tab, onBranched }: OpenClipProps): React.JSX.Element {
   const clip = useClip(clipId)
+  const [naming, setNaming] = useState(false)
   const library = useAssets()
   const pictures = useAssetImages()
-  const writing = useGenerateClip(clipId)
-  const prompts = useVariants(targetId)
-  const comparison = useCompare(clipId)
-  const actions = usePromptActions()
-  const openSettings = useOpenSettings()
+  const exporting = useExportPrompt(clipId)
   const navigate = useNavigate()
   const trpc = useTRPC()
   const shapes = useQuery(trpc.clips.aspectRatios.queryOptions())
-  const settings = useQuery(trpc.settings.get.queryOptions())
-  const [pairs, setPairs] = useState<ComparePair[]>([])
+
+  useShortcuts({
+    addShot: clip.addShot,
+    copyPrompt: () => {
+      if (clip.prompt?.ready) void navigator.clipboard.writeText(clip.prompt.rendered)
+    },
+    saveClip: () => setNaming(true),
+    branchClip: () => clip.branch(onBranched),
+  })
 
   if (!clip.composition || !clip.vocabularies) {
     return <p className="text-sm text-muted-foreground">Loading the clip…</p>
   }
 
-  const [latest, ...earlier] = writing.generations
-
   return (
-    <div className="grid h-full min-h-0 min-w-0 gap-8 xl:grid-cols-2">
-      <section className="flex min-h-0 min-w-0 flex-col gap-4 overflow-y-auto pr-2">
-        <ClipEditor
-          composition={clip.composition}
-          vocabularies={clip.vocabularies}
-          library={library.assets}
-          libraryImages={pictures.images}
-          aspectRatios={shapes.data ?? []}
-          composers={writing.composers}
-          composerId={writing.composerId}
-          variants={prompts.variants}
-          variantId={writing.variantId}
-          isSaving={clip.isSaving}
-          isGenerating={writing.isPending}
-          hasModel={(settings.data?.llamaModel.length ?? 0) > 0}
-          canRegenerate={Boolean(writing.latest?.prose)}
-          onClipChange={clip.updateClip}
-          onAddShot={clip.addShot}
-          onShotChange={clip.updateShot}
-          onMoveShot={clip.moveShot}
-          onRemoveShot={clip.removeShot}
-          onAddSpeaker={clip.addSpeaker}
-          onUpdateSpeaker={clip.updateSpeaker}
-          onRemoveSpeaker={clip.removeSpeaker}
-          onChooseComposer={writing.chooseComposer}
-          onChooseVariant={writing.chooseVariant}
-          onSetFrame={clip.setFrame}
-          onOpenSettings={openSettings}
-          onAddPeople={() => void navigate({ to: "/project/library" })}
-          onGenerate={writing.generate}
-          onRegenerateShot={writing.regenerateShot}
+    <div className="flex min-h-0 flex-1 flex-col">
+      <ClipBar
+        tab={tab}
+        isSaving={clip.isSaving}
+        onSave={() => setNaming(true)}
+        onBranch={() => clip.branch(onBranched)}
+      />
+
+      {naming && (
+        <SaveClipDialog
+          name={clip.composition.name}
+          onSave={(name) => {
+            clip.save(name)
+            setNaming(false)
+          }}
+          onCancel={() => setNaming(false)}
         />
+      )}
 
-        {(clip.errorMessage ?? writing.errorMessage) && (
-          <Alert variant="destructive">
-            <AlertDescription>{clip.errorMessage ?? writing.errorMessage}</AlertDescription>
-          </Alert>
-        )}
-      </section>
+      <main className="mx-auto grid min-h-0 w-full max-w-[1400px] flex-1 gap-8 overflow-hidden p-8 xl:grid-cols-2">
+        <section className="flex min-h-0 min-w-0 flex-col gap-4 overflow-y-auto pr-2">
+          <ClipEditor
+            composition={clip.composition}
+            vocabularies={clip.vocabularies}
+            library={library.assets}
+            libraryImages={pictures.images}
+            aspectRatios={shapes.data ?? []}
+            isSaving={clip.isSaving}
+            onClipChange={clip.updateClip}
+            onAddShot={clip.addShot}
+            onShotChange={clip.updateShot}
+            onMoveShot={clip.moveShot}
+            onRemoveShot={clip.removeShot}
+            onAddSpeaker={clip.addSpeaker}
+            onUpdateSpeaker={clip.updateSpeaker}
+            onRemoveSpeaker={clip.removeSpeaker}
+            onSetFrame={clip.setFrame}
+            onAddPeople={() => void navigate({ to: "/project/library" })}
+          />
 
-      <Tabs defaultValue="result" className="flex min-h-0 min-w-0 flex-col gap-3">
-        <TabsList>
-          <TabsTrigger value="result">Result</TabsTrigger>
-          <TabsTrigger value="history">History ({writing.generations.length})</TabsTrigger>
-          <TabsTrigger value="compare">Compare</TabsTrigger>
-        </TabsList>
+          {clip.errorMessage && (
+            <Alert variant="destructive">
+              <AlertDescription>{clip.errorMessage}</AlertDescription>
+            </Alert>
+          )}
+        </section>
 
-        <TabsContent value="result" className="flex min-h-0 flex-col gap-4 overflow-y-auto pr-2">
-          {latest ? (
-            <PromptResult
-              generation={latest}
-              isEditing={actions.isEditing}
-              isExporting={actions.isExporting}
-              onEdit={actions.edit}
-              onExport={actions.exportToProject}
-              onSave={actions.save}
-              onOpenExports={actions.openExports}
-            />
+        <section className="flex min-h-0 min-w-0 flex-col gap-3 overflow-y-auto pr-2">
+          {clip.prompt === null ? (
+            <p className="text-sm text-muted-foreground">Writing the prompt…</p>
           ) : (
-            <p className="text-sm text-muted-foreground">
-              Nothing written for this clip yet. Fill in a shot and press Generate.
-            </p>
+            <ClipPromptPanel
+              prompt={clip.prompt}
+              isExporting={exporting.isExporting}
+              exportedTo={exporting.exportedTo}
+              errorMessage={exporting.errorMessage}
+              onExport={exporting.exportToProject}
+              onSave={exporting.saveAs}
+              onOpenExports={exporting.openExports}
+            />
           )}
-
-          {actions.exportedTo && (
-            <p className="text-xs text-muted-foreground">Written to {actions.exportedTo}</p>
-          )}
-
-          {actions.errorMessage && (
-            <Alert variant="destructive">
-              <AlertDescription>{actions.errorMessage}</AlertDescription>
-            </Alert>
-          )}
-        </TabsContent>
-
-        <TabsContent value="history" className="min-h-0 overflow-y-auto pr-2">
-          <GenerationHistory
-            generations={earlier}
-            isEditing={actions.isEditing}
-            isExporting={actions.isExporting}
-            onEdit={actions.edit}
-            onExport={actions.exportToProject}
-            onSave={actions.save}
-            onOpenExports={actions.openExports}
-          />
-        </TabsContent>
-
-        <TabsContent value="compare" className="flex min-h-0 flex-col gap-4 overflow-y-auto pr-2">
-          <ComparePanel
-            composers={writing.composers}
-            variants={prompts.variants}
-            pairs={pairs}
-            runs={comparison.runs}
-            runId={comparison.runId}
-            results={comparison.results}
-            failure={comparison.failure}
-            isPending={comparison.isPending}
-            onAddPair={(pair) => setPairs([...pairs, pair])}
-            onRemovePair={(index) => setPairs(pairs.filter((_, at) => at !== index))}
-            onRun={() => comparison.run(pairs)}
-            onChooseRun={comparison.chooseRun}
-            onVerdict={comparison.setVerdict}
-            onNote={comparison.setNote}
-          />
-
-          {comparison.errorMessage && (
-            <Alert variant="destructive">
-              <AlertDescription>{comparison.errorMessage}</AlertDescription>
-            </Alert>
-          )}
-        </TabsContent>
-      </Tabs>
+        </section>
+      </main>
     </div>
   )
 }

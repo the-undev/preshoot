@@ -1,7 +1,4 @@
 import { integer, primaryKey, sqliteTable, text } from "drizzle-orm/sqlite-core"
-import type { ClipComposition } from "../composition/clip"
-import type { ClipProse } from "../composition/prose"
-import type { GenerationRequest } from "../composition/request"
 
 /** Project-level key/value settings such as default target model and clip length. */
 export const projectSettings = sqliteTable("project_settings", {
@@ -34,15 +31,18 @@ export const assetImages = sqliteTable("asset_images", {
 /** One clip: a few shots that become a single prompt. */
 export const clips = sqliteTable("clips", {
   id: integer("id").primaryKey({ autoIncrement: true }),
-  name: text("name").notNull(),
+  // Nothing until the clip is saved: an unsaved clip is a scratch one, reachable only from its tab.
+  name: text("name"),
   target: text("target").notNull(),
   style: text("style").notNull(),
   note: text("note").notNull(),
   musicNote: text("music_note").notNull(),
   form: text("form").notNull().default("t2v"),
   shortEdge: integer("short_edge").notNull().default(768),
-  aspectRatio: text("aspect_ratio").notNull().default("auto"),
-  seed: integer("seed").notNull().default(0),
+  aspectRatio: text("aspect_ratio").notNull().default("16:9"),
+  // The saved clip this one was branched from, which a branch of a branch still points at. A plain
+  // column rather than a key: a self-referencing key would be checked row by row on every insert.
+  savedFromId: integer("saved_from_id"),
   createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
 })
 
@@ -135,37 +135,12 @@ export const dialogueLines = sqliteTable("dialogue_lines", {
   cutOff: integer("cut_off", { mode: "boolean" }).notNull().default(false),
 })
 
-/** System prompts written in this project, alongside the ones the targets ship with. */
-export const promptVariants = sqliteTable("prompt_variants", {
+/**
+ * The tabs open in the workspace, left to right. A tab with no clip shows the list of clips, so
+ * one can be opened without first opening another.
+ */
+export const openTabs = sqliteTable("open_tabs", {
   id: integer("id").primaryKey({ autoIncrement: true }),
-  targetId: text("target_id").notNull(),
-  strategy: text("strategy").notNull(),
-  name: text("name").notNull(),
-  systemPrompt: text("system_prompt").notNull(),
-  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
-})
-
-/** Every prompt the app has generated for this project, kept whether or not it was used. */
-export const generations = sqliteTable("generations", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  target: text("target").notNull(),
-  composer: text("composer").notNull().default("brief"),
-  clipId: integer("clip_id").references(() => clips.id, { onDelete: "set null" }),
-  clipNote: text("clip_note").notNull(),
-  fields: text("fields", { mode: "json" }).$type<Record<string, string>>().notNull(),
-  composition: text("composition", { mode: "json" }).$type<ClipComposition>(),
-  request: text("request", { mode: "json" }).$type<GenerationRequest>(),
-  prose: text("prose", { mode: "json" }).$type<ClipProse>(),
-  rendered: text("rendered").notNull(),
-  model: text("model"),
-  runId: text("run_id"),
-  promptVariantId: text("prompt_variant_id"),
-  systemPrompt: text("system_prompt"),
-  verdict: text("verdict"),
-  note: text("note").notNull().default(""),
-  // A plain column rather than a key: a clip's generations go in one statement, and a
-  // self-referencing key would be checked row by row inside it.
-  parentId: integer("parent_id"),
-  editInstruction: text("edit_instruction"),
-  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+  clipId: integer("clip_id").references(() => clips.id, { onDelete: "cascade" }),
+  position: integer("position").notNull(),
 })
