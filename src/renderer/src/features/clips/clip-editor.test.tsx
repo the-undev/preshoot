@@ -65,24 +65,15 @@ const composition: ClipComposition = {
 }
 
 function renderEditor(over: Partial<React.ComponentProps<typeof ClipEditor>> = {}): {
-  onClipChange: ReturnType<typeof vi.fn>
   onAddShot: ReturnType<typeof vi.fn>
 } {
-  const onClipChange = vi.fn()
   const onAddShot = vi.fn()
   render(
     <ClipEditor
       composition={composition}
       vocabularies={vocabularies}
       library={[]}
-      libraryImages={[]}
-      aspectRatios={[
-        { value: "16:9", name: "Widescreen", width: 16, height: 9 },
-        { value: "1:1", name: "Square", width: 1, height: 1 },
-        { value: "9:16", name: "Widescreen", width: 9, height: 16 },
-      ]}
       isSaving={false}
-      onClipChange={onClipChange}
       onAddShot={onAddShot}
       onShotChange={vi.fn()}
       onMoveShot={vi.fn()}
@@ -90,29 +81,14 @@ function renderEditor(over: Partial<React.ComponentProps<typeof ClipEditor>> = {
       onAddSpeaker={vi.fn()}
       onUpdateSpeaker={vi.fn()}
       onRemoveSpeaker={vi.fn()}
-      onSetFrame={vi.fn()}
       onAddPeople={vi.fn()}
       {...over}
     />
   )
-  return { onClipChange, onAddShot }
+  return { onAddShot }
 }
 
 describe("ClipEditor", () => {
-  it("shows the clip's own fields", () => {
-    renderEditor()
-
-    expect(screen.getByLabelText("Style")).toHaveValue("Live-action, cinematic")
-    expect(screen.getByLabelText("Note")).toHaveValue("A keeper lights the lamp.")
-  })
-
-  it("explains a field rather than showing an example inside it", () => {
-    renderEditor()
-
-    expect(screen.getByLabelText("Note")).not.toHaveAttribute("placeholder")
-    expect(screen.getByRole("button", { name: "What the note is for" })).toBeInTheDocument()
-  })
-
   it("adds up the shots", () => {
     renderEditor()
 
@@ -134,20 +110,10 @@ describe("ClipEditor", () => {
     expect(screen.getByText("Shot 2")).toBeInTheDocument()
   })
 
-  it("reports the style once the field is left", () => {
-    const { onClipChange } = renderEditor()
-
-    const style = screen.getByLabelText("Style")
-    fireEvent.change(style, { target: { value: "vintage film" } })
-    fireEvent.blur(style)
-
-    expect(onClipChange).toHaveBeenCalledWith(expect.objectContaining({ style: "vintage film" }))
-  })
-
   it("asks for another shot", () => {
     const { onAddShot } = renderEditor()
 
-    fireEvent.click(screen.getByRole("button", { name: "Add shot" }))
+    fireEvent.click(screen.getByRole("button", { name: "Add a shot" }))
 
     expect(onAddShot).toHaveBeenCalled()
   })
@@ -161,33 +127,6 @@ describe("ClipEditor", () => {
     })
 
     expect(screen.getByText("Shot 1 has nothing happening in it.")).toBeInTheDocument()
-  })
-
-  it("says what kind of generation the clip is for", () => {
-    renderEditor()
-
-    expect(screen.getByLabelText("Generation type")).toHaveTextContent("Text to video (t2va)")
-  })
-
-  it("shows the resolution it is generated at", () => {
-    renderEditor({ composition: { ...composition, aspectRatio: "16:9", shortEdge: 1080 } })
-
-    expect(screen.getByRole("radio", { name: "16:9 Widescreen" })).toBeChecked()
-    expect(screen.getByText("1920 × 1080")).toBeInTheDocument()
-  })
-
-  it("asks for a picture when the form needs one", () => {
-    renderEditor({ composition: { ...composition, form: "i2v" } })
-
-    expect(screen.getByLabelText("Opens on")).toBeInTheDocument()
-    expect(screen.getByText("Choose the picture this clip opens on.")).toBeInTheDocument()
-  })
-
-  it("asks for nothing extra when the clip is written from text", () => {
-    renderEditor()
-
-    expect(screen.queryByLabelText("Opens on")).not.toBeInTheDocument()
-    expect(screen.getByLabelText("Generation type")).toHaveTextContent("Text to video")
   })
 
   it("says a clip with no shots cannot be written yet", () => {

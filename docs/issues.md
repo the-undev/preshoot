@@ -28,7 +28,8 @@ says so.
 - A clip has one style for every shot, so it cannot change style at a cut.
 - A clip carries no seed, so two generations of the same clip cannot be asked
   to come out the same. The request takes one; nothing holds it.
-- The language of a line of dialogue is free text rather than a picklist.
+- The language of a clip is free text rather than a picklist, and so is the
+  override on a line.
 - The shot editor saves as it is changed, so there is no undo.
 - Closing the tab of a clip that was never saved throws the clip away. There
   is no undo and no reopening of a closed tab, only the question asked first.
@@ -67,9 +68,11 @@ wrong here is wrong every time rather than some of the time.
   rather than which frame.
 - Nothing turns the fields into a request body. That wants a real endpoint
   to build against, which arrives with Runpod or ComfyUI.
-- A shot is reordered by dragging its handle. From the keyboard that means
-  focusing the handle, pressing space to lift it, moving with the arrows and
-  pressing space again, which nothing on screen says.
+- A shot or a line is reordered by dragging its handle. From the keyboard that
+  means focusing the handle, pressing space to lift it, moving with the arrows
+  and pressing space again, which nothing on screen says.
+- A line cannot be turned from something that happens into something that is
+  said. It has to be removed and written again as the other kind.
 - The library screen puts the form on the left and the list on the right,
   which reads backwards: you pick from the list, then edit.
 - A library thing cannot be added without leaving the clip that needs it.

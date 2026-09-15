@@ -91,6 +91,20 @@ Lightning LoRA.
 - A field explains itself behind a question mark beside its label, never with
   an example inside it. An example in an empty field reads as something the
   clip already holds.
+- What happens in a shot and what is said in it are one ordered list, not two,
+  so the prompt reads in the order it was written. That is what the guide asks
+  for: actions and reactions in order with the dialogue among them. A line is
+  something someone does or something someone says.
+- A shot is written by typing. Enter makes the next line and puts the cursor in
+  it, backspace on an empty line takes it away, and a plus between two lines
+  adds one there, so nothing has to be added at the end and dragged into place.
+  Reordering is a handle, removing is a bin.
+- A clip is in one language, which a line overrides only when somebody speaks
+  another. Every line carrying its own was a field on every row for something
+  that almost never varies.
+- What a clip generates at lives in a bar under the tabs, as what it is set to
+  now and a dialog to change it, because it is set once and then left alone
+  while the shots are worked on the whole time.
 - Every keyboard shortcut is one entry in one list, which both the bindings
   and the dialog behind `?` read, so a shortcut cannot work without being
   documented or be listed without working. The app sets its own Electron menu,
@@ -135,9 +149,10 @@ Lightning LoRA.
 2. A library of the people, places and objects a project refers to, with
    reference pictures copied in and a description drafted from them by the
    local vision model.
-3. Clips built from shots, with camera moves, cuts, timings, subjects, what
-   happens in each shot, sound and dialogue, including who speaks, off-screen
-   voices, lines carried across a cut and lines the clip ends over.
+3. Clips built from shots, with camera moves, cuts, timings, subjects, sound,
+   and one ordered list per shot of what happens and what is said, including
+   who speaks, off-screen voices, lines carried across a cut and lines the clip
+   ends over.
 4. The four H3 forms. A clip says which one it is written for, the image forms
    anchor to pictures from the library, and the prompt opens with the line the
    guide gives for that form.
@@ -149,12 +164,11 @@ Lightning LoRA.
 
 ## Milestones
 
-7. The shot editor: a shot as something you type into rather than a wall of
-   dropdowns. Subjects referred to inline, the way `@` works in a chat app, so
-   naming someone in what happens is what puts them in the shot; fields added
-   as they are wanted rather than all present and empty; slash commands for
-   the same from the keyboard. This changes how a beat is stored, from a row
-   naming one subject to text carrying references, so it wants its own plan.
+7. The shot editor: subjects referred to inline, the way `@` works in a chat
+   app, so naming someone in a line is what puts them in the shot; fields added
+   as they are wanted rather than all present and empty; slash commands for the
+   same from the keyboard. The lines are already one ordered list carrying
+   text, so this is a renderer change rather than another migration.
 8. Reusable shots: a saved shot dropped into any clip, with its subjects
    swappable once it lands.
 9. Improving a field with a model: an enhance action on one text field at a

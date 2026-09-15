@@ -1,7 +1,7 @@
 import { useState } from "react"
 import { useSortable } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
-import { ChevronDown, ChevronRight, GripVertical } from "lucide-react"
+import { ChevronDown, ChevronRight, GripVertical, Trash2 } from "lucide-react"
 import {
   Button,
   Collapsible,
@@ -115,11 +115,12 @@ export function ShotRow({
           <div className="flex shrink-0 items-center gap-1">
             <Button
               variant="ghost"
-              size="sm"
+              size="icon"
+              className="size-8"
               onClick={onRemove}
               aria-label={`Remove shot ${index + 1}`}
             >
-              Remove
+              <Trash2 className="size-4" />
             </Button>
           </div>
         </header>

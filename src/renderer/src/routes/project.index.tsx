@@ -8,6 +8,7 @@ import { ClipEditor } from "@renderer/features/clips/clip-editor"
 import { ClipList } from "@renderer/features/clips/clip-list"
 import { ClipBar } from "@renderer/features/clips/clip-bar"
 import { ClipPromptPanel } from "@renderer/features/clips/clip-prompt"
+import { ClipSettingsDialog } from "@renderer/features/clips/clip-settings-dialog"
 import { SaveClipDialog } from "@renderer/features/clips/save-clip-dialog"
 import { TabBar } from "@renderer/features/clips/tab-bar"
 import { tabTitle } from "@renderer/features/clips/tab-title"
@@ -136,6 +137,7 @@ interface OpenClipProps {
 function OpenClip({ clipId, tab, onBranched }: OpenClipProps): React.JSX.Element {
   const clip = useClip(clipId)
   const [naming, setNaming] = useState(false)
+  const [settingsOpen, setSettingsOpen] = useState(false)
   const library = useAssets()
   const pictures = useAssetImages()
   const exporting = useExportPrompt(clipId)
@@ -150,6 +152,7 @@ function OpenClip({ clipId, tab, onBranched }: OpenClipProps): React.JSX.Element
     },
     saveClip: () => setNaming(true),
     branchClip: () => clip.branch(onBranched),
+    clipSettings: () => setSettingsOpen(true),
   })
 
   if (!clip.composition || !clip.vocabularies) {
@@ -160,9 +163,12 @@ function OpenClip({ clipId, tab, onBranched }: OpenClipProps): React.JSX.Element
     <div className="flex min-h-0 flex-1 flex-col">
       <ClipBar
         tab={tab}
+        composition={clip.composition}
+        aspectRatios={shapes.data ?? []}
         isSaving={clip.isSaving}
         onSave={() => setNaming(true)}
         onBranch={() => clip.branch(onBranched)}
+        onSettings={() => setSettingsOpen(true)}
       />
 
       {naming && (
@@ -176,16 +182,25 @@ function OpenClip({ clipId, tab, onBranched }: OpenClipProps): React.JSX.Element
         />
       )}
 
+      {settingsOpen && (
+        <ClipSettingsDialog
+          composition={clip.composition}
+          vocabularies={clip.vocabularies}
+          libraryImages={pictures.images}
+          aspectRatios={shapes.data ?? []}
+          onChange={clip.updateClip}
+          onSetFrame={clip.setFrame}
+          onClose={() => setSettingsOpen(false)}
+        />
+      )}
+
       <main className="mx-auto grid min-h-0 w-full max-w-[1400px] flex-1 gap-8 overflow-hidden p-8 xl:grid-cols-2">
         <section className="flex min-h-0 min-w-0 flex-col gap-4 overflow-y-auto pr-2">
           <ClipEditor
             composition={clip.composition}
             vocabularies={clip.vocabularies}
             library={library.assets}
-            libraryImages={pictures.images}
-            aspectRatios={shapes.data ?? []}
             isSaving={clip.isSaving}
-            onClipChange={clip.updateClip}
             onAddShot={clip.addShot}
             onShotChange={clip.updateShot}
             onMoveShot={clip.moveShot}
@@ -193,7 +208,6 @@ function OpenClip({ clipId, tab, onBranched }: OpenClipProps): React.JSX.Element
             onAddSpeaker={clip.addSpeaker}
             onUpdateSpeaker={clip.updateSpeaker}
             onRemoveSpeaker={clip.removeSpeaker}
-            onSetFrame={clip.setFrame}
             onAddPeople={() => void navigate({ to: "/project/library" })}
           />
 

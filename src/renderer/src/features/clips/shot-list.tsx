@@ -63,10 +63,6 @@ export function ShotList({
     >
       <SortableContext items={shots.map((shot) => shot.id)} strategy={verticalListSortingStrategy}>
         <div className="flex flex-col gap-3">
-          <p className="text-xs text-muted-foreground">
-            Drag a shot by its handle to reorder it. From the keyboard, focus the handle, press
-            space, move with the arrows and press space again.
-          </p>
           {shots.map((shot, index) => (
             <ShotRow
               key={shot.id}
