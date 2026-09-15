@@ -13,11 +13,20 @@ export interface Vocabularies {
   lightings: readonly string[]
 }
 
+/** How long the field the model generates from should run, which each model's guide sets. */
+export interface BodyLength {
+  /** Which of the fields is the one the length is about. */
+  field: string
+  min: number
+  max: number
+}
+
 /** One generation model the app writes prompts for. */
 export interface PromptTarget {
   id: string
   name: string
   vocabularies: Vocabularies
+  body: BodyLength
   /** The prompt's fields, written from the clip and nothing else. */
   assemble(composition: ClipComposition): TargetFields
   render(fields: TargetFields): string

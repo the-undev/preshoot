@@ -74,7 +74,7 @@ const composition: ClipComposition = {
       things: [
         { id: 5, kind: "person", name: "Keeper", description: "an elderly man in oilskins" },
       ],
-      lines: [action("climbs the last steps of the tower"), speech("Almost there.")],
+      lines: [action("climbs the last steps of the tower", "Keeper"), speech("Almost there.")],
       soundNote: "wind battering the glass",
     }),
     shot(12, 3000, {
@@ -112,14 +112,50 @@ describe("formatCutTime", () => {
 })
 
 describe("what a shot says", () => {
-  it("writes the things, the lighting, the action, the camera and the dialogue", () => {
+  it("describes a subject in the line it first does something in, rather than up front", () => {
     const written = body()
 
-    expect(written).toContain("Keeper: an elderly man in oilskins.")
-    expect(written).toContain("The lighting is night.")
-    expect(written).toContain("Climbs the last steps of the tower.")
-    expect(written).toContain("Camera: push in with small amplitude at slow speed.")
-    expect(written).toContain(
+    expect(written).toContain("An elderly man in oilskins climbs the last steps of the tower.")
+    expect(written).not.toContain("Keeper: an elderly man in oilskins.")
+  })
+
+  it("names a subject it has already described rather than describing it again", () => {
+    const written = body({
+      shots: [
+        shot(11, 4000, {
+          things: [
+            { id: 5, kind: "person", name: "Keeper", description: "an elderly man in oilskins" },
+          ],
+          lines: [action("climbs the steps", "Keeper"), action("reaches for the lamp", "Keeper")],
+        }),
+      ],
+    })
+
+    expect(written).toContain("An elderly man in oilskins climbs the steps.")
+    expect(written).toContain("Keeper reaches for the lamp.")
+  })
+
+  it("writes the light and the camera as prose rather than as labels", () => {
+    const written = body()
+    const place = body({
+      shots: [
+        shot(11, 4000, {
+          lighting: "candlelight",
+          things: [{ id: 6, kind: "place", name: "Cellar", description: "a low brick cellar" }],
+        }),
+      ],
+    })
+
+    expect(place).toContain("A low brick cellar, by candlelight.")
+
+    expect(written).toContain("At night.")
+    expect(written).toContain("The camera pushes in with small amplitude at slow speed.")
+    expect(written).not.toContain("The lighting is")
+    expect(written).not.toContain("Camera:")
+  })
+
+  it("writes the dialogue with the speaker it was given", () => {
+    expect(body()).toContain(
       `The elderly keeper, low and weathered (S1) says: ${dialogueTag("English", "Almost there.")}`
     )
   })
@@ -230,7 +266,14 @@ describe("assembling the prompt", () => {
   it("opens on shot one without the style when the style has been emptied", () => {
     const written = body({ style: "" })
 
-    expect(written.startsWith("[Shot 1] Keeper:")).toBe(true)
+    expect(written.startsWith("[Shot 1] At night.")).toBe(true)
+  })
+
+  it("lands a cut on what the shot shows rather than on a label", () => {
+    const written = body()
+
+    expect(written).toContain("[Shot 2] At 00:04.500, the shot cuts to")
+    expect(written).not.toContain("cuts to Lamp:")
   })
 
   it("gathers the sound of every shot into the soundscape", () => {

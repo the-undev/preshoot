@@ -61,6 +61,12 @@ Lightning LoRA.
   system prompt, and an edited prompt was a dead end because nothing carried
   it back to the clip. The builder is the product; a model may come back later
   to improve one field at a time, where its job is small enough to check.
+- The prompt is written as a scene rather than as a list of fields: a subject
+  is described by the first line it does something in and named after that, the
+  camera and the light are sentences rather than labels, and a cut lands on
+  what the next shot shows. The words of the main field are counted against
+  what the guide asks for, because a prompt written from short lines comes out
+  far shorter than the model wants.
 - The prompt is a function of the clip rather than a thing to produce. It is
   read back after every change and shown beside the editor as it is typed, and
   nothing is stored, because the same clip always writes the same prompt.

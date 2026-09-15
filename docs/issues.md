@@ -46,8 +46,6 @@ Checked against the H3 prompt guides, which are linked from
 `docs/minimax-h3.md`. The prompt is written from the clip alone, so what is
 wrong here is wrong every time rather than some of the time.
 
-- The prose is mechanical. It states each thing in turn rather than writing a
-  scene, which is what a prompt written from a clip and nothing else can do.
 - A line of dialogue carried across a cut is not actually split. The app holds
   one line, so it writes the whole line in the shot it belongs to and marks it
   `<scenetrans>`, where the guide splits the words between the two shots and
@@ -58,8 +56,9 @@ wrong here is wrong every time rather than some of the time.
   than a quotation.
 - Unintelligible speech in reference audio is written `[unclear]` rather than
   guessed at. Nothing says so.
-- Nothing counts the words of the main field, which the guide wants between
-  350 and 500 for a generation body.
+- A prompt written from short lines comes out far shorter than the 350 to 500
+  words the guide wants for a generation body. The count is shown; nothing
+  fills the gap.
 
 ## Improvements
 

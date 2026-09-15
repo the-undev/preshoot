@@ -6,8 +6,9 @@ import {
   type ClipComposition,
   type LineComposition,
   type ShotComposition,
+  type ThingComposition,
 } from "../../composition/clip"
-import type { PromptTarget, TargetFields, Vocabularies } from "../target"
+import type { BodyLength, PromptTarget, TargetFields, Vocabularies } from "../target"
 
 /** The three fields of a MiniMax H3 text-to-video prompt, in the order they are written. */
 const H3_FIELDS = [
@@ -84,6 +85,56 @@ export const H3_VOCABULARIES: Vocabularies = {
 /** Used when a shot after the first has no transition of its own. */
 const DEFAULT_TRANSITION = "the camera cuts to"
 
+/** How long the main field should run, which the guide sets for a generation body. */
+export const H3_BODY: BodyLength = {
+  field: "integrated_multimodal_description",
+  min: 350,
+  max: 500,
+}
+
+/** The light as it is said in prose, since the words the picker shows do not all take the same one. */
+const LIGHTING_PHRASES: Record<string, string> = {
+  daylight: "in daylight",
+  "golden hour": "at golden hour",
+  "blue hour": "at blue hour",
+  night: "at night",
+  overcast: "under an overcast sky",
+  "harsh sunlight": "in harsh sunlight",
+  candlelight: "by candlelight",
+  firelight: "by firelight",
+  neon: "under neon light",
+  "fluorescent interior": "under fluorescent light",
+  backlit: "backlit",
+  "low-key": "in low-key light",
+}
+
+/**
+ * The camera move as a sentence rather than as the label the picker shows. The vocabulary mixes
+ * verb phrases with nouns, so each one is written out rather than conjugated.
+ */
+const CAMERA_SENTENCES: Record<string, string> = {
+  "zoom in": "The camera zooms in",
+  "zoom out": "The camera zooms out",
+  "push in": "The camera pushes in",
+  "pull out": "The camera pulls out",
+  "pan left": "The camera pans left",
+  "pan right": "The camera pans right",
+  "truck left": "The camera trucks left",
+  "truck right": "The camera trucks right",
+  "tilt up": "The camera tilts up",
+  "tilt down": "The camera tilts down",
+  "pedestal up": "The camera rises",
+  "pedestal down": "The camera lowers",
+  "arc shot": "The camera arcs around the subject",
+  "tracking shot": "The camera tracks with the subject",
+  "static shot": "The camera holds still",
+  "shake slightly": "The camera shakes slightly",
+  "shake strongly": "The camera shakes strongly",
+  POV: "The shot is from the point of view of the subject",
+  "roll clockwise": "The camera rolls clockwise",
+  "roll counterclockwise": "The camera rolls counterclockwise",
+}
+
 /** One of the phrases the guide gives for saying that speech carries over a cut. */
 const CONTINUES_ACROSS_CUT = "The line continues seamlessly across the cut."
 
@@ -121,9 +172,11 @@ function sentence(text: string): string {
   return /[.!?]$/.test(trimmed) ? trimmed : `${trimmed}.`
 }
 
-/** How the camera moves in `shot`, as the prompt states it. */
-function cameraPhrase(shot: ShotComposition): string {
-  return [shot.cameraMotion, shot.amplitude, shot.speed].filter(Boolean).join(" ")
+/** How the camera moves in `shot`, as a sentence. Nothing when the shot names no move. */
+function cameraSentence(shot: ShotComposition): string {
+  if (!shot.cameraMotion) return ""
+  const move = CAMERA_SENTENCES[shot.cameraMotion] ?? `The camera ${shot.cameraMotion}`
+  return sentence([move, shot.amplitude, shot.speed].filter(Boolean).join(" "))
 }
 
 /** What the prompt calls the speakers of one line, which is compound when they share it. */
@@ -170,33 +223,77 @@ function spokenSentence(composition: ClipComposition, line: LineComposition): st
   return parts.join(" ")
 }
 
+/**
+ * Which subjects have been described already. A person, place or object is described the first
+ * time it is seen and named afterwards, since the guide wants it to look the same throughout and
+ * saying it again every shot reads as a list rather than as a scene.
+ */
+type Introduced = Set<number>
+
+/** Everything of `shot` that has not been described yet, in the order the shot holds it. */
+function newThings(shot: ShotComposition, introduced: Introduced): ThingComposition[] {
+  return shot.things.filter((thing) => !introduced.has(thing.id))
+}
+
+/** Whether a subject is named by a line of this shot, and so will be described by one. */
+function actsInShot(shot: ShotComposition, thing: ThingComposition): boolean {
+  return writtenLines(shot).some((line) => line.subjectName === thing.name)
+}
+
+/**
+ * What the shot opens on: its places and props, and the light they are in. The subjects who do
+ * something are left out, because each is described by the first line it does something in.
+ */
+function openingComposition(shot: ShotComposition, introduced: Introduced): string {
+  const scene = newThings(shot, introduced)
+    .filter((thing) => !actsInShot(shot, thing))
+    .map((thing) => {
+      introduced.add(thing.id)
+      return thing.description.trim()
+    })
+    .filter((description) => description.length > 0)
+
+  const lit = shot.lighting ? (LIGHTING_PHRASES[shot.lighting] ?? `in ${shot.lighting}`) : ""
+  const opening = [scene.join(", "), lit].filter(Boolean).join(", ")
+  return opening.length > 0 ? sentence(capitalise(opening)) : ""
+}
+
+/** How a line names whoever it is about: by describing them the first time, by name after that. */
+function nameIn(shot: ShotComposition, introduced: Introduced, subjectName: string): string {
+  const thing = shot.things.find((entry) => entry.name === subjectName)
+  if (!thing || introduced.has(thing.id)) return subjectName
+  introduced.add(thing.id)
+  const description = thing.description.trim()
+  return description.length > 0 ? capitalise(description) : subjectName
+}
+
 /** Everything inside one shot, written from the composition alone. */
-function describeShot(composition: ClipComposition, shotId: number): string {
+function describeShot(
+  composition: ClipComposition,
+  shotId: number,
+  introduced: Introduced
+): string {
   const shot = composition.shots.find((entry) => entry.id === shotId)
   if (!shot) {
     throw new Error(`Shot ${shotId} is not in clip ${composition.id}`)
   }
 
-  const sentences: string[] = []
-  // The subjects come first so that a shot opening on a cut phrase reads on into what it lands on.
-  for (const thing of shot.things) {
-    sentences.push(sentence(`${thing.name}: ${thing.description}`))
-  }
-  if (shot.lighting) {
-    sentences.push(sentence(`The lighting is ${shot.lighting}`))
-  }
-  if (shot.cameraMotion) {
-    // The vocabulary mixes verb phrases with nouns, so this states the move rather than conjugating it.
-    sentences.push(sentence(`Camera: ${cameraPhrase(shot)}`))
-  }
+  const sentences = [openingComposition(shot, introduced), cameraSentence(shot)]
+
   // Then what happens, in the order it was written, which is where the dialogue sits as well.
   for (const line of writtenLines(shot)) {
     if (line.kind === "speech") {
       sentences.push(spokenSentence(composition, line))
       continue
     }
-    const who = line.subjectName ? `${line.subjectName} ` : ""
+    const who = line.subjectName ? `${nameIn(shot, introduced, line.subjectName)} ` : ""
     sentences.push(sentence(capitalise(`${who}${line.text}`)))
+  }
+
+  // Anything the shot shows and nothing says a word about still has to be described.
+  for (const thing of newThings(shot, introduced)) {
+    introduced.add(thing.id)
+    sentences.push(sentence(capitalise(thing.description)))
   }
   return sentences.filter(Boolean).join(" ")
 }
@@ -212,8 +309,11 @@ function soundscape(composition: ClipComposition): string {
 
 /** The three fields, with the markers, the cut times and the transitions written in. */
 function assemble(composition: ClipComposition): TargetFields {
+  // Kept across the shots, so a subject is described once and named in every shot after that.
+  const introduced: Introduced = new Set()
+
   const body = composition.shots.map((shot, index) => {
-    const text = describeShot(composition, shot.id)
+    const text = describeShot(composition, shot.id, introduced)
     if (index === 0) {
       // A clip whose style has been emptied still opens on shot one, just without it.
       return ["[Shot 1]", sentence(composition.style), text].filter(Boolean).join(" ")
@@ -270,6 +370,7 @@ export const minimaxH3: PromptTarget = {
   id: "minimax-h3",
   name: "MiniMax H3",
   vocabularies: H3_VOCABULARIES,
+  body: H3_BODY,
   assemble,
   render: renderH3Prompt,
   instructionLine,
