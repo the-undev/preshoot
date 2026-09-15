@@ -1,6 +1,14 @@
 import { Plus } from "lucide-react"
-import { Button, FieldHelp } from "@renderer/design-system"
-import type { Asset, ClipComposition, Vocabularies } from "@renderer/lib/trpc"
+import {
+  Button,
+  FieldHelp,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@renderer/design-system"
+import type { Asset, ClipComposition, SavedShot, Vocabularies } from "@renderer/lib/trpc"
 import type { SubjectEdit } from "./use-clip"
 import { clipReadiness } from "./readiness"
 import { ClipCast, type SubjectFields } from "./clip-cast"
@@ -19,6 +27,9 @@ interface ClipEditorProps {
   onShotChange: (shotId: number, fields: ShotFields) => void
   onMoveShot: (shotId: number, toPosition: number) => void
   onRemoveShot: (shotId: number) => void
+  onSaveShot: (shotId: number, name: string) => void
+  savedShots: SavedShot[]
+  onAddSavedShot: (savedShotId: number) => void
   saved: Asset[]
   speaking: number[]
   onAddSubject: (fields: SubjectFields) => void
@@ -38,6 +49,9 @@ export function ClipEditor({
   onShotChange,
   onMoveShot,
   onRemoveShot,
+  onSaveShot,
+  savedShots,
+  onAddSavedShot,
   saved,
   speaking,
   onAddSubject,
@@ -90,10 +104,11 @@ export function ClipEditor({
           onChange={onShotChange}
           onMove={onMoveShot}
           onRemove={onRemoveShot}
+          onSave={onSaveShot}
           onAddPeople={onAddPeople}
         />
 
-        <div>
+        <div className="flex flex-wrap items-center gap-2">
           <Button
             variant="ghost"
             size="sm"
@@ -104,6 +119,21 @@ export function ClipEditor({
           >
             <Plus className="size-4" />
           </Button>
+
+          {savedShots.length > 0 && (
+            <Select value="" onValueChange={(value) => onAddSavedShot(Number(value))}>
+              <SelectTrigger aria-label="Add a saved shot" className="w-52 min-w-0">
+                <SelectValue placeholder="From the library" />
+              </SelectTrigger>
+              <SelectContent>
+                {savedShots.map((shot) => (
+                  <SelectItem key={shot.id} value={String(shot.id)}>
+                    {shot.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
         </div>
       </section>
 

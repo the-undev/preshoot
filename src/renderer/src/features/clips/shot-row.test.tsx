@@ -71,6 +71,7 @@ function renderRow(over: Partial<React.ComponentProps<typeof ShotRow>> = {}): {
           vocabularies={vocabularies}
           onChange={onChange}
           onRemove={vi.fn()}
+          onSave={vi.fn()}
           onAddPeople={onAddPeople}
           {...over}
         />

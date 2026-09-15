@@ -36,6 +36,7 @@ interface ShotRowProps {
   vocabularies: Vocabularies
   onChange: (fields: ShotFields) => void
   onRemove: () => void
+  onSave: () => void
   onAddPeople: () => void
 }
 
@@ -48,6 +49,7 @@ export function ShotRow({
   vocabularies,
   onChange,
   onRemove,
+  onSave,
   onAddPeople,
 }: ShotRowProps): React.JSX.Element {
   const [open, setOpen] = useState(index === 0)
@@ -113,6 +115,14 @@ export function ShotRow({
           </CollapsibleTrigger>
 
           <div className="flex shrink-0 items-center gap-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              aria-label={`Save shot ${index + 1} to the library`}
+              onClick={onSave}
+            >
+              Save
+            </Button>
             <Button
               variant="ghost"
               size="icon"

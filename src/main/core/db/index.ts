@@ -24,9 +24,17 @@ export function openProjectDatabase(
 ): ProjectDatabaseHandle {
   const sqlite = new Database(databasePath)
   sqlite.pragma("journal_mode = WAL")
-  sqlite.pragma("foreign_keys = ON")
+
+  /*
+   * SQLite rewrites a table by copying it, and a migration that does so drops the original, which
+   * takes everything pointing at it with it. The migrations say `PRAGMA foreign_keys=OFF` to stop
+   * that, but the migrator runs them inside a transaction, where that pragma does nothing. So the
+   * keys are off while they run and on for everything after.
+   */
+  sqlite.pragma("foreign_keys = OFF")
   const db = drizzle(sqlite, { schema })
   migrate(db, { migrationsFolder })
+  sqlite.pragma("foreign_keys = ON")
   return {
     db,
     close: () => sqlite.close(),

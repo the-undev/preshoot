@@ -389,6 +389,95 @@ describe("clips router", () => {
     expect((await caller.assets.list()).map((entry) => entry.name)).toEqual(["Keeper"])
   })
 
+  it("saves a shot into the library and drops it into another clip", async () => {
+    const { clipId, shotId } = await clipWithShot()
+    const withKeeper = await caller.clips.addSubject({
+      clipId,
+      savedId: null,
+      kind: "person",
+      name: "Keeper",
+      description: "an elderly man",
+    })
+    const keeper = withKeeper.cast[0]
+    await caller.clips.updateShot({
+      shotId,
+      durationMs: 6000,
+      cameraMotion: null,
+      amplitude: null,
+      speed: null,
+      transition: null,
+      lighting: "night",
+      soundNote: "wind",
+      things: [keeper.id],
+      lines: [action(keeper.id, "climbs the steps")],
+    })
+
+    const saved = await caller.clips.saveShot({ shotId, name: "Climbing the tower" })
+    const other = await caller.clips.create()
+    const added = await caller.clips.addSavedShot({
+      clipId: other.id,
+      savedShotId: saved.id,
+    })
+
+    expect((await caller.clips.savedShots()).map((entry) => entry.name)).toEqual([
+      "Climbing the tower",
+    ])
+    const dropped = added.shots[added.shots.length - 1]
+    expect(dropped.durationMs).toBe(6000)
+    expect(dropped.lighting).toBe("night")
+    expect(dropped.lines[0].text).toBe("climbs the steps")
+    expect(added.cast.map((subject) => subject.name)).toEqual(["Keeper"])
+    expect(added.cast[0].id).not.toBe(keeper.id)
+    expect(dropped.lines[0].subjectIds).toEqual([added.cast[0].id])
+  })
+
+  it("uses a subject the clip already has rather than copying a second one", async () => {
+    const { clipId, shotId } = await clipWithShot()
+    const withKeeper = await caller.clips.addSubject({
+      clipId,
+      savedId: null,
+      kind: "person",
+      name: "Keeper",
+      description: "an elderly man",
+    })
+    await caller.clips.updateShot({
+      shotId,
+      durationMs: 4000,
+      cameraMotion: null,
+      amplitude: null,
+      speed: null,
+      transition: null,
+      lighting: null,
+      soundNote: "",
+      things: [withKeeper.cast[0].id],
+      lines: [],
+    })
+    const saved = await caller.clips.saveShot({ shotId, name: "A shot of the keeper" })
+
+    const again = await caller.clips.addSavedShot({ clipId, savedShotId: saved.id })
+
+    expect(again.cast.map((subject) => subject.name)).toEqual(["Keeper"])
+  })
+
+  it("leaves the clip's own shot alone when one is saved", async () => {
+    const { clipId, shotId } = await clipWithShot()
+
+    await caller.clips.saveShot({ shotId, name: "A shot" })
+
+    const composition = await caller.clips.composition({ clipId })
+    expect(composition.shots).toHaveLength(1)
+    expect(composition.shots[0].id).toBe(shotId)
+  })
+
+  it("removes a saved shot from the library", async () => {
+    const { shotId } = await clipWithShot()
+    const saved = await caller.clips.saveShot({ shotId, name: "A shot" })
+
+    await caller.clips.removeSavedShot({ shotId: saved.id })
+
+    expect(await caller.clips.savedShots()).toEqual([])
+  })
+
   it("refuses a clip that is not there", async () => {
     await expect(caller.clips.composition({ clipId: 99 })).rejects.toThrow(
       expect.objectContaining({ code: "NOT_FOUND" })

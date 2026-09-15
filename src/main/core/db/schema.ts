@@ -13,8 +13,8 @@ export const projectSettings = sqliteTable("project_settings", {
  */
 export const assets = sqliteTable("assets", {
   id: integer("id").primaryKey({ autoIncrement: true }),
-  // A plain column rather than a key: SQLite checks a key inside the migrator's transaction, where
-  // the pragma that would defer it is ignored, so removing a clip takes its cast off by hand.
+  // A plain column rather than a key. Removing a clip has to take the picture files of its cast
+  // off the disk as well as their rows, which nothing a key does can reach, so it does both.
   clipId: integer("clip_id"),
   kind: text("kind").notNull(),
   name: text("name").notNull(),
@@ -71,9 +71,10 @@ export const clipFrames = sqliteTable("clip_frames", {
 /** One shot of a clip. The vocabulary columns hold values the target accepts, or nothing. */
 export const shots = sqliteTable("shots", {
   id: integer("id").primaryKey({ autoIncrement: true }),
-  clipId: integer("clip_id")
-    .notNull()
-    .references(() => clips.id, { onDelete: "cascade" }),
+  // Nothing when the shot is saved in the library as a starting point rather than used in a clip.
+  clipId: integer("clip_id").references(() => clips.id, { onDelete: "cascade" }),
+  // The name it was saved under. A shot in a clip has none: it is called by its place in the clip.
+  name: text("name"),
   position: integer("position").notNull(),
   durationMs: integer("duration_ms").notNull(),
   cameraMotion: text("camera_motion"),
@@ -133,8 +134,8 @@ export const shotAssets = sqliteTable(
  */
 export const openTabs = sqliteTable("open_tabs", {
   id: integer("id").primaryKey({ autoIncrement: true }),
-  // A plain column rather than a key: SQLite checks a key inside the migrator's transaction, where
-  // the pragma that would defer it is ignored, so removing a clip takes its cast off by hand.
+  // A plain column rather than a key. Removing a clip has to take the picture files of its cast
+  // off the disk as well as their rows, which nothing a key does can reach, so it does both.
   clipId: integer("clip_id"),
   position: integer("position").notNull(),
 })

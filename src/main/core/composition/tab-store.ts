@@ -79,7 +79,7 @@ function firstBeats(db: ProjectDatabase, clipIds: number[]): Map<number, string>
   const first = new Map<number, string>()
   for (const row of rows) {
     const text = row.text.trim()
-    if (text.length > 0 && !first.has(row.clipId)) {
+    if (row.clipId !== null && text.length > 0 && !first.has(row.clipId)) {
       first.set(row.clipId, text)
     }
   }

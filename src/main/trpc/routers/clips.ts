@@ -10,8 +10,12 @@ import {
   updateAsset,
 } from "../../core/composition/asset-store"
 import {
+  addSavedShot,
   branchClip,
   clearClipFrame,
+  deleteSavedShot,
+  listSavedShots,
+  saveShot,
   clipIdOfShot,
   clipIdOfSubject,
   deleteClip,
@@ -274,6 +278,43 @@ export const clipsRouter = router({
       const id = clipIdOfShot(db, input.shotId)
       deleteShot(db, input.shotId)
       return readComposition(db, id)
+    } catch (error) {
+      asClientError(error)
+    }
+  }),
+
+  /** The shots saved in the library, which any clip can start from. */
+  savedShots: publicProcedure.query(({ ctx }) => listSavedShots(requireProject(ctx))),
+
+  /** Copies a shot into the library under a name, leaving the clip's own alone. */
+  saveShot: publicProcedure
+    .input(z.object({ shotId, name: z.string().trim().min(1) }))
+    .mutation(({ ctx, input }) => {
+      try {
+        return saveShot(requireProject(ctx), input.shotId, input.name)
+      } catch (error) {
+        asClientError(error)
+      }
+    }),
+
+  /** Copies a saved shot onto the end of a clip, bringing what it names into the cast. */
+  addSavedShot: publicProcedure
+    .input(z.object({ clipId, savedShotId: shotId }))
+    .mutation(({ ctx, input }) => {
+      const db = requireProject(ctx)
+      try {
+        addSavedShot(db, input.clipId, input.savedShotId)
+        return readComposition(db, input.clipId)
+      } catch (error) {
+        asClientError(error)
+      }
+    }),
+
+  /** Removes a saved shot from the library. No clip points at one, so nothing goes with it. */
+  removeSavedShot: publicProcedure.input(z.object({ shotId })).mutation(({ ctx, input }) => {
+    try {
+      deleteSavedShot(requireProject(ctx), input.shotId)
+      return { id: input.shotId }
     } catch (error) {
       asClientError(error)
     }

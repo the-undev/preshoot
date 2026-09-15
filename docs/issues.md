@@ -96,7 +96,14 @@ wrong here is wrong every time rather than some of the time.
   same migration, which fails on a fresh database, and it asks an
   interactive question when a column is dropped and another added together.
   Neither can be answered from a script, so a change like that goes in two
-  passes.
+  passes. It has also dropped a foreign key from a table it rebuilt for an
+  unrelated reason. Every generated migration is read before it is committed,
+  and one that rebuilds a table anything points at is covered by a test that
+  fills the tables first.
+- The `PRAGMA foreign_keys=OFF` that drizzle-kit writes at the top of a table
+  rebuild does nothing, because the migrator runs inside a transaction and
+  SQLite ignores the pragma there. The keys are turned off around the whole
+  migration in `openProjectDatabase` instead, and turned back on after.
 
 - Nothing exercises the main process's start-up. Registering a second
   scheme broke every request the renderer makes and no test noticed, because

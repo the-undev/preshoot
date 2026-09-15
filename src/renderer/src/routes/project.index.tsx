@@ -144,6 +144,7 @@ function OpenClip({ clipId, tab, onBranched }: OpenClipProps): React.JSX.Element
   const navigate = useNavigate()
   const trpc = useTRPC()
   const shapes = useQuery(trpc.clips.aspectRatios.queryOptions())
+  const savedShots = useQuery(trpc.clips.savedShots.queryOptions())
 
   useShortcuts({
     addShot: clip.addShot,
@@ -214,6 +215,9 @@ function OpenClip({ clipId, tab, onBranched }: OpenClipProps): React.JSX.Element
             onShotChange={clip.updateShot}
             onMoveShot={clip.moveShot}
             onRemoveShot={clip.removeShot}
+            onSaveShot={clip.saveShot}
+            savedShots={savedShots.data ?? []}
+            onAddSavedShot={clip.addSavedShot}
             saved={library.assets}
             speaking={speaking}
             onAddSubject={clip.addSubject}

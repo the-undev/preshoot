@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, isNotNull, sum } from "drizzle-orm"
+import { and, asc, count, desc, eq, isNotNull, isNull, sum } from "drizzle-orm"
 import { schema, type ProjectDatabase, type ProjectDb } from "../db"
 import type { ClipComposition, ClipForm, FrameComposition, LineKind, ShotComposition } from "./clip"
 import { listCast } from "./asset-store"
@@ -75,10 +75,14 @@ function shotTotals(db: ProjectDatabase): Map<number, { shots: number; durationM
       durationMs: sum(schema.shots.durationMs),
     })
     .from(schema.shots)
+    .where(isNotNull(schema.shots.clipId))
     .groupBy(schema.shots.clipId)
     .all()
   return new Map(
-    rows.map((row) => [row.clipId, { shots: row.shots, durationMs: Number(row.durationMs ?? 0) }])
+    rows.map((row) => [
+      row.clipId as number,
+      { shots: row.shots, durationMs: Number(row.durationMs ?? 0) },
+    ])
   )
 }
 
@@ -544,7 +548,7 @@ function toSummary(
 
 function clipOfShot(db: ProjectDb, shotId: number): number {
   const shot = db.select().from(schema.shots).where(eq(schema.shots.id, shotId)).get()
-  if (!shot) {
+  if (!shot || shot.clipId === null) {
     throw CompositionError.notFound(`Shot ${shotId}`)
   }
   return shot.clipId
@@ -564,4 +568,136 @@ function renumberShots(db: ProjectDb, clipId: number): void {
   shotIdsInOrder(db, clipId).forEach((id, position) => {
     db.update(schema.shots).set({ position }).where(eq(schema.shots.id, id)).run()
   })
+}
+
+/** One shot saved in the library, which is a starting point rather than part of any clip. */
+export interface SavedShot {
+  id: number
+  name: string
+  lines: number
+  durationMs: number
+}
+
+/** The shots saved in the library, by name. */
+export function listSavedShots(db: ProjectDatabase): SavedShot[] {
+  const counts = db
+    .select({ shotId: schema.shotLines.shotId, lines: count() })
+    .from(schema.shotLines)
+    .groupBy(schema.shotLines.shotId)
+    .all()
+
+  return db
+    .select()
+    .from(schema.shots)
+    .where(isNull(schema.shots.clipId))
+    .orderBy(asc(schema.shots.name))
+    .all()
+    .map((shot) => ({
+      id: shot.id,
+      name: shot.name ?? "",
+      lines: counts.find((entry) => entry.shotId === shot.id)?.lines ?? 0,
+      durationMs: shot.durationMs,
+    }))
+}
+
+/**
+ * Copies a shot into the library under a name, with the subjects it names copied beside it, so it
+ * can be dropped into any clip later.
+ */
+export function saveShot(db: ProjectDatabase, shotId: number, name: string): SavedShot {
+  return db.transaction((tx) => {
+    const shot = tx.select().from(schema.shots).where(eq(schema.shots.id, shotId)).get()
+    if (!shot) {
+      throw CompositionError.notFound(`Shot ${shotId}`)
+    }
+
+    const saved = tx
+      .insert(schema.shots)
+      .values({ ...shot, id: undefined, clipId: null, name, position: 0 })
+      .returning()
+      .get()
+
+    copyShotContents(tx, shot.id, saved.id, copySubjects(tx, shot.id, null))
+    return { id: saved.id, name, lines: 0, durationMs: saved.durationMs }
+  })
+}
+
+/** Copies a saved shot onto the end of a clip, bringing the subjects it names into the cast. */
+export function addSavedShot(db: ProjectDatabase, clipId: number, savedShotId: number): number {
+  return db.transaction((tx) => {
+    const saved = tx.select().from(schema.shots).where(eq(schema.shots.id, savedShotId)).get()
+    if (!saved || saved.clipId !== null) {
+      throw CompositionError.notFound(`Saved shot ${savedShotId}`)
+    }
+
+    const copy = tx
+      .insert(schema.shots)
+      .values({
+        ...saved,
+        id: undefined,
+        clipId,
+        name: null,
+        position: shotIdsInOrder(tx, clipId).length,
+      })
+      .returning()
+      .get()
+
+    copyShotContents(tx, saved.id, copy.id, copySubjects(tx, saved.id, clipId))
+    return copy.id
+  })
+}
+
+/** Removes a saved shot, which no clip points at, along with the subjects saved beside it. */
+export function deleteSavedShot(db: ProjectDatabase, shotId: number): void {
+  const shot = db.select().from(schema.shots).where(eq(schema.shots.id, shotId)).get()
+  if (!shot || shot.clipId !== null) {
+    throw CompositionError.notFound(`Saved shot ${shotId}`)
+  }
+  db.delete(schema.shots).where(eq(schema.shots.id, shotId)).run()
+}
+
+/**
+ * The subjects a shot names, copied to wherever the shot is going, with one already there under
+ * the same name used instead of a second copy of the same person.
+ */
+function copySubjects(tx: ProjectDb, shotId: number, toClipId: number | null): Map<number, number> {
+  const sources = tx
+    .select()
+    .from(schema.assets)
+    .innerJoin(schema.shotAssets, eq(schema.shotAssets.assetId, schema.assets.id))
+    .where(eq(schema.shotAssets.shotId, shotId))
+    .all()
+    .map((row) => row.assets)
+
+  const already = tx
+    .select()
+    .from(schema.assets)
+    .where(toClipId === null ? isNull(schema.assets.clipId) : eq(schema.assets.clipId, toClipId))
+    .all()
+
+  const copies = new Map<number, number>()
+  for (const source of sources) {
+    const match = already.find((entry) => entry.name === source.name)
+    if (match) {
+      copies.set(source.id, match.id)
+      continue
+    }
+    const copy = tx
+      .insert(schema.assets)
+      .values({ ...source, id: undefined, clipId: toClipId })
+      .returning()
+      .get()
+    copies.set(source.id, copy.id)
+
+    for (const picture of tx
+      .select()
+      .from(schema.assetImages)
+      .where(eq(schema.assetImages.assetId, source.id))
+      .all()) {
+      tx.insert(schema.assetImages)
+        .values({ ...picture, id: undefined, assetId: copy.id })
+        .run()
+    }
+  }
+  return copies
 }

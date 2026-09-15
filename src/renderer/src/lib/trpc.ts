@@ -59,6 +59,9 @@ export type AssetKind = RouterInputs["assets"]["create"]["kind"]
 /** A clip without its shots. */
 export type ClipSummary = RouterOutputs["clips"]["list"][number]
 
+/** One shot saved in the library, ready to drop into a clip. */
+export type SavedShot = RouterOutputs["clips"]["savedShots"][number]
+
 /** The open tabs and which one is being looked at. */
 export type Workspace = RouterOutputs["tabs"]["list"]
 
