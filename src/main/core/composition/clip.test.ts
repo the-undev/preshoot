@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest"
 import {
   clipDurationMs,
   shotStartMs,
-  speakerOf,
+  speakerLabelOf,
+  speakingOrder,
+  subjectOf,
   type ClipComposition,
   type LineComposition,
   type ShotComposition,
@@ -13,9 +15,7 @@ function action(id: number, text: string): LineComposition {
   return {
     id,
     kind: "action",
-    assetId: null,
-    subjectName: null,
-    speakerIds: [],
+    subjectIds: [],
     text,
     language: null,
     offScreen: false,
@@ -50,8 +50,8 @@ const composition: ClipComposition = {
   note: "A keeper lights the lamp.",
   musicNote: "",
   language: "English",
-  speakers: [
-    { id: 7, label: "S1", description: "The keeper, weathered and low.", subjectName: null },
+  cast: [
+    { id: 7, kind: "person", name: "Keeper", description: "an elderly man", voice: "weathered" },
   ],
   shots: [shot(1, 4500), shot(2, 3000), shot(3, 2500)],
 }
@@ -81,12 +81,42 @@ describe("shotStartMs", () => {
   })
 })
 
-describe("speakerOf", () => {
-  it("finds the speaker of a line", () => {
-    expect(speakerOf(composition, 7)?.label).toBe("S1")
+describe("subjectOf", () => {
+  it("finds one of the clip's subjects by id", () => {
+    expect(subjectOf(composition, 7)?.name).toBe("Keeper")
   })
 
-  it("returns nothing for a speaker the clip does not have", () => {
-    expect(speakerOf(composition, 8)).toBeNull()
+  it("returns nothing for a subject the clip does not have", () => {
+    expect(subjectOf(composition, 8)).toBeNull()
+  })
+})
+
+describe("speakingOrder", () => {
+  it("numbers the subjects by when they first speak, not by when they were added", () => {
+    const speaking: ClipComposition = {
+      ...composition,
+      cast: [
+        { id: 7, kind: "person", name: "Keeper", description: "a", voice: null },
+        { id: 8, kind: "person", name: "Operator", description: "b", voice: null },
+      ],
+      shots: [
+        {
+          ...shot(1, 4000),
+          lines: [
+            { ...action(1, "x"), kind: "speech", subjectIds: [8], text: "Say again." },
+            { ...action(2, "y"), kind: "speech", subjectIds: [7], text: "Almost there." },
+          ],
+        },
+      ],
+    }
+
+    expect(speakingOrder(speaking)).toEqual([8, 7])
+    expect(speakerLabelOf(speaking, 8)).toBe("S1")
+    expect(speakerLabelOf(speaking, 7)).toBe("S2")
+  })
+
+  it("leaves out a subject that never says anything", () => {
+    expect(speakingOrder(composition)).toEqual([])
+    expect(speakerLabelOf(composition, 7)).toBeNull()
   })
 })

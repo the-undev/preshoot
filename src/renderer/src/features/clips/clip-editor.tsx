@@ -1,8 +1,9 @@
 import { Plus } from "lucide-react"
-import { Button } from "@renderer/design-system"
+import { Button, FieldHelp } from "@renderer/design-system"
 import type { Asset, ClipComposition, Vocabularies } from "@renderer/lib/trpc"
+import type { SubjectEdit } from "./use-clip"
 import { clipReadiness } from "./readiness"
-import { ClipSpeakers, type SpeakerFields } from "./clip-speakers"
+import { ClipCast, type SubjectFields } from "./clip-cast"
 import { ShotList } from "./shot-list"
 import type { ShotFields } from "./use-clip"
 
@@ -18,9 +19,12 @@ interface ClipEditorProps {
   onShotChange: (shotId: number, fields: ShotFields) => void
   onMoveShot: (shotId: number, toPosition: number) => void
   onRemoveShot: (shotId: number) => void
-  onAddSpeaker: (fields: SpeakerFields) => void
-  onUpdateSpeaker: (speakerId: number, fields: SpeakerFields) => void
-  onRemoveSpeaker: (speakerId: number) => void
+  saved: Asset[]
+  speaking: number[]
+  onAddSubject: (fields: SubjectFields) => void
+  onUpdateSubject: (subjectId: number, fields: SubjectEdit) => void
+  onSaveSubject: (subjectId: number) => void
+  onRemoveSubject: (subjectId: number) => void
   onAddPeople: () => void
 }
 
@@ -34,9 +38,12 @@ export function ClipEditor({
   onShotChange,
   onMoveShot,
   onRemoveShot,
-  onAddSpeaker,
-  onUpdateSpeaker,
-  onRemoveSpeaker,
+  saved,
+  speaking,
+  onAddSubject,
+  onUpdateSubject,
+  onSaveSubject,
+  onRemoveSubject,
   onAddPeople,
 }: ClipEditorProps): React.JSX.Element {
   const seconds = composition.shots.reduce((total, shot) => total + shot.durationMs, 0) / 1000
@@ -46,17 +53,22 @@ export function ClipEditor({
   return (
     <div className="flex min-w-0 flex-col gap-6">
       <section className="flex flex-col gap-2">
-        <h2 className="font-heading text-sm font-semibold text-muted-foreground">Speakers</h2>
-        <p className="text-xs text-muted-foreground">
-          Anyone who speaks or sings. Each becomes a voice the prompt refers to as (S1), (S2) and so
-          on, described once so it stays the same across shots.
-        </p>
-        <ClipSpeakers
-          speakers={composition.speakers}
-          library={library}
-          onAdd={onAddSpeaker}
-          onUpdate={onUpdateSpeaker}
-          onRemove={onRemoveSpeaker}
+        <div className="flex items-center gap-1.5">
+          <h2 className="font-heading text-sm font-semibold text-muted-foreground">Cast</h2>
+          <FieldHelp label="the cast">
+            The people, places and objects this clip refers to. They belong to this clip, so
+            changing one here changes nothing in any other, and saving one puts a copy in the
+            library to start from.
+          </FieldHelp>
+        </div>
+        <ClipCast
+          cast={composition.cast}
+          speaking={speaking}
+          saved={saved}
+          onAdd={onAddSubject}
+          onUpdate={onUpdateSubject}
+          onSave={onSaveSubject}
+          onRemove={onRemoveSubject}
         />
       </section>
 
@@ -72,7 +84,7 @@ export function ClipEditor({
 
         <ShotList
           shots={composition.shots}
-          speakers={composition.speakers}
+          speakers={composition.cast.filter((subject) => subject.kind === "person")}
           library={library}
           vocabularies={vocabularies}
           onChange={onShotChange}

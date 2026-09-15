@@ -4,13 +4,11 @@ import type { ClipComposition, LineComposition, ShotComposition } from "@rendere
 import { clipReadiness } from "./readiness"
 
 /** One thing that happens, as the store hands it over. */
-function line(id: number, text: string, subjectName: string | null = null): LineComposition {
+function line(id: number, text: string, subjectIds: number[] = []): LineComposition {
   return {
     id,
     kind: "action",
-    assetId: null,
-    subjectName,
-    speakerIds: [],
+    subjectIds,
     text,
     language: null,
     offScreen: false,
@@ -45,7 +43,7 @@ const composition: ClipComposition = {
   note: "",
   musicNote: "",
   language: "English",
-  speakers: [],
+  cast: [],
   shots: [shot(11, "climbs the stairs")],
 }
 

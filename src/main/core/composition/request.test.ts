@@ -16,9 +16,7 @@ function shot(id: number, durationMs: number): ShotComposition {
       {
         id,
         kind: "action" as const,
-        assetId: null,
-        subjectName: null,
-        speakerIds: [],
+        subjectIds: [],
         text: "something happens",
         language: null,
         offScreen: false,
@@ -41,7 +39,7 @@ const composition: ClipComposition = {
   note: "",
   musicNote: "",
   language: "English",
-  speakers: [],
+  cast: [],
   shots: [shot(11, 5000), shot(12, 3500)],
 }
 

@@ -14,7 +14,7 @@ const composition: ClipComposition = {
   note: "A keeper lights the lamp during a storm.",
   musicNote: "",
   language: "English",
-  speakers: [],
+  cast: [],
   shots: [
     {
       id: 11,
@@ -29,9 +29,7 @@ const composition: ClipComposition = {
         {
           id: 21,
           kind: "action" as const,
-          assetId: null,
-          subjectName: null,
-          speakerIds: [],
+          subjectIds: [],
           text: "climbs the last steps of the tower",
           language: null,
           offScreen: false,

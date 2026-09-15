@@ -28,7 +28,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@renderer/design-system"
-import type { Asset, LineComposition, LineInput, SpeakerComposition } from "@renderer/lib/trpc"
+import type { LineComposition, LineInput, SubjectComposition } from "@renderer/lib/trpc"
 import { asLineInput } from "./line-input"
 
 /** Stands for a line about the scene rather than about anyone in particular. */
@@ -41,12 +41,11 @@ const FLAGS = [
   { key: "cutOff", label: "Cut off by the end" },
 ] as const
 
-/** An empty line of `kind`, ready to type into. */
-function emptyLine(kind: LineInput["kind"], speakers: SpeakerComposition[]): LineInput {
+/** An empty line of `kind`, ready to type into. A spoken one starts on whoever can speak. */
+function emptyLine(kind: LineInput["kind"], speakers: SubjectComposition[]): LineInput {
   return {
     kind,
-    assetId: null,
-    speakerIds: kind === "speech" && speakers[0] ? [speakers[0].id] : [],
+    subjectIds: kind === "speech" && speakers[0] ? [speakers[0].id] : [],
     text: "",
     language: null,
     offScreen: false,
@@ -58,8 +57,8 @@ function emptyLine(kind: LineInput["kind"], speakers: SpeakerComposition[]): Lin
 interface ShotLinesProps {
   shotId: number
   lines: LineComposition[]
-  subjects: Asset[]
-  speakers: SpeakerComposition[]
+  subjects: SubjectComposition[]
+  speakers: SubjectComposition[]
   onChange: (lines: LineInput[]) => void
 }
 
@@ -200,8 +199,8 @@ interface LineRowProps {
   shotId: number
   line: LineInput
   index: number
-  subjects: Asset[]
-  speakers: SpeakerComposition[]
+  subjects: SubjectComposition[]
+  speakers: SubjectComposition[]
   boxRef: (box: HTMLInputElement | null) => void
   onType: (line: LineInput) => void
   onCommit: () => void
@@ -252,8 +251,8 @@ function LineRow({
 
         {speaking ? (
           <Select
-            value={String(line.speakerIds[0] ?? speakers[0]?.id ?? "")}
-            onValueChange={(value) => onWrite({ ...line, speakerIds: [Number(value)] })}
+            value={String(line.subjectIds[0] ?? speakers[0]?.id ?? "")}
+            onValueChange={(value) => onWrite({ ...line, subjectIds: [Number(value)] })}
           >
             <SelectTrigger aria-label={`Who says line ${index + 1}`} className="w-40 min-w-0">
               <SelectValue />
@@ -261,16 +260,16 @@ function LineRow({
             <SelectContent>
               {speakers.map((speaker) => (
                 <SelectItem key={speaker.id} value={String(speaker.id)}>
-                  {speaker.label} {speaker.description}
+                  {speaker.name}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
         ) : (
           <Select
-            value={line.assetId === null ? NOBODY : String(line.assetId)}
+            value={line.subjectIds[0] === undefined ? NOBODY : String(line.subjectIds[0])}
             onValueChange={(value) =>
-              onWrite({ ...line, assetId: value === NOBODY ? null : Number(value) })
+              onWrite({ ...line, subjectIds: value === NOBODY ? [] : [Number(value)] })
             }
           >
             <SelectTrigger aria-label={`Who line ${index + 1} is about`} className="w-40 min-w-0">

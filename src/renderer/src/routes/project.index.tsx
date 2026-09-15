@@ -159,6 +159,15 @@ function OpenClip({ clipId, tab, onBranched }: OpenClipProps): React.JSX.Element
     return <p className="text-sm text-muted-foreground">Loading the clip…</p>
   }
 
+  // Only the subjects that say something are asked how they sound, so the rest keep one field.
+  const speaking = [
+    ...new Set(
+      clip.composition.shots.flatMap((shot) =>
+        shot.lines.filter((line) => line.kind === "speech").flatMap((line) => line.subjectIds)
+      )
+    ),
+  ]
+
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <ClipBar
@@ -205,9 +214,12 @@ function OpenClip({ clipId, tab, onBranched }: OpenClipProps): React.JSX.Element
             onShotChange={clip.updateShot}
             onMoveShot={clip.moveShot}
             onRemoveShot={clip.removeShot}
-            onAddSpeaker={clip.addSpeaker}
-            onUpdateSpeaker={clip.updateSpeaker}
-            onRemoveSpeaker={clip.removeSpeaker}
+            saved={library.assets}
+            speaking={speaking}
+            onAddSubject={clip.addSubject}
+            onUpdateSubject={clip.updateSubject}
+            onSaveSubject={clip.saveSubject}
+            onRemoveSubject={clip.removeSubject}
             onAddPeople={() => void navigate({ to: "/project/library" })}
           />
 

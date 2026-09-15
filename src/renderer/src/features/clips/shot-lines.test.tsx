@@ -1,29 +1,21 @@
 import { fireEvent, render, screen } from "@testing-library/react"
 import { describe, expect, it, vi } from "vitest"
-import type { Asset, LineComposition, SpeakerComposition } from "@renderer/lib/trpc"
+import type { LineComposition, SubjectComposition } from "@renderer/lib/trpc"
 import { ShotLines } from "./shot-lines"
 
-const subjects: Asset[] = [
-  {
-    id: 5,
-    kind: "person",
-    name: "Keeper",
-    description: "an elderly man",
-    createdAt: "2026-09-12T08:00:00.000Z",
-  },
+const subjects: SubjectComposition[] = [
+  { id: 5, kind: "person", name: "Keeper", description: "an elderly man", voice: null },
 ]
 
-const speakers: SpeakerComposition[] = [
-  { id: 7, label: "S1", description: "The keeper", subjectName: null },
+const speakers: SubjectComposition[] = [
+  { id: 7, kind: "person", name: "Radio", description: "a radio", voice: "flat and clipped" },
 ]
 
 function line(id: number, over: Partial<LineComposition> = {}): LineComposition {
   return {
     id,
     kind: "action",
-    assetId: null,
-    subjectName: null,
-    speakerIds: [],
+    subjectIds: [],
     text: `line ${id}`,
     language: null,
     offScreen: false,
@@ -35,7 +27,7 @@ function line(id: number, over: Partial<LineComposition> = {}): LineComposition 
 
 function renderLines(
   lines: LineComposition[] = [line(1)],
-  withSpeakers: SpeakerComposition[] = speakers
+  withSpeakers: SubjectComposition[] = speakers
 ): ReturnType<typeof vi.fn> {
   const onChange = vi.fn()
   render(
@@ -52,7 +44,7 @@ function renderLines(
 
 describe("ShotLines", () => {
   it("shows what happens and what is said in one list, in order", () => {
-    renderLines([line(1), line(2, { kind: "speech", speakerIds: [7], text: "Almost there." })])
+    renderLines([line(1), line(2, { kind: "speech", subjectIds: [7], text: "Almost there." })])
 
     expect(screen.getByLabelText("Line 1 of shot 11")).toHaveValue("line 1")
     expect(screen.getByLabelText("Line 2 of shot 11")).toHaveValue("Almost there.")
@@ -86,13 +78,13 @@ describe("ShotLines", () => {
   })
 
   it("makes a spoken line on enter from a spoken one", () => {
-    const onChange = renderLines([line(1, { kind: "speech", speakerIds: [7], text: "Hello." })])
+    const onChange = renderLines([line(1, { kind: "speech", subjectIds: [7], text: "Hello." })])
 
     fireEvent.keyDown(screen.getByLabelText("Line 1 of shot 11"), { key: "Enter" })
 
     expect(onChange).toHaveBeenCalledWith([
       expect.objectContaining({ text: "Hello." }),
-      expect.objectContaining({ kind: "speech", speakerIds: [7], text: "" }),
+      expect.objectContaining({ kind: "speech", subjectIds: [7], text: "" }),
     ])
   })
 
@@ -113,16 +105,16 @@ describe("ShotLines", () => {
   })
 
   it("says who a line is about, and says the scene when it is about nobody", () => {
-    renderLines([line(1), line(2, { assetId: 5, subjectName: "Keeper" })])
+    renderLines([line(1), line(2, { subjectIds: [5] })])
 
     expect(screen.getByLabelText("Who line 1 is about")).toHaveTextContent("The scene")
     expect(screen.getByLabelText("Who line 2 is about")).toHaveTextContent("Keeper")
   })
 
   it("says who speaks a line", () => {
-    renderLines([line(1, { kind: "speech", speakerIds: [7], text: "Hello." })])
+    renderLines([line(1, { kind: "speech", subjectIds: [7], text: "Hello." })])
 
-    expect(screen.getByLabelText("Who says line 1")).toHaveTextContent("S1 The keeper")
+    expect(screen.getByLabelText("Who says line 1")).toHaveTextContent("Radio")
   })
 
   it("removes a line", () => {
@@ -158,7 +150,7 @@ describe("ShotLines", () => {
   })
 
   it("keeps what is true of a spoken line behind its chevron", () => {
-    const onChange = renderLines([line(1, { kind: "speech", speakerIds: [7], text: "Hello." })])
+    const onChange = renderLines([line(1, { kind: "speech", subjectIds: [7], text: "Hello." })])
 
     expect(screen.queryByLabelText("Off screen")).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole("button", { name: "More about line 1" }))
@@ -168,7 +160,7 @@ describe("ShotLines", () => {
   })
 
   it("says a line takes the clip's language unless it names one", () => {
-    renderLines([line(1, { kind: "speech", speakerIds: [7], text: "Hello." })])
+    renderLines([line(1, { kind: "speech", subjectIds: [7], text: "Hello." })])
 
     fireEvent.click(screen.getByRole("button", { name: "More about line 1" }))
 

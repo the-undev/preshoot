@@ -6,6 +6,10 @@ import {
   type LineInput,
   type Vocabularies,
 } from "@renderer/lib/trpc"
+import type { SubjectFields } from "./clip-cast"
+
+/** One of the cast as the editor sends it back, which always says how they sound. */
+export type SubjectEdit = Omit<SubjectFields, "savedId"> & { voice: string }
 
 /** Everything one shot holds, as the editor sends it back. */
 export interface ShotFields {
@@ -47,9 +51,10 @@ export interface ClipPanel {
   updateShot(shotId: number, fields: ShotFields): void
   moveShot(shotId: number, toPosition: number): void
   removeShot(shotId: number): void
-  addSpeaker(fields: { assetId: number | null; description: string }): void
-  updateSpeaker(speakerId: number, fields: { assetId: number | null; description: string }): void
-  removeSpeaker(speakerId: number): void
+  addSubject(fields: SubjectFields): void
+  updateSubject(subjectId: number, fields: SubjectEdit): void
+  saveSubject(subjectId: number): void
+  removeSubject(subjectId: number): void
 }
 
 /**
@@ -78,9 +83,16 @@ export function useClip(clipId: number): ClipPanel {
   const updateShot = useMutation(trpc.clips.updateShot.mutationOptions(composed))
   const moveShot = useMutation(trpc.clips.moveShot.mutationOptions(composed))
   const removeShot = useMutation(trpc.clips.removeShot.mutationOptions(composed))
-  const addSpeaker = useMutation(trpc.clips.addSpeaker.mutationOptions(composed))
-  const updateSpeaker = useMutation(trpc.clips.updateSpeaker.mutationOptions(composed))
-  const removeSpeaker = useMutation(trpc.clips.removeSpeaker.mutationOptions(composed))
+  const addSubject = useMutation(trpc.clips.addSubject.mutationOptions(composed))
+  const updateSubject = useMutation(trpc.clips.updateSubject.mutationOptions(composed))
+  const removeSubject = useMutation(trpc.clips.removeSubject.mutationOptions(composed))
+  const saveSubject = useMutation(
+    trpc.assets.save.mutationOptions({
+      onSuccess: async () => {
+        await queryClient.invalidateQueries({ queryKey: trpc.assets.pathKey() })
+      },
+    })
+  )
 
   // The clip's own fields change what its tab says, so those queries are refreshed instead.
   const refreshed = {
@@ -99,9 +111,10 @@ export function useClip(clipId: number): ClipPanel {
     updateShot,
     moveShot,
     removeShot,
-    addSpeaker,
-    updateSpeaker,
-    removeSpeaker,
+    addSubject,
+    updateSubject,
+    removeSubject,
+    saveSubject,
     updateClip,
     save,
     branch,
@@ -123,8 +136,9 @@ export function useClip(clipId: number): ClipPanel {
     updateShot: (shotId, fields) => updateShot.mutate({ shotId, ...fields }),
     moveShot: (shotId, toPosition) => moveShot.mutate({ shotId, toPosition }),
     removeShot: (shotId) => removeShot.mutate({ shotId }),
-    addSpeaker: (fields) => addSpeaker.mutate({ clipId, ...fields }),
-    updateSpeaker: (speakerId, fields) => updateSpeaker.mutate({ speakerId, ...fields }),
-    removeSpeaker: (speakerId) => removeSpeaker.mutate({ speakerId }),
+    addSubject: (fields) => addSubject.mutate({ clipId, ...fields }),
+    updateSubject: (subjectId, fields) => updateSubject.mutate({ subjectId, ...fields }),
+    saveSubject: (subjectId) => saveSubject.mutate({ id: subjectId }),
+    removeSubject: (subjectId) => removeSubject.mutate({ subjectId }),
   }
 }

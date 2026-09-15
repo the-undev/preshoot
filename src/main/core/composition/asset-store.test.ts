@@ -3,7 +3,14 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
 import { openProjectDatabase, type ProjectDatabaseHandle } from "../db"
-import { deleteAsset, insertAsset, listAssets, updateAsset } from "./asset-store"
+import {
+  copyAsset,
+  deleteAsset,
+  insertAsset,
+  listCast,
+  listSavedAssets,
+  updateAsset,
+} from "./asset-store"
 import { insertClip, insertShot, setShotThings } from "./clip-store"
 
 const migrationsFolder = join(__dirname, "../../../../resources/migrations")
@@ -24,6 +31,7 @@ describe("asset store", () => {
 
   function keeper(): ReturnType<typeof insertAsset> {
     return insertAsset(handle.db, {
+      clipId: null,
       kind: "person",
       name: "Keeper",
       description: "an elderly man in oilskins",
@@ -31,7 +39,7 @@ describe("asset store", () => {
   }
 
   it("lists nothing in a fresh project", () => {
-    expect(listAssets(handle.db)).toEqual([])
+    expect(listSavedAssets(handle.db)).toEqual([])
   })
 
   it("returns what it stored", () => {
@@ -43,11 +51,25 @@ describe("asset store", () => {
   })
 
   it("lists by kind then name", () => {
-    insertAsset(handle.db, { kind: "place", name: "Tower", description: "a lamp room" })
-    insertAsset(handle.db, { kind: "object", name: "Lamp", description: "brass and glass" })
+    insertAsset(handle.db, {
+      clipId: null,
+      kind: "place",
+      name: "Tower",
+      description: "a lamp room",
+    })
+    insertAsset(handle.db, {
+      clipId: null,
+      kind: "object",
+      name: "Lamp",
+      description: "brass and glass",
+    })
     keeper()
 
-    expect(listAssets(handle.db).map((asset) => asset.name)).toEqual(["Lamp", "Keeper", "Tower"])
+    expect(listSavedAssets(handle.db).map((asset) => asset.name)).toEqual([
+      "Lamp",
+      "Keeper",
+      "Tower",
+    ])
   })
 
   it("rewrites a name and a description", () => {
@@ -58,15 +80,16 @@ describe("asset store", () => {
       kind: "person",
       name: "Lighthouse keeper",
       description: "weathered, in oilskins",
+      voice: "low and slow",
     })
 
     expect(changed.name).toBe("Lighthouse keeper")
-    expect(changed.kind).toBe("person")
+    expect(changed.voice).toBe("low and slow")
   })
 
   it("refuses to rewrite a thing that is not there", () => {
     expect(() =>
-      updateAsset(handle.db, { id: 99, kind: "person", name: "x", description: "y" })
+      updateAsset(handle.db, { id: 99, kind: "person", name: "x", description: "y", voice: null })
     ).toThrow(expect.objectContaining({ code: "not-found" }))
   })
 
@@ -75,21 +98,48 @@ describe("asset store", () => {
 
     deleteAsset(handle.db, dir, stored.id)
 
-    expect(listAssets(handle.db)).toEqual([])
+    expect(listSavedAssets(handle.db)).toEqual([])
   })
 
-  it("refuses to remove a thing a shot still shows, naming the clip", () => {
-    const stored = keeper()
+  it("takes a subject out of the shots that showed it", () => {
     const clip = insertClip(handle.db, {
       name: "Lighthouse",
       target: "minimax-h3",
       style: "Live-action",
     })
+    const subject = insertAsset(handle.db, {
+      clipId: clip.id,
+      kind: "person",
+      name: "Keeper",
+      description: "an elderly man",
+    })
     const shotId = insertShot(handle.db, clip.id)
-    setShotThings(handle.db, shotId, [stored.id])
+    setShotThings(handle.db, shotId, [subject.id])
 
-    expect(() => deleteAsset(handle.db, dir, stored.id)).toThrow(
-      expect.objectContaining({ code: "in-use", message: expect.stringContaining("Lighthouse") })
-    )
+    deleteAsset(handle.db, dir, subject.id)
+
+    expect(listCast(handle.db, clip.id)).toEqual([])
+  })
+
+  it("copies a saved subject into a clip, leaving the saved one alone", () => {
+    const saved = keeper()
+    const clip = insertClip(handle.db, {
+      name: "Lighthouse",
+      target: "minimax-h3",
+      style: "Live-action",
+    })
+
+    const copy = copyAsset(handle.db, saved.id, clip.id)
+    updateAsset(handle.db, {
+      id: copy.id,
+      kind: "person",
+      name: "Keeper",
+      description: "soaked through",
+      voice: null,
+    })
+
+    expect(copy.id).not.toBe(saved.id)
+    expect(listCast(handle.db, clip.id)[0].description).toBe("soaked through")
+    expect(listSavedAssets(handle.db)[0].description).toBe("an elderly man in oilskins")
   })
 })

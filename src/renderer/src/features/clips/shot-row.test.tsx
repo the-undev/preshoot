@@ -5,13 +5,11 @@ import { describe, expect, it, vi } from "vitest"
 import type { Asset, LineComposition, ShotComposition, Vocabularies } from "@renderer/lib/trpc"
 
 /** One thing that happens, as the store hands it over. */
-function action(id: number, text: string, subjectName: string | null = null): LineComposition {
+function action(id: number, text: string, subjectIds: number[] = []): LineComposition {
   return {
     id,
     kind: "action",
-    assetId: null,
-    subjectName,
-    speakerIds: [],
+    subjectIds,
     text,
     language: null,
     offScreen: false,
@@ -34,9 +32,11 @@ const vocabularies: Vocabularies = {
 const library: Asset[] = [
   {
     id: 5,
+    clipId: null,
     kind: "person",
     name: "Keeper",
     description: "an elderly man",
+    voice: null,
     createdAt: "2026-09-12T08:00:00.000Z",
   },
 ]
@@ -190,7 +190,10 @@ describe("ShotRow", () => {
 
   it("takes a library thing away again", () => {
     const { onChange } = renderRow({
-      shot: { ...shot, things: [{ id: 5, kind: "person", name: "Keeper", description: "x" }] },
+      shot: {
+        ...shot,
+        things: [{ id: 5, kind: "person", name: "Keeper", description: "x", voice: null }],
+      },
     })
 
     fireEvent.click(screen.getByRole("button", { name: "Keeper" }))

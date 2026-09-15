@@ -7,12 +7,20 @@ export const projectSettings = sqliteTable("project_settings", {
   updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
 })
 
-/** Things the clips refer to: the people, places and objects of this project. */
+/**
+ * The people, places and objects a clip refers to. A subject belongs to the clip that holds it,
+ * and one with no clip is saved in the library as a starting point, copied whenever it is used.
+ */
 export const assets = sqliteTable("assets", {
   id: integer("id").primaryKey({ autoIncrement: true }),
+  // A plain column rather than a key: SQLite checks a key inside the migrator's transaction, where
+  // the pragma that would defer it is ignored, so removing a clip takes its cast off by hand.
+  clipId: integer("clip_id"),
   kind: text("kind").notNull(),
   name: text("name").notNull(),
   description: text("description").notNull(),
+  // How they sound, which the prompt needs to fix a voice. Nothing until they say something.
+  voice: text("voice"),
   createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
 })
 
@@ -60,18 +68,6 @@ export const clipFrames = sqliteTable("clip_frames", {
   role: text("role").notNull(),
 })
 
-/** A voice in a clip. Its position is its number, so speaker 1 is spoken of as (S1). */
-export const speakers = sqliteTable("speakers", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  clipId: integer("clip_id")
-    .notNull()
-    .references(() => clips.id, { onDelete: "cascade" }),
-  position: integer("position").notNull(),
-  // A voice is either one of the library's subjects or somebody described here and nowhere else.
-  assetId: integer("asset_id").references(() => assets.id, { onDelete: "set null" }),
-  description: text("description").notNull(),
-})
-
 /** One shot of a clip. The vocabulary columns hold values the target accepts, or nothing. */
 export const shots = sqliteTable("shots", {
   id: integer("id").primaryKey({ autoIncrement: true }),
@@ -99,12 +95,14 @@ export const shotLines = sqliteTable("shot_lines", {
     .notNull()
     .references(() => shots.id, { onDelete: "cascade" }),
   position: integer("position").notNull(),
-  // Either "action" or "speech", which decides which of the columns below carry anything.
+  // Either "action" or "speech", which decides how many subjects the line can name.
   kind: text("kind").notNull(),
-  // An action belongs to one of the shot's subjects, or to nobody when it is about the scene.
-  assetId: integer("asset_id").references(() => assets.id, { onDelete: "set null" }),
-  // Several speakers can share a line, which the target writes as a compound id such as (S1,S2).
-  speakerIds: text("speaker_ids", { mode: "json" }).$type<number[]>().notNull().default([]),
+  /*
+   * Who the line is about. An action names one subject or none, which means the scene. Speech
+   * names at least one, and several sharing a line are written as a compound id such as (S1,S2).
+   * A list rather than a key, so nothing points at a subject and removing one edits these.
+   */
+  subjectIds: text("subject_ids", { mode: "json" }).$type<number[]>().notNull().default([]),
   // Kept as typed, because the target reproduces what is said word for word.
   text: text("text").notNull(),
   // Nothing unless this line is spoken in another language than the rest of the clip.
@@ -123,7 +121,7 @@ export const shotAssets = sqliteTable(
       .references(() => shots.id, { onDelete: "cascade" }),
     assetId: integer("asset_id")
       .notNull()
-      .references(() => assets.id, { onDelete: "restrict" }),
+      .references(() => assets.id, { onDelete: "cascade" }),
     position: integer("position").notNull(),
   },
   (table) => [primaryKey({ columns: [table.shotId, table.assetId] })]
@@ -135,6 +133,8 @@ export const shotAssets = sqliteTable(
  */
 export const openTabs = sqliteTable("open_tabs", {
   id: integer("id").primaryKey({ autoIncrement: true }),
-  clipId: integer("clip_id").references(() => clips.id, { onDelete: "cascade" }),
+  // A plain column rather than a key: SQLite checks a key inside the migrator's transaction, where
+  // the pragma that would defer it is ignored, so removing a clip takes its cast off by hand.
+  clipId: integer("clip_id"),
   position: integer("position").notNull(),
 })

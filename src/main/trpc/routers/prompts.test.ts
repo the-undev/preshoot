@@ -78,8 +78,7 @@ describe("prompts router", () => {
         lines: [
           {
             kind: "action",
-            assetId: null,
-            speakerIds: [],
+            subjectIds: [],
             text: `something happens in shot ${index + 1}`,
             language: null,
             offScreen: false,

@@ -146,7 +146,7 @@ export function activateTab(db: ProjectDatabase, tabId: number): Workspace {
  * to its left when it was last. A clip that was never saved goes with its tab: a tab is the only
  * way to reach one, so leaving it behind would leave it in the project unreachable.
  */
-export function closeTab(db: ProjectDatabase, tabId: number): Workspace {
+export function closeTab(db: ProjectDatabase, directory: string, tabId: number): Workspace {
   const before = readWorkspace(db)
   const at = before.tabs.findIndex((tab) => tab.id === tabId)
   if (at === -1) {
@@ -156,7 +156,7 @@ export function closeTab(db: ProjectDatabase, tabId: number): Workspace {
   const closed = before.tabs[at]
   db.delete(schema.openTabs).where(eq(schema.openTabs.id, tabId)).run()
   if (closed.clipId !== null && isScratchClip(db, closed.clipId)) {
-    deleteClip(db, closed.clipId)
+    deleteClip(db, directory, closed.clipId)
   }
 
   const remaining = before.tabs.filter((tab) => tab.id !== tabId)

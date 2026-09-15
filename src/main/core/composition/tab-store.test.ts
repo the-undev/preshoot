@@ -50,8 +50,7 @@ describe("tab store", () => {
     setShotLines(handle.db, insertShot(handle.db, clipId), [
       {
         kind: "action",
-        assetId: null,
-        speakerIds: [],
+        subjectIds: [],
         text: beat,
         language: null,
         offScreen: false,
@@ -133,7 +132,7 @@ describe("tab store", () => {
     const second = openClipInTab(handle.db, addClip("Two"))
     activateTab(handle.db, first.tabs[0].id)
 
-    const workspace = closeTab(handle.db, first.tabs[0].id)
+    const workspace = closeTab(handle.db, dir, first.tabs[0].id)
 
     expect(workspace.activeTabId).toBe(second.tabs[1].id)
   })
@@ -142,7 +141,7 @@ describe("tab store", () => {
     const first = openClipInTab(handle.db, addClip("One"))
     const second = openClipInTab(handle.db, addClip("Two"))
 
-    const workspace = closeTab(handle.db, second.tabs[1].id)
+    const workspace = closeTab(handle.db, dir, second.tabs[1].id)
 
     expect(workspace.activeTabId).toBe(first.tabs[0].id)
   })
@@ -150,7 +149,7 @@ describe("tab store", () => {
   it("leaves nothing open when the only tab closes", () => {
     const opened = openClipInTab(handle.db, addClip("Lighthouse"))
 
-    expect(closeTab(handle.db, opened.tabs[0].id)).toEqual({ tabs: [], activeTabId: null })
+    expect(closeTab(handle.db, dir, opened.tabs[0].id)).toEqual({ tabs: [], activeTabId: null })
   })
 
   it("closes the tab of a clip that is deleted and looks elsewhere", () => {
@@ -159,7 +158,7 @@ describe("tab store", () => {
     const empty = openEmptyTab(handle.db)
     activateTab(handle.db, opened.tabs[0].id)
 
-    deleteClip(handle.db, clipId)
+    deleteClip(handle.db, dir, clipId)
     const workspace = readWorkspace(handle.db)
 
     expect(workspace.tabs.map((tab) => tab.id)).toEqual([empty.tabs[1].id])
@@ -185,9 +184,9 @@ describe("tab store", () => {
     const clipId = addScratchClip("climbs the last steps")
     const opened = openClipInTab(handle.db, clipId)
 
-    closeTab(handle.db, opened.tabs[0].id)
+    closeTab(handle.db, dir, opened.tabs[0].id)
 
-    expect(() => deleteClip(handle.db, clipId)).toThrow(
+    expect(() => deleteClip(handle.db, dir, clipId)).toThrow(
       expect.objectContaining({ code: "not-found" })
     )
   })
@@ -196,7 +195,7 @@ describe("tab store", () => {
     const clipId = addClip("Lighthouse")
     const opened = openClipInTab(handle.db, clipId)
 
-    closeTab(handle.db, opened.tabs[0].id)
+    closeTab(handle.db, dir, opened.tabs[0].id)
 
     expect(listClips(handle.db).map((clip) => clip.id)).toEqual([clipId])
   })
@@ -218,6 +217,8 @@ describe("tab store", () => {
 
   it("refuses a tab that is not open", () => {
     expect(() => activateTab(handle.db, 99)).toThrow(expect.objectContaining({ code: "not-found" }))
-    expect(() => closeTab(handle.db, 99)).toThrow(expect.objectContaining({ code: "not-found" }))
+    expect(() => closeTab(handle.db, dir, 99)).toThrow(
+      expect.objectContaining({ code: "not-found" })
+    )
   })
 })

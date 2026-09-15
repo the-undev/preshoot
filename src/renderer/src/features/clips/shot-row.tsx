@@ -16,7 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@renderer/design-system"
-import type { Asset, ShotComposition, SpeakerComposition, Vocabularies } from "@renderer/lib/trpc"
+import type { Asset, ShotComposition, SubjectComposition, Vocabularies } from "@renderer/lib/trpc"
 import { Chip } from "./chip"
 import { asLineInput } from "./line-input"
 import { ShotLines } from "./shot-lines"
@@ -31,7 +31,7 @@ const MIN_SHOT_MS = 100
 interface ShotRowProps {
   shot: ShotComposition
   index: number
-  speakers: SpeakerComposition[]
+  speakers: SubjectComposition[]
   library: Asset[]
   vocabularies: Vocabularies
   onChange: (fields: ShotFields) => void

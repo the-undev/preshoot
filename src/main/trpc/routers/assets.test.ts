@@ -112,6 +112,7 @@ describe("assets router", () => {
       kind: "object",
       name: "Lamp",
       description: "brass and glass",
+      voice: null,
     })
 
     expect(changed.description).toBe("brass and glass")
@@ -189,44 +190,6 @@ describe("assets router", () => {
 
     await expect(caller.assets.draft({ assetId: keeper.id })).rejects.toThrow(
       expect.objectContaining({ code: "BAD_REQUEST" })
-    )
-  })
-
-  it("refuses to remove a thing a shot still shows", async () => {
-    await openProject()
-    const keeper = await caller.assets.create({
-      kind: "person",
-      name: "Keeper",
-      description: "an elderly man",
-    })
-    const clip = await caller.clips.create()
-    const composition = await caller.clips.composition({ clipId: clip.id })
-    await caller.clips.updateShot({
-      shotId: composition.shots[0].id,
-      durationMs: 4000,
-      cameraMotion: null,
-      amplitude: null,
-      speed: null,
-      transition: null,
-      lighting: null,
-      soundNote: "",
-      things: [keeper.id],
-      lines: [
-        {
-          kind: "action",
-          assetId: null,
-          speakerIds: [],
-          text: "climbs",
-          language: null,
-          offScreen: false,
-          crossesCut: false,
-          cutOff: false,
-        },
-      ],
-    })
-
-    await expect(caller.assets.remove({ id: keeper.id })).rejects.toThrow(
-      expect.objectContaining({ code: "CONFLICT" })
     )
   })
 })

@@ -15,13 +15,13 @@ import {
 } from "@dnd-kit/sortable"
 import { useState } from "react"
 import { ConfirmDialog } from "@renderer/design-system"
-import type { Asset, ShotComposition, SpeakerComposition, Vocabularies } from "@renderer/lib/trpc"
+import type { Asset, ShotComposition, SubjectComposition, Vocabularies } from "@renderer/lib/trpc"
 import { ShotRow } from "./shot-row"
 import type { ShotFields } from "./use-clip"
 
 interface ShotListProps {
   shots: ShotComposition[]
-  speakers: SpeakerComposition[]
+  speakers: SubjectComposition[]
   library: Asset[]
   vocabularies: Vocabularies
   onChange: (shotId: number, fields: ShotFields) => void

@@ -23,7 +23,7 @@ const composition: ClipComposition = {
   note: "A keeper lights the lamp.",
   musicNote: "",
   language: "English",
-  speakers: [],
+  cast: [],
   shots: [],
 }
 

@@ -4,13 +4,11 @@ import type { ClipComposition, LineComposition, ShotComposition } from "../../co
 let nextLineId = 1
 
 /** Something happening, done by a subject or by nobody in particular. */
-function action(text: string, subjectName: string | null = null): LineComposition {
+function action(text: string, subjectId: number | null = null): LineComposition {
   return {
     id: nextLineId++,
     kind: "action",
-    assetId: null,
-    subjectName,
-    speakerIds: [],
+    subjectIds: subjectId === null ? [] : [subjectId],
     text,
     language: null,
     offScreen: false,
@@ -19,9 +17,9 @@ function action(text: string, subjectName: string | null = null): LineCompositio
   }
 }
 
-/** Something said, by the speakers given. */
+/** Something said, by the subjects given. */
 function speech(text: string, over: Partial<LineComposition> = {}): LineComposition {
-  return { ...action(text), kind: "speech", speakerIds: [7], ...over }
+  return { ...action(text), kind: "speech", subjectIds: [7], ...over }
 }
 import { dialogueTag, formatCutTime, minimaxH3, renderH3Prompt } from "./minimax-h3"
 
@@ -62,8 +60,21 @@ const composition: ClipComposition = {
   note: "A keeper lights the lamp during a storm.",
   musicNote: "",
   language: "English",
-  speakers: [
-    { id: 7, label: "S1", description: "The elderly keeper, low and weathered", subjectName: null },
+  cast: [
+    {
+      id: 5,
+      kind: "person",
+      name: "Keeper",
+      description: "an elderly man in oilskins",
+      voice: null,
+    },
+    {
+      id: 7,
+      kind: "person",
+      name: "Radio",
+      description: "a radio on the sill",
+      voice: "The elderly keeper, low and weathered",
+    },
   ],
   shots: [
     shot(11, 4500, {
@@ -72,9 +83,15 @@ const composition: ClipComposition = {
       speed: "at slow speed",
       lighting: "night",
       things: [
-        { id: 5, kind: "person", name: "Keeper", description: "an elderly man in oilskins" },
+        {
+          id: 5,
+          kind: "person",
+          name: "Keeper",
+          description: "an elderly man in oilskins",
+          voice: null,
+        },
       ],
-      lines: [action("climbs the last steps of the tower", "Keeper"), speech("Almost there.")],
+      lines: [action("climbs the last steps of the tower", 5), speech("Almost there.")],
       soundNote: "wind battering the glass",
     }),
     shot(12, 3000, {
@@ -123,10 +140,7 @@ describe("what a shot says", () => {
     const written = body({
       shots: [
         shot(11, 4000, {
-          things: [
-            { id: 5, kind: "person", name: "Keeper", description: "an elderly man in oilskins" },
-          ],
-          lines: [action("climbs the steps", "Keeper"), action("reaches for the lamp", "Keeper")],
+          lines: [action("climbs the steps", 5), action("reaches for the lamp", 5)],
         }),
       ],
     })
@@ -141,7 +155,15 @@ describe("what a shot says", () => {
       shots: [
         shot(11, 4000, {
           lighting: "candlelight",
-          things: [{ id: 6, kind: "place", name: "Cellar", description: "a low brick cellar" }],
+          things: [
+            {
+              id: 6,
+              kind: "place",
+              name: "Cellar",
+              description: "a low brick cellar",
+              voice: null,
+            },
+          ],
         }),
       ],
     })
@@ -162,10 +184,18 @@ describe("what a shot says", () => {
 
   it("names the subject a line belongs to", () => {
     const written = body({
-      shots: [shot(11, 4000, { lines: [action("reaches for the lamp", "Keeper")] })],
+      shots: [shot(11, 4000, { lines: [action("reaches for the lamp", 5)] })],
     })
 
-    expect(written).toContain("Keeper reaches for the lamp.")
+    expect(written).toContain("An elderly man in oilskins reaches for the lamp.")
+  })
+
+  it("says nothing about who when the line is about the scene", () => {
+    const written = body({
+      shots: [shot(11, 4000, { lines: [action("rain runs down the glass")] })],
+    })
+
+    expect(written).toContain("Rain runs down the glass.")
   })
 
   it("leaves out a camera move the shot does not name", () => {
@@ -200,11 +230,17 @@ describe("what a line of dialogue says", () => {
 
   it("gives a line two speakers share a compound id", () => {
     const both = body({
-      speakers: [
-        ...composition.speakers,
-        { id: 8, label: "S2", description: "The keeper's wife", subjectName: null },
+      cast: [
+        ...composition.cast,
+        {
+          id: 8,
+          kind: "person",
+          name: "Wife",
+          description: "the keeper's wife",
+          voice: null,
+        },
       ],
-      shots: [shot(11, 4000, { lines: [speech("Almost there.", { speakerIds: [7, 8] })] })],
+      shots: [shot(11, 4000, { lines: [speech("Almost there.", { subjectIds: [7, 8] })] })],
     })
 
     expect(both).toContain("(S1,S2) says:")

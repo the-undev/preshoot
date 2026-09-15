@@ -75,7 +75,6 @@ describe("the migration to one list of lines", () => {
       [1, "action", "reaches for the lamp"],
       [2, "speech", "Almost there."],
     ])
-    expect(lines[2].speakerIds).toEqual([1])
     expect(lines[2].language).toBe("English")
     handle.close()
   })

@@ -7,10 +7,8 @@ import { insertAsset } from "./asset-store"
 import {
   deleteClip,
   deleteShot,
-  deleteSpeaker,
   insertClip,
   insertShot,
-  insertSpeaker,
   listClips,
   moveShot,
   readComposition,
@@ -24,11 +22,10 @@ import {
 const migrationsFolder = join(__dirname, "../../../../resources/migrations")
 
 /** Something happening, as the editor sends it back. */
-function action(assetId: number | null, text: string): LineInput {
+function action(subjectId: number | null, text: string): LineInput {
   return {
     kind: "action",
-    assetId,
-    speakerIds: [],
+    subjectIds: subjectId === null ? [] : [subjectId],
     text,
     language: null,
     offScreen: false,
@@ -38,8 +35,13 @@ function action(assetId: number | null, text: string): LineInput {
 }
 
 /** Something said, as the editor sends it back. */
-function speech(speakerIds: number[], text: string): LineInput {
-  return { ...action(null, text), kind: "speech", speakerIds }
+function speech(subjectIds: number[], text: string): LineInput {
+  return { ...action(null, text), kind: "speech", subjectIds }
+}
+
+/** One of a clip's own subjects. */
+function subjectIn(handle: ProjectDatabaseHandle, clipId: number, name: string): number {
+  return insertAsset(handle.db, { clipId, kind: "person", name, description: `the ${name}` }).id
 }
 
 describe("clip store", () => {
@@ -68,7 +70,7 @@ describe("clip store", () => {
     expect(composition.name).toBe("Lighthouse")
     expect(composition.style).toBe("Live-action, cinematic")
     expect(composition.shots).toEqual([])
-    expect(composition.speakers).toEqual([])
+    expect(composition.cast).toEqual([])
   })
 
   it("lists clips newest first", () => {
@@ -128,13 +130,14 @@ describe("clip store", () => {
     expect(shot.cameraMotion).toBe("push in")
     expect(shot.lighting).toBe("night")
     expect(shot.lines).toEqual([
-      expect.objectContaining({ kind: "action", subjectName: null, text: "climbs the last steps" }),
+      expect.objectContaining({ kind: "action", subjectIds: [], text: "climbs the last steps" }),
     ])
   })
 
   it("keeps what happens in the order it was given, with who does it", () => {
     const shotId = insertShot(handle.db, clipId)
     const keeper = insertAsset(handle.db, {
+      clipId: null,
       kind: "person",
       name: "Keeper",
       description: "an elderly man",
@@ -146,14 +149,14 @@ describe("clip store", () => {
     ])
 
     expect(readComposition(handle.db, clipId).shots[0].lines).toEqual([
-      expect.objectContaining({ subjectName: "Keeper", text: "climbs the last steps" }),
-      expect.objectContaining({ subjectName: null, text: "rain runs off the rail" }),
+      expect.objectContaining({ subjectIds: [keeper.id], text: "climbs the last steps" }),
+      expect.objectContaining({ subjectIds: [], text: "rain runs off the rail" }),
     ])
   })
 
   it("keeps what happens and what is said in one list, in the order given", () => {
     const shotId = insertShot(handle.db, clipId)
-    const speakerId = insertSpeaker(handle.db, clipId, { assetId: null, description: "The keeper" })
+    const speakerId = subjectIn(handle, clipId, "Keeper")
 
     setShotLines(handle.db, shotId, [
       action(null, "the lamp turns"),
@@ -199,11 +202,13 @@ describe("clip store", () => {
   it("replaces the things a shot shows, keeping the order given", () => {
     const shotId = insertShot(handle.db, clipId)
     const keeper = insertAsset(handle.db, {
+      clipId: null,
       kind: "person",
       name: "Keeper",
       description: "an elderly man",
     })
     const lamp = insertAsset(handle.db, {
+      clipId: null,
       kind: "object",
       name: "Lamp",
       description: "brass and glass",
@@ -218,65 +223,33 @@ describe("clip store", () => {
     expect(shot.things[0].description).toBe("an elderly man")
   })
 
-  it("keeps dialogue against its speaker", () => {
+  it("keeps a clip's own cast apart from what is saved in the library", () => {
+    const own = subjectIn(handle, clipId, "Keeper")
+    insertAsset(handle.db, { clipId: null, kind: "person", name: "Saved", description: "x" })
+
+    expect(readComposition(handle.db, clipId).cast.map((subject) => subject.id)).toEqual([own])
+  })
+
+  it("keeps dialogue against the subject that says it", () => {
     const shotId = insertShot(handle.db, clipId)
-    const speakerId = insertSpeaker(handle.db, clipId, {
-      assetId: null,
-      description: "The keeper, low and weathered",
-    })
+    const keeper = subjectIn(handle, clipId, "Keeper")
 
-    setShotLines(handle.db, shotId, [speech([speakerId], "Almost there.")])
+    setShotLines(handle.db, shotId, [speech([keeper], "Almost there.")])
 
-    const composition = readComposition(handle.db, clipId)
-    expect(composition.speakers).toEqual([
-      {
-        id: speakerId,
-        label: "S1",
-        description: "The keeper, low and weathered",
-        subjectName: null,
-      },
-    ])
-    expect(composition.shots[0].lines).toEqual([
-      expect.objectContaining({
-        kind: "speech",
-        speakerIds: [speakerId],
-        text: "Almost there.",
-      }),
+    expect(readComposition(handle.db, clipId).shots[0].lines).toEqual([
+      expect.objectContaining({ kind: "speech", subjectIds: [keeper], text: "Almost there." }),
     ])
   })
 
-  it("takes a speaker's lines with it and renumbers the rest", () => {
+  it("takes the shots, the lines and the cast when the clip goes", () => {
     const shotId = insertShot(handle.db, clipId)
-    const first = insertSpeaker(handle.db, clipId, { assetId: null, description: "The keeper" })
-    const second = insertSpeaker(handle.db, clipId, {
-      assetId: null,
-      description: "The radio operator",
-    })
-    setShotLines(handle.db, shotId, [
-      speech([first], "Almost there."),
-      speech([second], "Say again."),
-    ])
+    const keeper = subjectIn(handle, clipId, "Keeper")
+    setShotLines(handle.db, shotId, [speech([keeper], "Almost there.")])
 
-    deleteSpeaker(handle.db, first)
-
-    const composition = readComposition(handle.db, clipId)
-    expect(composition.speakers).toEqual([
-      { id: second, label: "S1", description: "The radio operator", subjectName: null },
-    ])
-    expect(composition.shots[0].lines).toEqual([
-      expect.objectContaining({ speakerIds: [second], text: "Say again." }),
-    ])
-  })
-
-  it("takes the shots and their dialogue when the clip goes", () => {
-    const shotId = insertShot(handle.db, clipId)
-    const speakerId = insertSpeaker(handle.db, clipId, { assetId: null, description: "The keeper" })
-    setShotLines(handle.db, shotId, [speech([speakerId], "Almost there.")])
-
-    deleteClip(handle.db, clipId)
+    deleteClip(handle.db, dir, clipId)
 
     expect(handle.db.select().from(schema.shots).all()).toEqual([])
     expect(handle.db.select().from(schema.shotLines).all()).toEqual([])
-    expect(handle.db.select().from(schema.speakers).all()).toEqual([])
+    expect(handle.db.select().from(schema.assets).all()).toEqual([])
   })
 })

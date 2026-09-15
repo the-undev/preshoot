@@ -15,7 +15,7 @@ export const Route = createFileRoute("/project/library")({
 /** Which thing the form is for: none, a new one, or one already in the library. */
 type Editing = { kind: "none" } | { kind: "new" } | { kind: "existing"; asset: Asset }
 
-const EMPTY: AssetFields = { kind: "person", name: "", description: "" }
+const EMPTY: AssetFields = { kind: "person", name: "", description: "", voice: null }
 
 function Library(): React.JSX.Element {
   const library = useAssets()
@@ -32,6 +32,7 @@ function Library(): React.JSX.Element {
             kind: next.asset.kind as AssetFields["kind"],
             name: next.asset.name,
             description: next.asset.description,
+            voice: next.asset.voice,
           }
         : EMPTY
     )

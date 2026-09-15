@@ -3,10 +3,12 @@ import {
   clipDurationMs,
   frameOf,
   shotStartMs,
+  speakerLabelOf,
+  subjectOf,
   type ClipComposition,
   type LineComposition,
   type ShotComposition,
-  type ThingComposition,
+  type SubjectComposition,
 } from "../../composition/clip"
 import type { BodyLength, PromptTarget, TargetFields, Vocabularies } from "../target"
 
@@ -181,9 +183,9 @@ function cameraSentence(shot: ShotComposition): string {
 
 /** What the prompt calls the speakers of one line, which is compound when they share it. */
 function speakerLabel(composition: ClipComposition, line: LineComposition): string {
-  const labels = line.speakerIds
-    .map((id) => composition.speakers.find((speaker) => speaker.id === id)?.label)
-    .filter(Boolean)
+  const labels = line.subjectIds
+    .map((id) => speakerLabelOf(composition, id))
+    .filter((label): label is string => label !== null)
   return labels.length > 0 ? `(${labels.join(",")})` : "(S1)"
 }
 
@@ -203,8 +205,10 @@ function lowerOpeningArticle(text: string): string {
  * tag rather than inside the span the model reproduces.
  */
 function spokenSentence(composition: ClipComposition, line: LineComposition): string {
-  const speaker = composition.speakers.find((entry) => entry.id === line.speakerIds[0])
-  const who = [speaker?.description.trim(), speakerLabel(composition, line)]
+  const speaker = subjectOf(composition, line.subjectIds[0])
+  // The voice is what the prompt has to fix, and it falls back to how they look when none is given.
+  const said = speaker?.voice?.trim() ?? speaker?.description.trim()
+  const who = [said, speakerLabel(composition, line)]
     .filter((part) => part && part.length > 0)
     .join(" ")
   const says = line.offScreen ? "says in an off-screen voiceover" : "says"
@@ -231,13 +235,13 @@ function spokenSentence(composition: ClipComposition, line: LineComposition): st
 type Introduced = Set<number>
 
 /** Everything of `shot` that has not been described yet, in the order the shot holds it. */
-function newThings(shot: ShotComposition, introduced: Introduced): ThingComposition[] {
+function newThings(shot: ShotComposition, introduced: Introduced): SubjectComposition[] {
   return shot.things.filter((thing) => !introduced.has(thing.id))
 }
 
 /** Whether a subject is named by a line of this shot, and so will be described by one. */
-function actsInShot(shot: ShotComposition, thing: ThingComposition): boolean {
-  return writtenLines(shot).some((line) => line.subjectName === thing.name)
+function actsInShot(shot: ShotComposition, thing: SubjectComposition): boolean {
+  return writtenLines(shot).some((line) => line.subjectIds.includes(thing.id))
 }
 
 /**
@@ -259,12 +263,13 @@ function openingComposition(shot: ShotComposition, introduced: Introduced): stri
 }
 
 /** How a line names whoever it is about: by describing them the first time, by name after that. */
-function nameIn(shot: ShotComposition, introduced: Introduced, subjectName: string): string {
-  const thing = shot.things.find((entry) => entry.name === subjectName)
-  if (!thing || introduced.has(thing.id)) return subjectName
-  introduced.add(thing.id)
-  const description = thing.description.trim()
-  return description.length > 0 ? capitalise(description) : subjectName
+function nameIn(composition: ClipComposition, introduced: Introduced, subjectId: number): string {
+  const subject = subjectOf(composition, subjectId)
+  if (!subject) return ""
+  if (introduced.has(subject.id)) return subject.name
+  introduced.add(subject.id)
+  const description = subject.description.trim()
+  return description.length > 0 ? capitalise(description) : subject.name
 }
 
 /** Everything inside one shot, written from the composition alone. */
@@ -286,7 +291,8 @@ function describeShot(
       sentences.push(spokenSentence(composition, line))
       continue
     }
-    const who = line.subjectName ? `${nameIn(shot, introduced, line.subjectName)} ` : ""
+    const named = line.subjectIds[0]
+    const who = named === undefined ? "" : `${nameIn(composition, introduced, named)} `
     sentences.push(sentence(capitalise(`${who}${line.text}`)))
   }
 

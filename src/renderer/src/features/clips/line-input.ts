@@ -4,8 +4,7 @@ import type { LineComposition, LineInput } from "@renderer/lib/trpc"
 export function asLineInput(line: LineComposition): LineInput {
   return {
     kind: line.kind,
-    assetId: line.assetId,
-    speakerIds: line.speakerIds,
+    subjectIds: line.subjectIds,
     text: line.text,
     language: line.language,
     offScreen: line.offScreen,

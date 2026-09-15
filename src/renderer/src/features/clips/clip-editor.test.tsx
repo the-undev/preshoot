@@ -8,13 +8,11 @@ import type {
 } from "@renderer/lib/trpc"
 
 /** One thing that happens, as the store hands it over. */
-function action(id: number, text: string, subjectName: string | null = null): LineComposition {
+function action(id: number, text: string, subjectIds: number[] = []): LineComposition {
   return {
     id,
     kind: "action",
-    assetId: null,
-    subjectName,
-    speakerIds: [],
+    subjectIds,
     text,
     language: null,
     offScreen: false,
@@ -60,7 +58,7 @@ const composition: ClipComposition = {
   note: "A keeper lights the lamp.",
   musicNote: "",
   language: "English",
-  speakers: [],
+  cast: [],
   shots: [shot(11, 4500), shot(12, 3000)],
 }
 
@@ -78,9 +76,12 @@ function renderEditor(over: Partial<React.ComponentProps<typeof ClipEditor>> = {
       onShotChange={vi.fn()}
       onMoveShot={vi.fn()}
       onRemoveShot={vi.fn()}
-      onAddSpeaker={vi.fn()}
-      onUpdateSpeaker={vi.fn()}
-      onRemoveSpeaker={vi.fn()}
+      saved={[]}
+      speaking={[]}
+      onAddSubject={vi.fn()}
+      onUpdateSubject={vi.fn()}
+      onSaveSubject={vi.fn()}
+      onRemoveSubject={vi.fn()}
       onAddPeople={vi.fn()}
       {...over}
     />

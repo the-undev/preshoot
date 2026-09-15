@@ -8,7 +8,7 @@ import {
   showClipListInTab,
 } from "../../core/composition/tab-store"
 import { asClientError } from "../client-errors"
-import { requireProject } from "../project"
+import { requireOpenProject, requireProject } from "../project"
 import { publicProcedure, router } from "../trpc"
 
 const tabId = z.number().int()
@@ -51,8 +51,9 @@ export const tabsRouter = router({
 
   /** Closes a tab and looks at whichever took its place. */
   close: publicProcedure.input(z.object({ tabId })).mutation(({ ctx, input }) => {
+    const project = requireOpenProject(ctx)
     try {
-      return closeTab(requireProject(ctx), input.tabId)
+      return closeTab(project.db, project.directory, input.tabId)
     } catch (error) {
       asClientError(error)
     }

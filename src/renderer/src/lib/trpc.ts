@@ -83,8 +83,8 @@ export type FrameComposition = ClipComposition["frames"][number]
 /** One shot of a clip. */
 export type ShotComposition = ClipComposition["shots"][number]
 
-/** A voice in a clip. */
-export type SpeakerComposition = ClipComposition["speakers"][number]
+/** One of the people, places or objects a clip holds. */
+export type SubjectComposition = ClipComposition["cast"][number]
 
 /** One thing that happens in a shot, which is something done or something said. */
 export type LineComposition = ShotComposition["lines"][number]

@@ -1,23 +1,17 @@
 /** How long a clip may run before the target model stops being able to hold it. */
 export const MAX_CLIP_MS = 15_000
 
-/** One thing a shot shows, copied from the library so a stored composition stands on its own. */
-export interface ThingComposition {
+/**
+ * One of the people, places or objects a clip refers to. It belongs to the clip, so changing it
+ * here changes nothing anywhere else.
+ */
+export interface SubjectComposition {
   id: number
   kind: string
   name: string
   description: string
-}
-
-/**
- * A voice in the clip. The label is what the prompt calls it, such as "S1". A voice that belongs
- * to one of the clip's subjects carries its name, so the prompt can say they are the same person.
- */
-export interface SpeakerComposition {
-  id: number
-  label: string
-  description: string
-  subjectName: string | null
+  /** How they sound, which the prompt needs to fix a voice. Nothing until they say something. */
+  voice: string | null
 }
 
 /** What a line of a shot is: something someone does, or something someone says. */
@@ -35,9 +29,8 @@ export const LINE_KINDS: LineKind[] = ["action", "speech"]
 export interface LineComposition {
   id: number
   kind: LineKind
-  assetId: number | null
-  subjectName: string | null
-  speakerIds: number[]
+  /** Who the line is about: nobody for the scene, one for an action, one or more for speech. */
+  subjectIds: number[]
   text: string
   /** Nothing unless this line is spoken in another language than the rest of the clip. */
   language: string | null
@@ -59,7 +52,7 @@ export interface ShotComposition {
   speed: string | null
   transition: string | null
   lighting: string | null
-  things: ThingComposition[]
+  things: SubjectComposition[]
   lines: LineComposition[]
   soundNote: string
 }
@@ -93,7 +86,8 @@ export interface ClipComposition {
   musicNote: string
   /** What is spoken in this clip unless a line says otherwise. */
   language: string
-  speakers: SpeakerComposition[]
+  /** The people, places and objects this clip holds, which its shots and lines pick from. */
+  cast: SubjectComposition[]
   shots: ShotComposition[]
 }
 
@@ -120,10 +114,33 @@ export function shotStartMs(composition: ClipComposition, shotId: number): numbe
   throw new Error(`Shot ${shotId} is not in clip ${composition.id}`)
 }
 
-/** The speaker of a line, for naming it in an instruction. */
-export function speakerOf(
+/** One of the clip's subjects by id, for naming it in the prompt. */
+export function subjectOf(
   composition: ClipComposition,
-  speakerId: number
-): SpeakerComposition | null {
-  return composition.speakers.find((speaker) => speaker.id === speakerId) ?? null
+  subjectId: number
+): SubjectComposition | null {
+  return composition.cast.find((subject) => subject.id === subjectId) ?? null
+}
+
+/**
+ * The subjects that speak, in the order they first do, which is what gives them (S1), (S2) and so
+ * on. Derived rather than stored, so nothing has to be renumbered when a line moves.
+ */
+export function speakingOrder(composition: ClipComposition): number[] {
+  const order: number[] = []
+  for (const shot of composition.shots) {
+    for (const line of shot.lines) {
+      if (line.kind !== "speech" || line.text.trim().length === 0) continue
+      for (const id of line.subjectIds) {
+        if (!order.includes(id)) order.push(id)
+      }
+    }
+  }
+  return order
+}
+
+/** What the prompt calls a subject that speaks, such as `S1`. */
+export function speakerLabelOf(composition: ClipComposition, subjectId: number): string | null {
+  const at = speakingOrder(composition).indexOf(subjectId)
+  return at === -1 ? null : `S${at + 1}`
 }

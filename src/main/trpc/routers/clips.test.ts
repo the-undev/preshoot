@@ -11,11 +11,10 @@ import { appRouter } from "../router"
 const migrationsFolder = join(__dirname, "../../../../resources/migrations")
 
 /** Something happening, as the editor sends a shot back. */
-function action(assetId: number | null, text: string): LineInput {
+function action(subjectId: number | null, text: string): LineInput {
   return {
     kind: "action",
-    assetId,
-    speakerIds: [],
+    subjectIds: subjectId === null ? [] : [subjectId],
     text,
     language: null,
     offScreen: false,
@@ -25,8 +24,8 @@ function action(assetId: number | null, text: string): LineInput {
 }
 
 /** Something said, as the editor sends a shot back. */
-function speech(speakerIds: number[], text: string): LineInput {
-  return { ...action(null, text), kind: "speech", speakerIds }
+function speech(subjectIds: number[], text: string): LineInput {
+  return { ...action(null, text), kind: "speech", subjectIds }
 }
 
 describe("clips router", () => {
@@ -108,14 +107,19 @@ describe("clips router", () => {
 
   it("rewrites a shot with the things it shows and what is said", async () => {
     const { clipId, shotId } = await clipWithShot()
-    const keeper = await caller.assets.create({
+    const withKeeper = await caller.clips.addSubject({
+      clipId,
+      savedId: null,
       kind: "person",
       name: "Keeper",
       description: "an elderly man",
     })
-    const withSpeaker = await caller.clips.addSpeaker({
+    const keeper = withKeeper.cast[0]
+    const withSpeaker = await caller.clips.addSubject({
       clipId,
-      assetId: null,
+      savedId: null,
+      kind: "person",
+      name: "The keeper, low and weathered",
       description: "The keeper, low and weathered",
     })
 
@@ -131,26 +135,25 @@ describe("clips router", () => {
       things: [keeper.id],
       lines: [
         action(null, "climbs the last steps"),
-        speech([withSpeaker.speakers[0].id], "Almost there."),
+        speech([withSpeaker.cast[0].id], "Almost there."),
       ],
     })
 
     const [shot] = composition.shots
     expect(shot.durationMs).toBe(4500)
     expect(shot.cameraMotion).toBe("push in")
-    expect(shot.things).toEqual([
-      { id: keeper.id, kind: "person", name: "Keeper", description: "an elderly man" },
-    ])
+    expect(shot.things).toEqual([expect.objectContaining({ id: keeper.id, name: "Keeper" })])
     expect(shot.lines.map((line) => line.kind)).toEqual(["action", "speech"])
     expect(shot.lines[1].text).toBe("Almost there.")
-    expect(composition.speakers[0].label).toBe("S1")
   })
 
   it("keeps a dialogue line that has not been typed into yet", async () => {
     const { clipId, shotId } = await clipWithShot()
-    const withSpeaker = await caller.clips.addSpeaker({
+    const withSpeaker = await caller.clips.addSubject({
       clipId,
-      assetId: null,
+      savedId: null,
+      kind: "person",
+      name: "The keeper",
       description: "The keeper",
     })
 
@@ -164,12 +167,12 @@ describe("clips router", () => {
       lighting: null,
       soundNote: "",
       things: [],
-      lines: [action(null, "climbs"), speech([withSpeaker.speakers[0].id], "")],
+      lines: [action(null, "climbs"), speech([withSpeaker.cast[0].id], "")],
     })
 
     expect(composition.shots[0].lines).toEqual([
       expect.objectContaining({ kind: "action", text: "climbs" }),
-      expect.objectContaining({ speakerIds: [withSpeaker.speakers[0].id], text: "" }),
+      expect.objectContaining({ subjectIds: [withSpeaker.cast[0].id], text: "" }),
     ])
   })
 
@@ -215,10 +218,10 @@ describe("clips router", () => {
     expect(copy.shots[0].id).not.toBe(shotId)
     expect(copy.shots[0].cameraMotion).toBe("push in")
     expect(copy.shots[0].lines).toEqual([
-      expect.objectContaining({ subjectName: null, text: "climbs the stairs" }),
+      expect.objectContaining({ subjectIds: [], text: "climbs the stairs" }),
     ])
     expect(original.shots[0].lines).toEqual([
-      expect.objectContaining({ subjectName: null, text: "climbs the stairs" }),
+      expect.objectContaining({ subjectIds: [], text: "climbs the stairs" }),
     ])
   })
 
@@ -233,14 +236,16 @@ describe("clips router", () => {
     expect(second.savedFromId).toBe(clip.id)
   })
 
-  it("copies the speakers of a clip and renumbers the lines that name them", async () => {
+  it("copies the cast of a clip and renumbers the lines that name them", async () => {
     const { clipId, shotId } = await clipWithShot()
-    const withSpeaker = await caller.clips.addSpeaker({
+    const withSpeaker = await caller.clips.addSubject({
       clipId,
-      assetId: null,
+      savedId: null,
+      kind: "person",
+      name: "The keeper",
       description: "The keeper",
     })
-    const speakerId = withSpeaker.speakers[0].id
+    const speakerId = withSpeaker.cast[0].id
     await caller.clips.updateShot({
       shotId,
       durationMs: 4000,
@@ -257,9 +262,9 @@ describe("clips router", () => {
     const branch = await caller.clips.branch({ id: clipId })
     const copy = await caller.clips.composition({ clipId: branch.id })
 
-    expect(copy.speakers).toHaveLength(1)
-    expect(copy.speakers[0].id).not.toBe(speakerId)
-    expect(copy.shots[0].lines[0].speakerIds).toEqual([copy.speakers[0].id])
+    expect(copy.cast).toHaveLength(1)
+    expect(copy.cast[0].id).not.toBe(speakerId)
+    expect(copy.shots[0].lines[0].subjectIds).toEqual([copy.cast[0].id])
   })
 
   it("refuses to branch a clip that is not there", async () => {
@@ -325,44 +330,63 @@ describe("clips router", () => {
     expect(removed.shots.map((shot) => shot.id)).toEqual([ids[2], ids[1]])
   })
 
-  it("gives one of the subjects a voice, and describes it by that subject", async () => {
+  it("adds a subject to the clip and takes it out again", async () => {
     const clip = await caller.clips.create()
-    const keeper = await caller.assets.create({
+
+    const added = await caller.clips.addSubject({
+      clipId: clip.id,
+      savedId: null,
       kind: "person",
       name: "Keeper",
-      description: "an elderly man in oilskins",
+      description: "an elderly man",
     })
+    const emptied = await caller.clips.removeSubject({ subjectId: added.cast[0].id })
 
-    const composition = await caller.clips.addSpeaker({
-      clipId: clip.id,
-      assetId: keeper.id,
-      description: "",
-    })
-
-    expect(composition.speakers).toEqual([
-      {
-        id: composition.speakers[0].id,
-        label: "S1",
-        description: "an elderly man in oilskins",
-        subjectName: "Keeper",
-      },
-    ])
+    expect(added.cast.map((subject) => subject.name)).toEqual(["Keeper"])
+    expect(emptied.cast).toEqual([])
   })
 
-  it("renumbers the speakers when one goes", async () => {
+  it("copies a saved subject into the clip rather than sharing it", async () => {
     const clip = await caller.clips.create()
-    await caller.clips.addSpeaker({ clipId: clip.id, assetId: null, description: "The keeper" })
-    const both = await caller.clips.addSpeaker({
-      clipId: clip.id,
-      assetId: null,
-      description: "The operator",
+    const saved = await caller.assets.create({
+      kind: "person",
+      name: "Keeper",
+      description: "an elderly man",
     })
 
-    const left = await caller.clips.removeSpeaker({ speakerId: both.speakers[0].id })
+    const added = await caller.clips.addSubject({
+      clipId: clip.id,
+      savedId: saved.id,
+      kind: "person",
+      name: "",
+      description: "",
+    })
+    await caller.clips.updateSubject({
+      subjectId: added.cast[0].id,
+      kind: "person",
+      name: "Keeper",
+      description: "soaked through",
+      voice: null,
+    })
 
-    expect(left.speakers).toEqual([
-      { id: both.speakers[1].id, label: "S1", description: "The operator", subjectName: null },
-    ])
+    expect(added.cast[0].id).not.toBe(saved.id)
+    expect((await caller.assets.list())[0].description).toBe("an elderly man")
+  })
+
+  it("saves one of the clip's subjects into the library as a copy", async () => {
+    const clip = await caller.clips.create()
+    const added = await caller.clips.addSubject({
+      clipId: clip.id,
+      savedId: null,
+      kind: "person",
+      name: "Keeper",
+      description: "an elderly man",
+    })
+
+    const saved = await caller.assets.save({ id: added.cast[0].id })
+
+    expect(saved.clipId).toBeNull()
+    expect((await caller.assets.list()).map((entry) => entry.name)).toEqual(["Keeper"])
   })
 
   it("refuses a clip that is not there", async () => {

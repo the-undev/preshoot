@@ -3,9 +3,11 @@ import { TRPCError } from "@trpc/server"
 import { z } from "zod"
 import {
   ASSET_KINDS,
+  copyAsset,
   deleteAsset,
   insertAsset,
-  listAssets,
+  listSavedAssets,
+  readAsset,
   updateAsset,
 } from "../../core/composition/asset-store"
 import {
@@ -29,17 +31,34 @@ const IMAGE_EXTENSIONS = Object.keys(IMAGE_MEDIA_TYPES).map((extension) => exten
 const description = z.string().trim().min(1)
 
 export const assetsRouter = router({
-  /** The library of this project, by kind then name. */
-  list: publicProcedure.query(({ ctx }) => listAssets(requireProject(ctx))),
+  /** The subjects saved in the library, by kind then name. These are the starting points. */
+  list: publicProcedure.query(({ ctx }) => listSavedAssets(requireProject(ctx))),
 
-  /** Adds a person, a place or an object the clips can refer to. */
+  /** Saves a subject in the library, which copies it so the clip keeps its own. */
+  save: publicProcedure.input(z.object({ id: assetId })).mutation(({ ctx, input }) => {
+    try {
+      return copyAsset(requireProject(ctx), input.id, null)
+    } catch (error) {
+      asClientError(error)
+    }
+  }),
+
+  /** Adds a person, a place or an object straight to the library. */
   create: publicProcedure
     .input(z.object({ kind: z.enum(ASSET_KINDS), name, description }))
-    .mutation(({ ctx, input }) => insertAsset(requireProject(ctx), input)),
+    .mutation(({ ctx, input }) => insertAsset(requireProject(ctx), { ...input, clipId: null })),
 
-  /** Renames a thing or rewrites its description. */
+  /** Renames a subject or rewrites how it looks and sounds. */
   update: publicProcedure
-    .input(z.object({ id: z.number().int(), kind: z.enum(ASSET_KINDS), name, description }))
+    .input(
+      z.object({
+        id: assetId,
+        kind: z.enum(ASSET_KINDS),
+        name,
+        description,
+        voice: z.string().nullable(),
+      })
+    )
     .mutation(({ ctx, input }) => {
       try {
         return updateAsset(requireProject(ctx), input)
@@ -89,7 +108,7 @@ export const assetsRouter = router({
    */
   draft: publicProcedure.input(z.object({ assetId })).mutation(async ({ ctx, input }) => {
     const project = requireOpenProject(ctx)
-    const asset = listAssets(project.db).find((entry) => entry.id === input.assetId)
+    const asset = readAsset(project.db, input.assetId)
     if (!asset) {
       throw new TRPCError({ code: "NOT_FOUND", message: "That thing is not in this project." })
     }
