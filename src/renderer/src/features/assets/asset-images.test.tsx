@@ -34,8 +34,8 @@ describe("AssetImages", () => {
   it("shows a thumbnail for each picture, read through the asset scheme", () => {
     renderImages()
 
-    expect(screen.getByAltText("Reference picture 1")).toHaveAttribute("src", "asset://1")
-    expect(screen.getByAltText("Reference picture 2")).toHaveAttribute("src", "asset://2")
+    expect(screen.getByAltText("Reference picture 1")).toHaveAttribute("src", "asset://1/160")
+    expect(screen.getByAltText("Reference picture 2")).toHaveAttribute("src", "asset://2/160")
   })
 
   it("reports the picture to remove", () => {

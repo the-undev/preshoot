@@ -1,4 +1,5 @@
 import type { LlamaServerClient } from "../core/prompting/llama-server-client"
+import type { ClipHistory } from "../core/composition/history"
 import type { ProjectSession } from "../core/projects/session"
 import type { AppSettingsStore } from "../core/settings/app-settings"
 
@@ -6,6 +7,7 @@ import type { AppSettingsStore } from "../core/settings/app-settings"
 export interface Context {
   versions: RuntimeVersions
   projects: ProjectSession
+  history: ClipHistory
   settings: AppSettingsStore
   migrationsFolder: string
   dialogs: Dialogs

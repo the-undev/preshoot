@@ -6,23 +6,29 @@ import { AssetList } from "./asset-list"
 const assets: Asset[] = [
   {
     id: 1,
+    clipId: null,
     kind: "object",
     name: "Lamp",
     description: "brass and glass",
+    voice: null,
     createdAt: "2026-09-12T08:00:00.000Z",
   },
   {
     id: 2,
+    clipId: null,
     kind: "person",
     name: "Keeper",
     description: "an elderly man in oilskins",
+    voice: null,
     createdAt: "2026-09-12T08:00:00.000Z",
   },
   {
     id: 3,
+    clipId: null,
     kind: "person",
     name: "Operator",
     description: "a young radio operator",
+    voice: null,
     createdAt: "2026-09-12T08:00:00.000Z",
   },
 ]

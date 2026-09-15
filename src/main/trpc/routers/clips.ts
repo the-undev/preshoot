@@ -1,37 +1,45 @@
 import { TRPCError } from "@trpc/server"
 import { z } from "zod"
 import { ASPECT_RATIOS } from "../../core/composition/aspect"
-import { CLIP_FORMS, type ClipForm } from "../../core/composition/clip"
+import { CLIP_FORMS, LINE_KINDS, type ClipForm, type LineKind } from "../../core/composition/clip"
 import {
+  ASSET_KINDS,
+  copyAsset,
+  deleteAsset,
+  insertAsset,
+  updateAsset,
+} from "../../core/composition/asset-store"
+import {
+  addSavedShot,
   branchClip,
   clearClipFrame,
+  deleteSavedShot,
+  listSavedShots,
+  saveShot,
   clipIdOfShot,
-  clipIdOfSpeaker,
+  clipIdOfSubject,
   deleteClip,
   deleteShot,
-  deleteSpeaker,
   insertClip,
   insertShot,
-  insertSpeaker,
   listClips,
   moveShot,
   readClip,
   readComposition,
+  restoreComposition,
   saveClip,
-  setShotBeats,
-  setShotDialogue,
+  setShotLines,
   setShotThings,
   updateClip,
   updateShot,
   setClipFrame,
-  updateSpeaker,
 } from "../../core/composition/clip-store"
 import type { ProjectDatabase } from "../../core/db"
 import { composeClip } from "../../core/prompting/compose"
 import type { PromptTarget } from "../../core/prompting/target"
 import { DEFAULT_TARGET_ID, targetById } from "../../core/prompting/targets"
 import { asClientError } from "../client-errors"
-import { requireProject } from "../project"
+import { requireOpenProject, requireProject } from "../project"
 import { publicProcedure, router } from "../trpc"
 
 /** The style a new clip starts on, which the guide's own example uses. */
@@ -54,13 +62,13 @@ const shotInput = z.object({
   transition: z.string().nullable(),
   lighting: z.string().nullable(),
   soundNote: z.string(),
-  beats: z.array(z.object({ assetId: z.number().int().nullable(), text: z.string() })),
   things: z.array(z.number().int()),
-  dialogue: z.array(
+  lines: z.array(
     z.object({
-      speakerIds: z.array(z.number().int()),
-      language: z.string(),
+      kind: z.enum(LINE_KINDS as [LineKind, ...LineKind[]]),
+      subjectIds: z.array(z.number().int()),
       text: z.string(),
+      language: z.string().nullable(),
       offScreen: z.boolean(),
       crossesCut: z.boolean(),
       cutOff: z.boolean(),
@@ -132,11 +140,14 @@ export const clipsRouter = router({
         form: z.enum(CLIP_FORMS as [ClipForm, ...ClipForm[]]),
         shortEdge: z.number().int().min(128).max(4096),
         aspectRatio: z.enum(ASPECT_RATIOS.map((entry) => entry.value) as [string, ...string[]]),
+        language: z.string().trim().min(1),
       })
     )
     .mutation(({ ctx, input }) => {
+      const db = requireProject(ctx)
       try {
-        return updateClip(requireProject(ctx), input)
+        ctx.history.remember(input.id, readComposition(db, input.id))
+        return updateClip(db, input)
       } catch (error) {
         asClientError(error)
       }
@@ -144,8 +155,10 @@ export const clipsRouter = router({
 
   /** Removes a clip and everything under it. */
   remove: publicProcedure.input(z.object({ id: clipId })).mutation(({ ctx, input }) => {
+    const project = requireOpenProject(ctx)
     try {
-      deleteClip(requireProject(ctx), input.id)
+      deleteClip(project.db, project.directory, input.id)
+      ctx.history.forget(input.id)
       return { id: input.id }
     } catch (error) {
       asClientError(error)
@@ -198,6 +211,7 @@ export const clipsRouter = router({
     .mutation(({ ctx, input }) => {
       const db = requireProject(ctx)
       try {
+        ctx.history.remember(input.clipId, readComposition(db, input.clipId))
         if (input.imageId === null) {
           clearClipFrame(db, { clipId: input.clipId, role: input.role })
         } else {
@@ -213,6 +227,7 @@ export const clipsRouter = router({
   addShot: publicProcedure.input(z.object({ clipId })).mutation(({ ctx, input }) => {
     const db = requireProject(ctx)
     try {
+      ctx.history.remember(input.clipId, readComposition(db, input.clipId))
       insertShot(db, input.clipId)
       return readComposition(db, input.clipId)
     } catch (error) {
@@ -225,6 +240,7 @@ export const clipsRouter = router({
     const db = requireProject(ctx)
     try {
       const id = clipIdOfShot(db, input.shotId)
+      ctx.history.remember(id, readComposition(db, id))
       const { vocabularies } = targetOfClip(db, id)
       updateShot(db, {
         id: input.shotId,
@@ -240,9 +256,8 @@ export const clipsRouter = router({
         lighting: input.lighting,
         soundNote: input.soundNote,
       })
-      setShotBeats(db, input.shotId, input.beats)
       setShotThings(db, input.shotId, input.things)
-      setShotDialogue(db, input.shotId, input.dialogue)
+      setShotLines(db, input.shotId, input.lines)
       return readComposition(db, id)
     } catch (error) {
       asClientError(error)
@@ -268,6 +283,7 @@ export const clipsRouter = router({
     const db = requireProject(ctx)
     try {
       const id = clipIdOfShot(db, input.shotId)
+      ctx.history.remember(id, readComposition(db, id))
       deleteShot(db, input.shotId)
       return readComposition(db, id)
     } catch (error) {
@@ -275,54 +291,138 @@ export const clipsRouter = router({
     }
   }),
 
-  /** Adds a voice to the clip. */
-  addSpeaker: publicProcedure
-    .input(z.object({ clipId, assetId: z.number().int().nullable(), description: z.string() }))
+  /** Whether there is anything to go back to or forward to in this clip. */
+  reach: publicProcedure
+    .input(z.object({ clipId }))
+    .query(({ ctx, input }) => ctx.history.reach(input.clipId)),
+
+  /** Puts the clip back the way it was before the last change. */
+  undo: publicProcedure.input(z.object({ clipId })).mutation(({ ctx, input }) => {
+    const db = requireProject(ctx)
+    try {
+      const now = readComposition(db, input.clipId)
+      const previous = ctx.history.back(input.clipId, now)
+      if (previous) restoreComposition(db, previous)
+      return readComposition(db, input.clipId)
+    } catch (error) {
+      asClientError(error)
+    }
+  }),
+
+  /** Puts back a change that was undone. */
+  redo: publicProcedure.input(z.object({ clipId })).mutation(({ ctx, input }) => {
+    const db = requireProject(ctx)
+    try {
+      const now = readComposition(db, input.clipId)
+      const next = ctx.history.forward(input.clipId, now)
+      if (next) restoreComposition(db, next)
+      return readComposition(db, input.clipId)
+    } catch (error) {
+      asClientError(error)
+    }
+  }),
+
+  /** The shots saved in the library, which any clip can start from. */
+  savedShots: publicProcedure.query(({ ctx }) => listSavedShots(requireProject(ctx))),
+
+  /** Copies a shot into the library under a name, leaving the clip's own alone. */
+  saveShot: publicProcedure
+    .input(z.object({ shotId, name: z.string().trim().min(1) }))
+    .mutation(({ ctx, input }) => {
+      try {
+        return saveShot(requireProject(ctx), input.shotId, input.name)
+      } catch (error) {
+        asClientError(error)
+      }
+    }),
+
+  /** Copies a saved shot onto the end of a clip, bringing what it names into the cast. */
+  addSavedShot: publicProcedure
+    .input(z.object({ clipId, savedShotId: shotId }))
     .mutation(({ ctx, input }) => {
       const db = requireProject(ctx)
       try {
-        insertSpeaker(db, input.clipId, {
-          assetId: input.assetId,
-          description: input.description,
-        })
+        ctx.history.remember(input.clipId, readComposition(db, input.clipId))
+        addSavedShot(db, input.clipId, input.savedShotId)
         return readComposition(db, input.clipId)
       } catch (error) {
         asClientError(error)
       }
     }),
 
-  /** Rewrites how a voice is described. It may be emptied while it is being retyped. */
-  updateSpeaker: publicProcedure
+  /** Removes a saved shot from the library. No clip points at one, so nothing goes with it. */
+  removeSavedShot: publicProcedure.input(z.object({ shotId })).mutation(({ ctx, input }) => {
+    try {
+      deleteSavedShot(requireProject(ctx), input.shotId)
+      return { id: input.shotId }
+    } catch (error) {
+      asClientError(error)
+    }
+  }),
+
+  /** Adds a subject to the clip's cast, either a new one or a copy of a saved one. */
+  addSubject: publicProcedure
     .input(
       z.object({
-        speakerId: z.number().int(),
-        assetId: z.number().int().nullable(),
+        clipId,
+        savedId: z.number().int().nullable(),
+        kind: z.enum(ASSET_KINDS),
+        name: z.string().trim(),
         description: z.string(),
       })
     )
     .mutation(({ ctx, input }) => {
       const db = requireProject(ctx)
       try {
-        const id = clipIdOfSpeaker(db, input.speakerId)
-        updateSpeaker(db, input.speakerId, {
-          assetId: input.assetId,
-          description: input.description,
-        })
+        ctx.history.remember(input.clipId, readComposition(db, input.clipId))
+        if (input.savedId === null) {
+          insertAsset(db, {
+            clipId: input.clipId,
+            kind: input.kind,
+            name: input.name,
+            description: input.description,
+          })
+        } else {
+          copyAsset(db, input.savedId, input.clipId)
+        }
+        return readComposition(db, input.clipId)
+      } catch (error) {
+        asClientError(error)
+      }
+    }),
+
+  /** Rewrites one of the clip's subjects. Its fields may be emptied while they are retyped. */
+  updateSubject: publicProcedure
+    .input(
+      z.object({
+        subjectId: z.number().int(),
+        kind: z.enum(ASSET_KINDS),
+        name: z.string(),
+        description: z.string(),
+        voice: z.string().nullable(),
+      })
+    )
+    .mutation(({ ctx, input }) => {
+      const db = requireProject(ctx)
+      try {
+        const id = clipIdOfSubject(db, input.subjectId)
+        updateAsset(db, { ...input, id: input.subjectId })
         return readComposition(db, id)
       } catch (error) {
         asClientError(error)
       }
     }),
 
-  /** Removes a voice and everything it said. */
-  removeSpeaker: publicProcedure
-    .input(z.object({ speakerId: z.number().int() }))
+  /** Takes a subject out of the clip, along with the shots and lines that named it. */
+  removeSubject: publicProcedure
+    .input(z.object({ subjectId: z.number().int() }))
     .mutation(({ ctx, input }) => {
-      const db = requireProject(ctx)
+      const project = requireOpenProject(ctx)
       try {
-        const id = clipIdOfSpeaker(db, input.speakerId)
-        deleteSpeaker(db, input.speakerId)
-        return readComposition(db, id)
+        const id = clipIdOfSubject(project.db, input.subjectId)
+        ctx.history.remember(id, readComposition(project.db, id))
+        deleteAsset(project.db, project.directory, input.subjectId)
+        return readComposition(project.db, id)
       } catch (error) {
         asClientError(error)
       }

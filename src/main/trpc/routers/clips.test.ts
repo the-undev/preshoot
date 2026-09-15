@@ -2,12 +2,32 @@ import { mkdtempSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
+import type { LineInput } from "../../core/composition/clip-store"
+import { ClipHistory } from "../../core/composition/history"
 import { ProjectSession } from "../../core/projects/session"
 import { AppSettingsStore } from "../../core/settings/app-settings"
 import type { Context } from "../context"
 import { appRouter } from "../router"
 
 const migrationsFolder = join(__dirname, "../../../../resources/migrations")
+
+/** Something happening, as the editor sends a shot back. */
+function action(subjectId: number | null, text: string): LineInput {
+  return {
+    kind: "action",
+    subjectIds: subjectId === null ? [] : [subjectId],
+    text,
+    language: null,
+    offScreen: false,
+    crossesCut: false,
+    cutOff: false,
+  }
+}
+
+/** Something said, as the editor sends a shot back. */
+function speech(subjectIds: number[], text: string): LineInput {
+  return { ...action(null, text), kind: "speech", subjectIds }
+}
 
 describe("clips router", () => {
   let dir: string
@@ -20,6 +40,7 @@ describe("clips router", () => {
     const ctx: Context = {
       versions: { app: "0.0.0", electron: "0", chrome: "0", node: "0" },
       projects: session,
+      history: new ClipHistory(),
       settings: new AppSettingsStore(join(dir, "settings.json")),
       migrationsFolder,
       dialogs: {
@@ -88,14 +109,19 @@ describe("clips router", () => {
 
   it("rewrites a shot with the things it shows and what is said", async () => {
     const { clipId, shotId } = await clipWithShot()
-    const keeper = await caller.assets.create({
+    const withKeeper = await caller.clips.addSubject({
+      clipId,
+      savedId: null,
       kind: "person",
       name: "Keeper",
       description: "an elderly man",
     })
-    const withSpeaker = await caller.clips.addSpeaker({
+    const keeper = withKeeper.cast[0]
+    const withSpeaker = await caller.clips.addSubject({
       clipId,
-      assetId: null,
+      savedId: null,
+      kind: "person",
+      name: "The keeper, low and weathered",
       description: "The keeper, low and weathered",
     })
 
@@ -108,35 +134,28 @@ describe("clips router", () => {
       transition: null,
       lighting: "night",
       soundNote: "wind on the glass",
-      beats: [{ assetId: null, text: "climbs the last steps" }],
       things: [keeper.id],
-      dialogue: [
-        {
-          speakerIds: [withSpeaker.speakers[0].id],
-          language: "English",
-          text: "Almost there.",
-          offScreen: false,
-          crossesCut: false,
-          cutOff: false,
-        },
+      lines: [
+        action(null, "climbs the last steps"),
+        speech([withSpeaker.cast[0].id], "Almost there."),
       ],
     })
 
     const [shot] = composition.shots
     expect(shot.durationMs).toBe(4500)
     expect(shot.cameraMotion).toBe("push in")
-    expect(shot.things).toEqual([
-      { id: keeper.id, kind: "person", name: "Keeper", description: "an elderly man" },
-    ])
-    expect(shot.dialogue[0].text).toBe("Almost there.")
-    expect(composition.speakers[0].label).toBe("S1")
+    expect(shot.things).toEqual([expect.objectContaining({ id: keeper.id, name: "Keeper" })])
+    expect(shot.lines.map((line) => line.kind)).toEqual(["action", "speech"])
+    expect(shot.lines[1].text).toBe("Almost there.")
   })
 
   it("keeps a dialogue line that has not been typed into yet", async () => {
     const { clipId, shotId } = await clipWithShot()
-    const withSpeaker = await caller.clips.addSpeaker({
+    const withSpeaker = await caller.clips.addSubject({
       clipId,
-      assetId: null,
+      savedId: null,
+      kind: "person",
+      name: "The keeper",
       description: "The keeper",
     })
 
@@ -149,22 +168,13 @@ describe("clips router", () => {
       transition: null,
       lighting: null,
       soundNote: "",
-      beats: [{ assetId: null, text: "climbs" }],
       things: [],
-      dialogue: [
-        {
-          speakerIds: [withSpeaker.speakers[0].id],
-          language: "English",
-          text: "",
-          offScreen: false,
-          crossesCut: false,
-          cutOff: false,
-        },
-      ],
+      lines: [action(null, "climbs"), speech([withSpeaker.cast[0].id], "")],
     })
 
-    expect(composition.shots[0].dialogue).toEqual([
-      expect.objectContaining({ speakerIds: [withSpeaker.speakers[0].id], text: "" }),
+    expect(composition.shots[0].lines).toEqual([
+      expect.objectContaining({ kind: "action", text: "climbs" }),
+      expect.objectContaining({ subjectIds: [withSpeaker.cast[0].id], text: "" }),
     ])
   })
 
@@ -196,9 +206,8 @@ describe("clips router", () => {
       transition: null,
       lighting: "night",
       soundNote: "wind",
-      beats: [{ assetId: null, text: "climbs the stairs" }],
       things: [],
-      dialogue: [],
+      lines: [action(null, "climbs the stairs")],
     })
 
     const branch = await caller.clips.branch({ id: clipId })
@@ -210,8 +219,12 @@ describe("clips router", () => {
     expect(copy.shots).toHaveLength(1)
     expect(copy.shots[0].id).not.toBe(shotId)
     expect(copy.shots[0].cameraMotion).toBe("push in")
-    expect(copy.shots[0].beats).toEqual([{ subjectName: null, text: "climbs the stairs" }])
-    expect(original.shots[0].beats).toEqual([{ subjectName: null, text: "climbs the stairs" }])
+    expect(copy.shots[0].lines).toEqual([
+      expect.objectContaining({ subjectIds: [], text: "climbs the stairs" }),
+    ])
+    expect(original.shots[0].lines).toEqual([
+      expect.objectContaining({ subjectIds: [], text: "climbs the stairs" }),
+    ])
   })
 
   it("keeps a branch pointing at the saved clip underneath, not at the branch it came from", async () => {
@@ -225,14 +238,16 @@ describe("clips router", () => {
     expect(second.savedFromId).toBe(clip.id)
   })
 
-  it("copies the speakers of a clip and renumbers the lines that name them", async () => {
+  it("copies the cast of a clip and renumbers the lines that name them", async () => {
     const { clipId, shotId } = await clipWithShot()
-    const withSpeaker = await caller.clips.addSpeaker({
+    const withSpeaker = await caller.clips.addSubject({
       clipId,
-      assetId: null,
+      savedId: null,
+      kind: "person",
+      name: "The keeper",
       description: "The keeper",
     })
-    const speakerId = withSpeaker.speakers[0].id
+    const speakerId = withSpeaker.cast[0].id
     await caller.clips.updateShot({
       shotId,
       durationMs: 4000,
@@ -242,26 +257,16 @@ describe("clips router", () => {
       transition: null,
       lighting: null,
       soundNote: "",
-      beats: [],
       things: [],
-      dialogue: [
-        {
-          speakerIds: [speakerId],
-          language: "English",
-          text: "Almost there.",
-          offScreen: false,
-          crossesCut: false,
-          cutOff: false,
-        },
-      ],
+      lines: [speech([speakerId], "Almost there.")],
     })
 
     const branch = await caller.clips.branch({ id: clipId })
     const copy = await caller.clips.composition({ clipId: branch.id })
 
-    expect(copy.speakers).toHaveLength(1)
-    expect(copy.speakers[0].id).not.toBe(speakerId)
-    expect(copy.shots[0].dialogue[0].speakerIds).toEqual([copy.speakers[0].id])
+    expect(copy.cast).toHaveLength(1)
+    expect(copy.cast[0].id).not.toBe(speakerId)
+    expect(copy.shots[0].lines[0].subjectIds).toEqual([copy.cast[0].id])
   })
 
   it("refuses to branch a clip that is not there", async () => {
@@ -289,9 +294,8 @@ describe("clips router", () => {
         transition: null,
         lighting: null,
         soundNote: "",
-        beats: [{ assetId: null, text: "climbs" }],
         things: [],
-        dialogue: [],
+        lines: [action(null, "climbs")],
       })
     ).rejects.toThrow(expect.objectContaining({ message: expect.stringContaining("durationMs") }))
   })
@@ -309,9 +313,8 @@ describe("clips router", () => {
         transition: null,
         lighting: null,
         soundNote: "",
-        beats: [{ assetId: null, text: "climbs" }],
         things: [],
-        dialogue: [],
+        lines: [action(null, "climbs")],
       })
     ).rejects.toThrow(expect.objectContaining({ code: "BAD_REQUEST" }))
   })
@@ -329,44 +332,217 @@ describe("clips router", () => {
     expect(removed.shots.map((shot) => shot.id)).toEqual([ids[2], ids[1]])
   })
 
-  it("gives one of the subjects a voice, and describes it by that subject", async () => {
+  it("adds a subject to the clip and takes it out again", async () => {
     const clip = await caller.clips.create()
-    const keeper = await caller.assets.create({
+
+    const added = await caller.clips.addSubject({
+      clipId: clip.id,
+      savedId: null,
       kind: "person",
       name: "Keeper",
-      description: "an elderly man in oilskins",
+      description: "an elderly man",
     })
+    const emptied = await caller.clips.removeSubject({ subjectId: added.cast[0].id })
 
-    const composition = await caller.clips.addSpeaker({
-      clipId: clip.id,
-      assetId: keeper.id,
-      description: "",
-    })
-
-    expect(composition.speakers).toEqual([
-      {
-        id: composition.speakers[0].id,
-        label: "S1",
-        description: "an elderly man in oilskins",
-        subjectName: "Keeper",
-      },
-    ])
+    expect(added.cast.map((subject) => subject.name)).toEqual(["Keeper"])
+    expect(emptied.cast).toEqual([])
   })
 
-  it("renumbers the speakers when one goes", async () => {
+  it("copies a saved subject into the clip rather than sharing it", async () => {
     const clip = await caller.clips.create()
-    await caller.clips.addSpeaker({ clipId: clip.id, assetId: null, description: "The keeper" })
-    const both = await caller.clips.addSpeaker({
-      clipId: clip.id,
-      assetId: null,
-      description: "The operator",
+    const saved = await caller.assets.create({
+      kind: "person",
+      name: "Keeper",
+      description: "an elderly man",
     })
 
-    const left = await caller.clips.removeSpeaker({ speakerId: both.speakers[0].id })
+    const added = await caller.clips.addSubject({
+      clipId: clip.id,
+      savedId: saved.id,
+      kind: "person",
+      name: "",
+      description: "",
+    })
+    await caller.clips.updateSubject({
+      subjectId: added.cast[0].id,
+      kind: "person",
+      name: "Keeper",
+      description: "soaked through",
+      voice: null,
+    })
 
-    expect(left.speakers).toEqual([
-      { id: both.speakers[1].id, label: "S1", description: "The operator", subjectName: null },
+    expect(added.cast[0].id).not.toBe(saved.id)
+    expect((await caller.assets.list())[0].description).toBe("an elderly man")
+  })
+
+  it("saves one of the clip's subjects into the library as a copy", async () => {
+    const clip = await caller.clips.create()
+    const added = await caller.clips.addSubject({
+      clipId: clip.id,
+      savedId: null,
+      kind: "person",
+      name: "Keeper",
+      description: "an elderly man",
+    })
+
+    const saved = await caller.assets.save({ id: added.cast[0].id })
+
+    expect(saved.clipId).toBeNull()
+    expect((await caller.assets.list()).map((entry) => entry.name)).toEqual(["Keeper"])
+  })
+
+  it("saves a shot into the library and drops it into another clip", async () => {
+    const { clipId, shotId } = await clipWithShot()
+    const withKeeper = await caller.clips.addSubject({
+      clipId,
+      savedId: null,
+      kind: "person",
+      name: "Keeper",
+      description: "an elderly man",
+    })
+    const keeper = withKeeper.cast[0]
+    await caller.clips.updateShot({
+      shotId,
+      durationMs: 6000,
+      cameraMotion: null,
+      amplitude: null,
+      speed: null,
+      transition: null,
+      lighting: "night",
+      soundNote: "wind",
+      things: [keeper.id],
+      lines: [action(keeper.id, "climbs the steps")],
+    })
+
+    const saved = await caller.clips.saveShot({ shotId, name: "Climbing the tower" })
+    const other = await caller.clips.create()
+    const added = await caller.clips.addSavedShot({
+      clipId: other.id,
+      savedShotId: saved.id,
+    })
+
+    expect((await caller.clips.savedShots()).map((entry) => entry.name)).toEqual([
+      "Climbing the tower",
     ])
+    const dropped = added.shots[added.shots.length - 1]
+    expect(dropped.durationMs).toBe(6000)
+    expect(dropped.lighting).toBe("night")
+    expect(dropped.lines[0].text).toBe("climbs the steps")
+    expect(added.cast.map((subject) => subject.name)).toEqual(["Keeper"])
+    expect(added.cast[0].id).not.toBe(keeper.id)
+    expect(dropped.lines[0].subjectIds).toEqual([added.cast[0].id])
+  })
+
+  it("uses a subject the clip already has rather than copying a second one", async () => {
+    const { clipId, shotId } = await clipWithShot()
+    const withKeeper = await caller.clips.addSubject({
+      clipId,
+      savedId: null,
+      kind: "person",
+      name: "Keeper",
+      description: "an elderly man",
+    })
+    await caller.clips.updateShot({
+      shotId,
+      durationMs: 4000,
+      cameraMotion: null,
+      amplitude: null,
+      speed: null,
+      transition: null,
+      lighting: null,
+      soundNote: "",
+      things: [withKeeper.cast[0].id],
+      lines: [],
+    })
+    const saved = await caller.clips.saveShot({ shotId, name: "A shot of the keeper" })
+
+    const again = await caller.clips.addSavedShot({ clipId, savedShotId: saved.id })
+
+    expect(again.cast.map((subject) => subject.name)).toEqual(["Keeper"])
+  })
+
+  it("leaves the clip's own shot alone when one is saved", async () => {
+    const { clipId, shotId } = await clipWithShot()
+
+    await caller.clips.saveShot({ shotId, name: "A shot" })
+
+    const composition = await caller.clips.composition({ clipId })
+    expect(composition.shots).toHaveLength(1)
+    expect(composition.shots[0].id).toBe(shotId)
+  })
+
+  it("removes a saved shot from the library", async () => {
+    const { shotId } = await clipWithShot()
+    const saved = await caller.clips.saveShot({ shotId, name: "A shot" })
+
+    await caller.clips.removeSavedShot({ shotId: saved.id })
+
+    expect(await caller.clips.savedShots()).toEqual([])
+  })
+
+  it("puts a clip back the way it was before the last change", async () => {
+    const { clipId, shotId } = await clipWithShot()
+    await caller.clips.updateShot({
+      shotId,
+      durationMs: 4000,
+      cameraMotion: null,
+      amplitude: null,
+      speed: null,
+      transition: null,
+      lighting: null,
+      soundNote: "",
+      things: [],
+      lines: [action(null, "climbs the steps")],
+    })
+
+    expect((await caller.clips.reach({ clipId })).back).toBe(true)
+    const undone = await caller.clips.undo({ clipId })
+
+    expect(undone.shots[0].lines).toEqual([])
+  })
+
+  it("does an undone change again", async () => {
+    const { clipId, shotId } = await clipWithShot()
+    await caller.clips.updateShot({
+      shotId,
+      durationMs: 4000,
+      cameraMotion: null,
+      amplitude: null,
+      speed: null,
+      transition: null,
+      lighting: null,
+      soundNote: "",
+      things: [],
+      lines: [action(null, "climbs the steps")],
+    })
+    await caller.clips.undo({ clipId })
+
+    const redone = await caller.clips.redo({ clipId })
+
+    expect(redone.shots[0].lines[0].text).toBe("climbs the steps")
+  })
+
+  it("puts the cast back with the clip", async () => {
+    const clip = await caller.clips.create()
+    const added = await caller.clips.addSubject({
+      clipId: clip.id,
+      savedId: null,
+      kind: "person",
+      name: "Keeper",
+      description: "an elderly man",
+    })
+    await caller.clips.removeSubject({ subjectId: added.cast[0].id })
+
+    const undone = await caller.clips.undo({ clipId: clip.id })
+
+    expect(undone.cast.map((subject) => subject.name)).toEqual(["Keeper"])
+  })
+
+  it("does nothing when there is nothing to go back to", async () => {
+    const clip = await caller.clips.create()
+
+    expect(await caller.clips.reach({ clipId: clip.id })).toEqual({ back: false, forward: false })
+    await expect(caller.clips.undo({ clipId: clip.id })).resolves.toBeDefined()
   })
 
   it("refuses a clip that is not there", async () => {

@@ -1,6 +1,8 @@
-import { and, asc, count, desc, eq, isNotNull, sum } from "drizzle-orm"
+import { and, asc, count, desc, eq, isNotNull, isNull, sum } from "drizzle-orm"
 import { schema, type ProjectDatabase, type ProjectDb } from "../db"
-import type { ClipComposition, ClipForm, FrameComposition, ShotComposition } from "./clip"
+import type { ClipComposition, ClipForm, FrameComposition, LineKind, ShotComposition } from "./clip"
+import { listCast } from "./asset-store"
+import { deleteImagesOfAsset } from "./image-store"
 import { CompositionError } from "./errors"
 
 /** How long a new shot runs until the user says otherwise. */
@@ -20,18 +22,14 @@ export interface ClipSummary {
   form: ClipForm
   shortEdge: number
   aspectRatio: string
+  /** What is spoken in this clip unless a line says otherwise. */
+  language: string
   shots: number
   durationMs: number
   createdAt: string
 }
 
 /** Everything a shot holds, as the editor sends it back. */
-/** One beat as the editor sends it back. */
-export interface BeatInput {
-  assetId: number | null
-  text: string
-}
-
 export interface ShotInput {
   id: number
   durationMs: number
@@ -44,10 +42,11 @@ export interface ShotInput {
 }
 
 /** One line as the editor sends it back. */
-export interface DialogueInput {
-  speakerIds: number[]
-  language: string
+export interface LineInput {
+  kind: LineKind
+  subjectIds: number[]
   text: string
+  language: string | null
   offScreen: boolean
   crossesCut: boolean
   cutOff: boolean
@@ -76,10 +75,14 @@ function shotTotals(db: ProjectDatabase): Map<number, { shots: number; durationM
       durationMs: sum(schema.shots.durationMs),
     })
     .from(schema.shots)
+    .where(isNotNull(schema.shots.clipId))
     .groupBy(schema.shots.clipId)
     .all()
   return new Map(
-    rows.map((row) => [row.clipId, { shots: row.shots, durationMs: Number(row.durationMs ?? 0) }])
+    rows.map((row) => [
+      row.clipId as number,
+      { shots: row.shots, durationMs: Number(row.durationMs ?? 0) },
+    ])
   )
 }
 
@@ -105,7 +108,7 @@ export function insertClip(
   return toSummary(row, undefined)
 }
 
-/** Rewrites the clip's own fields, leaving its shots and speakers alone. */
+/** Rewrites the clip's own fields, leaving its cast and its shots alone. */
 export function updateClip(
   db: ProjectDatabase,
   input: {
@@ -116,6 +119,7 @@ export function updateClip(
     form: ClipForm
     shortEdge: number
     aspectRatio: string
+    language: string
   }
 ): ClipSummary {
   const [row] = db
@@ -127,6 +131,7 @@ export function updateClip(
       form: input.form,
       shortEdge: input.shortEdge,
       aspectRatio: input.aspectRatio,
+      language: input.language,
     })
     .where(eq(schema.clips.id, input.id))
     .returning()
@@ -161,19 +166,30 @@ export function branchClip(db: ProjectDatabase, clipId: number): ClipSummary {
       .returning()
       .get()
 
-    // A line of dialogue names its speakers by id, so the copies have to be renumbered to match.
-    const speakers = new Map<number, number>()
-    for (const speaker of tx
+    // The cast belongs to the clip, so the branch gets its own, and everything naming one is
+    // renumbered to match: a line by id, and the list of what each shot shows by key.
+    const subjects = new Map<number, number>()
+    for (const subject of tx
       .select()
-      .from(schema.speakers)
-      .where(eq(schema.speakers.clipId, clipId))
+      .from(schema.assets)
+      .where(eq(schema.assets.clipId, clipId))
       .all()) {
       const copy = tx
-        .insert(schema.speakers)
-        .values({ ...speaker, id: undefined, clipId: branch.id })
+        .insert(schema.assets)
+        .values({ ...subject, id: undefined, clipId: branch.id })
         .returning()
         .get()
-      speakers.set(speaker.id, copy.id)
+      subjects.set(subject.id, copy.id)
+
+      for (const picture of tx
+        .select()
+        .from(schema.assetImages)
+        .where(eq(schema.assetImages.assetId, subject.id))
+        .all()) {
+        tx.insert(schema.assetImages)
+          .values({ ...picture, id: undefined, assetId: copy.id })
+          .run()
+      }
     }
 
     for (const frame of tx
@@ -196,51 +212,41 @@ export function branchClip(db: ProjectDatabase, clipId: number): ClipSummary {
         .values({ ...shot, id: undefined, clipId: branch.id })
         .returning()
         .get()
-      copyShotContents(tx, shot.id, copy.id, speakers)
+      copyShotContents(tx, shot.id, copy.id, subjects)
     }
 
     return toSummary(branch, shotTotals(db).get(branch.id))
   })
 }
 
-/** Everything hanging off one shot, copied onto another, with the speakers renumbered. */
+/** Everything hanging off one shot, copied onto another, with the subjects renumbered. */
 function copyShotContents(
   tx: ProjectDb,
   shotId: number,
   toShotId: number,
-  speakers: Map<number, number>
+  subjects: Map<number, number>
 ): void {
-  for (const beat of tx
-    .select()
-    .from(schema.shotBeats)
-    .where(eq(schema.shotBeats.shotId, shotId))
-    .all()) {
-    tx.insert(schema.shotBeats)
-      .values({ ...beat, id: undefined, shotId: toShotId })
-      .run()
-  }
-
   for (const thing of tx
     .select()
     .from(schema.shotAssets)
     .where(eq(schema.shotAssets.shotId, shotId))
     .all()) {
     tx.insert(schema.shotAssets)
-      .values({ ...thing, shotId: toShotId })
+      .values({ ...thing, shotId: toShotId, assetId: subjects.get(thing.assetId) ?? thing.assetId })
       .run()
   }
 
   for (const line of tx
     .select()
-    .from(schema.dialogueLines)
-    .where(eq(schema.dialogueLines.shotId, shotId))
+    .from(schema.shotLines)
+    .where(eq(schema.shotLines.shotId, shotId))
     .all()) {
-    tx.insert(schema.dialogueLines)
+    tx.insert(schema.shotLines)
       .values({
         ...line,
         id: undefined,
         shotId: toShotId,
-        speakerIds: line.speakerIds.map((id) => speakers.get(id) ?? id),
+        subjectIds: line.subjectIds.map((id) => subjects.get(id) ?? id),
       })
       .run()
   }
@@ -266,34 +272,26 @@ export function isScratchClip(db: ProjectDatabase, clipId: number): boolean {
   return clip !== undefined && clip.name === null
 }
 
-/** Removes a clip and everything under it. */
-export function deleteClip(db: ProjectDatabase, clipId: number): void {
-  const removed = db.delete(schema.clips).where(eq(schema.clips.id, clipId)).returning().all()
-  if (removed.length === 0) {
-    throw CompositionError.notFound(`Clip ${clipId}`)
+/** Removes a clip and everything under it, its cast and their pictures included. */
+export function deleteClip(db: ProjectDatabase, directory: string, clipId: number): void {
+  for (const subject of listCast(db, clipId)) {
+    deleteImagesOfAsset(db, directory, subject.id)
   }
+  db.transaction((tx) => {
+    tx.delete(schema.assets).where(eq(schema.assets.clipId, clipId)).run()
+    const removed = tx.delete(schema.clips).where(eq(schema.clips.id, clipId)).returning().all()
+    if (removed.length === 0) {
+      throw CompositionError.notFound(`Clip ${clipId}`)
+    }
+  })
 }
 
-/** The whole clip, with its speakers, shots, the things they show and what is said. */
+/** The whole clip: its cast, its shots, what they show and what happens in them. */
 export function readComposition(db: ProjectDatabase, clipId: number): ClipComposition {
   const clip = db.select().from(schema.clips).where(eq(schema.clips.id, clipId)).get()
   if (!clip) {
     throw CompositionError.notFound(`Clip ${clipId}`)
   }
-
-  const speakerRows = db
-    .select({
-      id: schema.speakers.id,
-      position: schema.speakers.position,
-      description: schema.speakers.description,
-      subjectName: schema.assets.name,
-      subjectDescription: schema.assets.description,
-    })
-    .from(schema.speakers)
-    .leftJoin(schema.assets, eq(schema.assets.id, schema.speakers.assetId))
-    .where(eq(schema.speakers.clipId, clipId))
-    .orderBy(asc(schema.speakers.position))
-    .all()
 
   const shotRows = db
     .select()
@@ -309,6 +307,7 @@ export function readComposition(db: ProjectDatabase, clipId: number): ClipCompos
       kind: schema.assets.kind,
       name: schema.assets.name,
       description: schema.assets.description,
+      voice: schema.assets.voice,
     })
     .from(schema.shotAssets)
     .innerJoin(schema.shots, eq(schema.shots.id, schema.shotAssets.shotId))
@@ -317,33 +316,22 @@ export function readComposition(db: ProjectDatabase, clipId: number): ClipCompos
     .orderBy(asc(schema.shotAssets.position))
     .all()
 
-  const beatRows = db
+  const lineRows = db
     .select({
-      shotId: schema.shotBeats.shotId,
-      subjectName: schema.assets.name,
-      text: schema.shotBeats.text,
+      id: schema.shotLines.id,
+      shotId: schema.shotLines.shotId,
+      kind: schema.shotLines.kind,
+      subjectIds: schema.shotLines.subjectIds,
+      text: schema.shotLines.text,
+      language: schema.shotLines.language,
+      offScreen: schema.shotLines.offScreen,
+      crossesCut: schema.shotLines.crossesCut,
+      cutOff: schema.shotLines.cutOff,
     })
-    .from(schema.shotBeats)
-    .innerJoin(schema.shots, eq(schema.shots.id, schema.shotBeats.shotId))
-    .leftJoin(schema.assets, eq(schema.assets.id, schema.shotBeats.assetId))
+    .from(schema.shotLines)
+    .innerJoin(schema.shots, eq(schema.shots.id, schema.shotLines.shotId))
     .where(eq(schema.shots.clipId, clipId))
-    .orderBy(asc(schema.shotBeats.position), asc(schema.shotBeats.id))
-    .all()
-
-  const dialogueRows = db
-    .select({
-      shotId: schema.dialogueLines.shotId,
-      speakerIds: schema.dialogueLines.speakerIds,
-      language: schema.dialogueLines.language,
-      text: schema.dialogueLines.text,
-      offScreen: schema.dialogueLines.offScreen,
-      crossesCut: schema.dialogueLines.crossesCut,
-      cutOff: schema.dialogueLines.cutOff,
-    })
-    .from(schema.dialogueLines)
-    .innerJoin(schema.shots, eq(schema.shots.id, schema.dialogueLines.shotId))
-    .where(eq(schema.shots.clipId, clipId))
-    .orderBy(asc(schema.dialogueLines.position))
+    .orderBy(asc(schema.shotLines.position), asc(schema.shotLines.id))
     .all()
 
   const shots: ShotComposition[] = shotRows.map((shot) => ({
@@ -356,16 +344,15 @@ export function readComposition(db: ProjectDatabase, clipId: number): ClipCompos
     lighting: shot.lighting,
     things: thingRows
       .filter((thing) => thing.shotId === shot.id)
-      .map(({ id, kind, name, description }) => ({ id, kind, name, description })),
-    beats: beatRows
-      .filter((beat) => beat.shotId === shot.id)
-      .map(({ subjectName, text }) => ({ subjectName, text })),
-    dialogue: dialogueRows
+      .map(({ id, kind, name, description, voice }) => ({ id, kind, name, description, voice })),
+    lines: lineRows
       .filter((line) => line.shotId === shot.id)
       .map((line) => ({
-        speakerIds: line.speakerIds,
-        language: line.language,
+        id: line.id,
+        kind: line.kind as LineKind,
+        subjectIds: line.subjectIds,
         text: line.text,
+        language: line.language,
         offScreen: line.offScreen,
         crossesCut: line.crossesCut,
         cutOff: line.cutOff,
@@ -380,15 +367,16 @@ export function readComposition(db: ProjectDatabase, clipId: number): ClipCompos
     shortEdge: clip.shortEdge,
     aspectRatio: clip.aspectRatio,
     frames: readFrames(db, clipId),
+    language: clip.language,
     style: clip.style,
     note: clip.note,
     musicNote: clip.musicNote,
-    speakers: speakerRows.map((speaker) => ({
-      id: speaker.id,
-      label: speakerLabel(speaker.position),
-      // A voice that is a subject is described by that subject, so the two cannot drift apart.
-      description: speaker.subjectDescription ?? speaker.description,
-      subjectName: speaker.subjectName,
+    cast: listCast(db, clipId).map(({ id, kind, name, description, voice }) => ({
+      id,
+      kind,
+      name,
+      description,
+      voice,
     })),
     shots,
   }
@@ -519,119 +507,30 @@ export function setShotThings(db: ProjectDatabase, shotId: number, assetIds: num
 }
 
 /** Replaces what happens in a shot, in the order given. */
-export function setShotBeats(db: ProjectDatabase, shotId: number, beats: BeatInput[]): void {
+export function setShotLines(db: ProjectDatabase, shotId: number, lines: LineInput[]): void {
   clipOfShot(db, shotId)
   db.transaction((tx) => {
-    tx.delete(schema.shotBeats).where(eq(schema.shotBeats.shotId, shotId)).run()
-    beats.forEach((beat, position) => {
-      tx.insert(schema.shotBeats)
-        .values({ shotId, position, ...beat })
-        .run()
-    })
-  })
-}
-
-/** Replaces what is said in a shot, in the order given. */
-export function setShotDialogue(db: ProjectDatabase, shotId: number, lines: DialogueInput[]): void {
-  clipOfShot(db, shotId)
-  db.transaction((tx) => {
-    tx.delete(schema.dialogueLines).where(eq(schema.dialogueLines.shotId, shotId)).run()
+    tx.delete(schema.shotLines).where(eq(schema.shotLines.shotId, shotId)).run()
     lines.forEach((line, position) => {
-      tx.insert(schema.dialogueLines)
+      tx.insert(schema.shotLines)
         .values({ shotId, position, ...line })
         .run()
     })
   })
 }
 
-/** Adds a voice to the clip. Its label follows from its place in the list. */
-export function insertSpeaker(
-  db: ProjectDatabase,
-  clipId: number,
-  input: { assetId: number | null; description: string }
-): number {
-  const clip = db.select().from(schema.clips).where(eq(schema.clips.id, clipId)).get()
-  if (!clip) {
-    throw CompositionError.notFound(`Clip ${clipId}`)
+/** The clip a subject belongs to, for answering with the whole clip after changing one of them. */
+export function clipIdOfSubject(db: ProjectDatabase, subjectId: number): number {
+  const subject = db.select().from(schema.assets).where(eq(schema.assets.id, subjectId)).get()
+  if (!subject || subject.clipId === null) {
+    throw CompositionError.notFound(`Subject ${subjectId}`)
   }
-
-  const [row] = db
-    .insert(schema.speakers)
-    .values({
-      clipId,
-      position: speakerIdsInOrder(db, clipId).length,
-      assetId: input.assetId,
-      description: input.description,
-    })
-    .returning()
-    .all()
-  return row.id
+  return subject.clipId
 }
 
-/** Rewrites a voice: which subject it belongs to, or how it is described on its own. */
-export function updateSpeaker(
-  db: ProjectDatabase,
-  speakerId: number,
-  input: { assetId: number | null; description: string }
-): void {
-  const changed = db
-    .update(schema.speakers)
-    .set({ assetId: input.assetId, description: input.description })
-    .where(eq(schema.speakers.id, speakerId))
-    .returning()
-    .all()
-  if (changed.length === 0) {
-    throw CompositionError.notFound(`Speaker ${speakerId}`)
-  }
-}
-
-/**
- * Removes a voice, takes it out of everything it shared a line with, and drops the lines it was
- * the only speaker of. Nothing points at speakers any more, so no key does this for us.
- */
-export function deleteSpeaker(db: ProjectDatabase, speakerId: number): void {
-  const speaker = db.select().from(schema.speakers).where(eq(schema.speakers.id, speakerId)).get()
-  if (!speaker) {
-    throw CompositionError.notFound(`Speaker ${speakerId}`)
-  }
-
-  db.transaction((tx) => {
-    for (const line of tx.select().from(schema.dialogueLines).all()) {
-      if (!line.speakerIds.includes(speakerId)) continue
-      const left = line.speakerIds.filter((id) => id !== speakerId)
-      if (left.length === 0) {
-        tx.delete(schema.dialogueLines).where(eq(schema.dialogueLines.id, line.id)).run()
-      } else {
-        tx.update(schema.dialogueLines)
-          .set({ speakerIds: left })
-          .where(eq(schema.dialogueLines.id, line.id))
-          .run()
-      }
-    }
-    tx.delete(schema.speakers).where(eq(schema.speakers.id, speakerId)).run()
-    speakerIdsInOrder(tx, speaker.clipId).forEach((id, position) => {
-      tx.update(schema.speakers).set({ position }).where(eq(schema.speakers.id, id)).run()
-    })
-  })
-}
-
-/** Which clip a shot belongs to. */
+/** The clip a shot belongs to, for answering with the whole clip after changing one of its parts. */
 export function clipIdOfShot(db: ProjectDatabase, shotId: number): number {
   return clipOfShot(db, shotId)
-}
-
-/** Which clip a speaker belongs to. */
-export function clipIdOfSpeaker(db: ProjectDatabase, speakerId: number): number {
-  const speaker = db.select().from(schema.speakers).where(eq(schema.speakers.id, speakerId)).get()
-  if (!speaker) {
-    throw CompositionError.notFound(`Speaker ${speakerId}`)
-  }
-  return speaker.clipId
-}
-
-/** What the prompt calls the speaker sitting at `position`. */
-export function speakerLabel(position: number): string {
-  return `S${position + 1}`
 }
 
 function toSummary(
@@ -649,7 +548,7 @@ function toSummary(
 
 function clipOfShot(db: ProjectDb, shotId: number): number {
   const shot = db.select().from(schema.shots).where(eq(schema.shots.id, shotId)).get()
-  if (!shot) {
+  if (!shot || shot.clipId === null) {
     throw CompositionError.notFound(`Shot ${shotId}`)
   }
   return shot.clipId
@@ -665,18 +564,219 @@ function shotIdsInOrder(db: ProjectDb, clipId: number): number[] {
     .map((row) => row.id)
 }
 
-function speakerIdsInOrder(db: ProjectDb, clipId: number): number[] {
-  return db
-    .select({ id: schema.speakers.id })
-    .from(schema.speakers)
-    .where(eq(schema.speakers.clipId, clipId))
-    .orderBy(asc(schema.speakers.position), asc(schema.speakers.id))
-    .all()
-    .map((row) => row.id)
-}
-
 function renumberShots(db: ProjectDb, clipId: number): void {
   shotIdsInOrder(db, clipId).forEach((id, position) => {
     db.update(schema.shots).set({ position }).where(eq(schema.shots.id, id)).run()
+  })
+}
+
+/** One shot saved in the library, which is a starting point rather than part of any clip. */
+export interface SavedShot {
+  id: number
+  name: string
+  lines: number
+  durationMs: number
+}
+
+/** The shots saved in the library, by name. */
+export function listSavedShots(db: ProjectDatabase): SavedShot[] {
+  const counts = db
+    .select({ shotId: schema.shotLines.shotId, lines: count() })
+    .from(schema.shotLines)
+    .groupBy(schema.shotLines.shotId)
+    .all()
+
+  return db
+    .select()
+    .from(schema.shots)
+    .where(isNull(schema.shots.clipId))
+    .orderBy(asc(schema.shots.name))
+    .all()
+    .map((shot) => ({
+      id: shot.id,
+      name: shot.name ?? "",
+      lines: counts.find((entry) => entry.shotId === shot.id)?.lines ?? 0,
+      durationMs: shot.durationMs,
+    }))
+}
+
+/**
+ * Copies a shot into the library under a name, with the subjects it names copied beside it, so it
+ * can be dropped into any clip later.
+ */
+export function saveShot(db: ProjectDatabase, shotId: number, name: string): SavedShot {
+  return db.transaction((tx) => {
+    const shot = tx.select().from(schema.shots).where(eq(schema.shots.id, shotId)).get()
+    if (!shot) {
+      throw CompositionError.notFound(`Shot ${shotId}`)
+    }
+
+    const saved = tx
+      .insert(schema.shots)
+      .values({ ...shot, id: undefined, clipId: null, name, position: 0 })
+      .returning()
+      .get()
+
+    copyShotContents(tx, shot.id, saved.id, copySubjects(tx, shot.id, null))
+    return { id: saved.id, name, lines: 0, durationMs: saved.durationMs }
+  })
+}
+
+/** Copies a saved shot onto the end of a clip, bringing the subjects it names into the cast. */
+export function addSavedShot(db: ProjectDatabase, clipId: number, savedShotId: number): number {
+  return db.transaction((tx) => {
+    const saved = tx.select().from(schema.shots).where(eq(schema.shots.id, savedShotId)).get()
+    if (!saved || saved.clipId !== null) {
+      throw CompositionError.notFound(`Saved shot ${savedShotId}`)
+    }
+
+    const copy = tx
+      .insert(schema.shots)
+      .values({
+        ...saved,
+        id: undefined,
+        clipId,
+        name: null,
+        position: shotIdsInOrder(tx, clipId).length,
+      })
+      .returning()
+      .get()
+
+    copyShotContents(tx, saved.id, copy.id, copySubjects(tx, saved.id, clipId))
+    return copy.id
+  })
+}
+
+/** Removes a saved shot, which no clip points at, along with the subjects saved beside it. */
+export function deleteSavedShot(db: ProjectDatabase, shotId: number): void {
+  const shot = db.select().from(schema.shots).where(eq(schema.shots.id, shotId)).get()
+  if (!shot || shot.clipId !== null) {
+    throw CompositionError.notFound(`Saved shot ${shotId}`)
+  }
+  db.delete(schema.shots).where(eq(schema.shots.id, shotId)).run()
+}
+
+/**
+ * The subjects a shot names, copied to wherever the shot is going, with one already there under
+ * the same name used instead of a second copy of the same person.
+ */
+function copySubjects(tx: ProjectDb, shotId: number, toClipId: number | null): Map<number, number> {
+  const sources = tx
+    .select()
+    .from(schema.assets)
+    .innerJoin(schema.shotAssets, eq(schema.shotAssets.assetId, schema.assets.id))
+    .where(eq(schema.shotAssets.shotId, shotId))
+    .all()
+    .map((row) => row.assets)
+
+  const already = tx
+    .select()
+    .from(schema.assets)
+    .where(toClipId === null ? isNull(schema.assets.clipId) : eq(schema.assets.clipId, toClipId))
+    .all()
+
+  const copies = new Map<number, number>()
+  for (const source of sources) {
+    const match = already.find((entry) => entry.name === source.name)
+    if (match) {
+      copies.set(source.id, match.id)
+      continue
+    }
+    const copy = tx
+      .insert(schema.assets)
+      .values({ ...source, id: undefined, clipId: toClipId })
+      .returning()
+      .get()
+    copies.set(source.id, copy.id)
+
+    for (const picture of tx
+      .select()
+      .from(schema.assetImages)
+      .where(eq(schema.assetImages.assetId, source.id))
+      .all()) {
+      tx.insert(schema.assetImages)
+        .values({ ...picture, id: undefined, assetId: copy.id })
+        .run()
+    }
+  }
+  return copies
+}
+
+/**
+ * Puts a clip back the way `composition` had it: its own fields, its cast, its shots and what
+ * happens in them. Everything is written again rather than compared, since a clip is small and a
+ * step back has to land exactly where it was.
+ */
+export function restoreComposition(db: ProjectDatabase, composition: ClipComposition): void {
+  db.transaction((tx) => {
+    tx.update(schema.clips)
+      .set({
+        name: composition.name,
+        style: composition.style,
+        note: composition.note,
+        musicNote: composition.musicNote,
+        language: composition.language,
+        form: composition.form,
+        shortEdge: composition.shortEdge,
+        aspectRatio: composition.aspectRatio,
+      })
+      .where(eq(schema.clips.id, composition.id))
+      .run()
+
+    // The ids are kept, so the lines and the shots that name a subject still find it.
+    tx.delete(schema.assets).where(eq(schema.assets.clipId, composition.id)).run()
+    for (const subject of composition.cast) {
+      tx.insert(schema.assets)
+        .values({ ...subject, clipId: composition.id, createdAt: new Date() })
+        .run()
+    }
+
+    tx.delete(schema.shots).where(eq(schema.shots.clipId, composition.id)).run()
+    composition.shots.forEach((shot, position) => {
+      tx.insert(schema.shots)
+        .values({
+          id: shot.id,
+          clipId: composition.id,
+          name: null,
+          position,
+          durationMs: shot.durationMs,
+          cameraMotion: shot.cameraMotion,
+          amplitude: shot.amplitude,
+          speed: shot.speed,
+          transition: shot.transition,
+          lighting: shot.lighting,
+          soundNote: shot.soundNote,
+        })
+        .run()
+
+      shot.things.forEach((thing, at) => {
+        tx.insert(schema.shotAssets)
+          .values({ shotId: shot.id, assetId: thing.id, position: at })
+          .run()
+      })
+      shot.lines.forEach((line, at) => {
+        tx.insert(schema.shotLines)
+          .values({
+            id: line.id,
+            shotId: shot.id,
+            position: at,
+            kind: line.kind,
+            subjectIds: line.subjectIds,
+            text: line.text,
+            language: line.language,
+            offScreen: line.offScreen,
+            crossesCut: line.crossesCut,
+            cutOff: line.cutOff,
+          })
+          .run()
+      })
+    })
+
+    tx.delete(schema.clipFrames).where(eq(schema.clipFrames.clipId, composition.id)).run()
+    for (const frame of composition.frames) {
+      tx.insert(schema.clipFrames)
+        .values({ clipId: composition.id, imageId: frame.imageId, role: frame.role })
+        .run()
+    }
   })
 }

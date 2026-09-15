@@ -7,6 +7,9 @@ import { CompositionError } from "./errors"
 /** Where the id of the tab being looked at is kept, so reopening a project lands where it was left. */
 const ACTIVE_TAB = "activeTabId"
 
+/** Where the clip of the last saved tab to close is kept, so it can be opened again. */
+const LAST_CLOSED = "lastClosedClipId"
+
 /** One open tab. A tab with no clip shows the list of clips rather than one of them. */
 export interface OpenTab {
   id: number
@@ -63,23 +66,23 @@ export function readWorkspace(db: ProjectDatabase): Workspace {
   return { tabs, activeTabId: found ? active : tabs[0].id }
 }
 
-/** The first thing that happens in each of these clips, skipping beats with nothing typed in them. */
+/** The first thing that happens in each of these clips, skipping lines with nothing typed in them. */
 function firstBeats(db: ProjectDatabase, clipIds: number[]): Map<number, string> {
   if (clipIds.length === 0) {
     return new Map()
   }
   const rows = db
-    .select({ clipId: schema.shots.clipId, text: schema.shotBeats.text })
-    .from(schema.shotBeats)
-    .innerJoin(schema.shots, eq(schema.shotBeats.shotId, schema.shots.id))
+    .select({ clipId: schema.shots.clipId, text: schema.shotLines.text })
+    .from(schema.shotLines)
+    .innerJoin(schema.shots, eq(schema.shotLines.shotId, schema.shots.id))
     .where(inArray(schema.shots.clipId, clipIds))
-    .orderBy(asc(schema.shots.position), asc(schema.shotBeats.position))
+    .orderBy(asc(schema.shots.position), asc(schema.shotLines.position))
     .all()
 
   const first = new Map<number, string>()
   for (const row of rows) {
     const text = row.text.trim()
-    if (text.length > 0 && !first.has(row.clipId)) {
+    if (row.clipId !== null && text.length > 0 && !first.has(row.clipId)) {
       first.set(row.clipId, text)
     }
   }
@@ -146,7 +149,7 @@ export function activateTab(db: ProjectDatabase, tabId: number): Workspace {
  * to its left when it was last. A clip that was never saved goes with its tab: a tab is the only
  * way to reach one, so leaving it behind would leave it in the project unreachable.
  */
-export function closeTab(db: ProjectDatabase, tabId: number): Workspace {
+export function closeTab(db: ProjectDatabase, directory: string, tabId: number): Workspace {
   const before = readWorkspace(db)
   const at = before.tabs.findIndex((tab) => tab.id === tabId)
   if (at === -1) {
@@ -156,13 +159,49 @@ export function closeTab(db: ProjectDatabase, tabId: number): Workspace {
   const closed = before.tabs[at]
   db.delete(schema.openTabs).where(eq(schema.openTabs.id, tabId)).run()
   if (closed.clipId !== null && isScratchClip(db, closed.clipId)) {
-    deleteClip(db, closed.clipId)
+    deleteClip(db, directory, closed.clipId)
+  } else {
+    // A saved clip survives its tab, so the last one closed can be opened again.
+    writeSetting(db, LAST_CLOSED, closed.clipId === null ? "" : String(closed.clipId))
   }
 
   const remaining = before.tabs.filter((tab) => tab.id !== tabId)
   if (before.activeTabId === tabId && remaining.length > 0) {
     writeActiveTabId(db, (remaining[at] ?? remaining[remaining.length - 1]).id)
   }
+  return readWorkspace(db)
+}
+
+/**
+ * Opens the last tab to close again, which is the clip it held. A scratch clip goes when its tab
+ * does, so only a saved one can come back.
+ */
+export function reopenClosedTab(db: ProjectDatabase): Workspace {
+  const clipId = Number(readSetting(db, LAST_CLOSED))
+  writeSetting(db, LAST_CLOSED, "")
+  if (!Number.isInteger(clipId) || clipId === 0) {
+    return readWorkspace(db)
+  }
+  const clip = db.select().from(schema.clips).where(eq(schema.clips.id, clipId)).get()
+  return clip ? openClipInTab(db, clipId) : readWorkspace(db)
+}
+
+/** Puts a tab at `toPosition`, sliding the others around it. */
+export function moveTab(db: ProjectDatabase, tabId: number, toPosition: number): Workspace {
+  const { tabs } = readWorkspace(db)
+  const from = tabs.findIndex((tab) => tab.id === tabId)
+  if (from === -1) {
+    throw CompositionError.notFound(`Tab ${tabId}`)
+  }
+
+  const ordered = tabs.map((tab) => tab.id)
+  const [moved] = ordered.splice(from, 1)
+  ordered.splice(Math.min(Math.max(toPosition, 0), ordered.length), 0, moved)
+  db.transaction((tx) => {
+    ordered.forEach((id, position) => {
+      tx.update(schema.openTabs).set({ position }).where(eq(schema.openTabs.id, id)).run()
+    })
+  })
   return readWorkspace(db)
 }
 
@@ -181,21 +220,29 @@ function requireClip(db: ProjectDatabase, clipId: number): void {
 }
 
 function readActiveTabId(db: ProjectDatabase): number | null {
-  const row = db
-    .select()
-    .from(schema.projectSettings)
-    .where(eq(schema.projectSettings.key, ACTIVE_TAB))
-    .get()
-  const id = Number(row?.value)
-  return Number.isInteger(id) ? id : null
+  const id = Number(readSetting(db, ACTIVE_TAB))
+  return Number.isInteger(id) && id !== 0 ? id : null
 }
 
 function writeActiveTabId(db: ProjectDatabase, tabId: number): void {
+  writeSetting(db, ACTIVE_TAB, String(tabId))
+}
+
+function readSetting(db: ProjectDatabase, key: string): string {
+  const row = db
+    .select()
+    .from(schema.projectSettings)
+    .where(eq(schema.projectSettings.key, key))
+    .get()
+  return row?.value ?? ""
+}
+
+function writeSetting(db: ProjectDatabase, key: string, value: string): void {
   db.insert(schema.projectSettings)
-    .values({ key: ACTIVE_TAB, value: String(tabId), updatedAt: new Date() })
+    .values({ key, value, updatedAt: new Date() })
     .onConflictDoUpdate({
       target: schema.projectSettings.key,
-      set: { value: String(tabId), updatedAt: new Date() },
+      set: { value, updatedAt: new Date() },
     })
     .run()
 }

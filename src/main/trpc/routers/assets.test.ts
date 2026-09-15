@@ -3,6 +3,7 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
 import type { DescribeRequest, LlamaServerClient } from "../../core/prompting/llama-server-client"
+import { ClipHistory } from "../../core/composition/history"
 import { ProjectSession } from "../../core/projects/session"
 import { AppSettingsStore } from "../../core/settings/app-settings"
 import type { Context } from "../context"
@@ -25,6 +26,7 @@ describe("assets router", () => {
     const ctx: Context = {
       versions: { app: "0.0.0", electron: "0", chrome: "0", node: "0" },
       projects: session,
+      history: new ClipHistory(),
       settings: new AppSettingsStore(join(dir, "settings.json")),
       migrationsFolder,
       dialogs: {
@@ -112,6 +114,7 @@ describe("assets router", () => {
       kind: "object",
       name: "Lamp",
       description: "brass and glass",
+      voice: null,
     })
 
     expect(changed.description).toBe("brass and glass")
@@ -189,34 +192,6 @@ describe("assets router", () => {
 
     await expect(caller.assets.draft({ assetId: keeper.id })).rejects.toThrow(
       expect.objectContaining({ code: "BAD_REQUEST" })
-    )
-  })
-
-  it("refuses to remove a thing a shot still shows", async () => {
-    await openProject()
-    const keeper = await caller.assets.create({
-      kind: "person",
-      name: "Keeper",
-      description: "an elderly man",
-    })
-    const clip = await caller.clips.create()
-    const composition = await caller.clips.composition({ clipId: clip.id })
-    await caller.clips.updateShot({
-      shotId: composition.shots[0].id,
-      durationMs: 4000,
-      cameraMotion: null,
-      amplitude: null,
-      speed: null,
-      transition: null,
-      lighting: null,
-      soundNote: "",
-      beats: [{ assetId: null, text: "climbs" }],
-      things: [keeper.id],
-      dialogue: [],
-    })
-
-    await expect(caller.assets.remove({ id: keeper.id })).rejects.toThrow(
-      expect.objectContaining({ code: "CONFLICT" })
     )
   })
 })

@@ -6,12 +6,13 @@ export interface AssetFields {
   kind: AssetKind
   name: string
   description: string
+  voice: string | null
 }
 
 /** The library and the calls that change it. */
 export interface AssetsPanel {
   assets: Asset[]
-  create(fields: AssetFields): void
+  create(fields: Omit<AssetFields, "voice">): void
   update(id: number, fields: AssetFields): void
   remove(id: number): void
   isSaving: boolean

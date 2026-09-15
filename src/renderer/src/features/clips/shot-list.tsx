@@ -14,19 +14,31 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable"
 import { useState } from "react"
-import { ConfirmDialog } from "@renderer/design-system"
-import type { Asset, ShotComposition, SpeakerComposition, Vocabularies } from "@renderer/lib/trpc"
+import {
+  Button,
+  ConfirmDialog,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  Input,
+  Label,
+} from "@renderer/design-system"
+import type { Asset, ShotComposition, SubjectComposition, Vocabularies } from "@renderer/lib/trpc"
 import { ShotRow } from "./shot-row"
 import type { ShotFields } from "./use-clip"
 
 interface ShotListProps {
   shots: ShotComposition[]
-  speakers: SpeakerComposition[]
+  speakers: SubjectComposition[]
   library: Asset[]
   vocabularies: Vocabularies
   onChange: (shotId: number, fields: ShotFields) => void
   onMove: (shotId: number, toPosition: number) => void
   onRemove: (shotId: number) => void
+  onSave: (shotId: number, name: string) => void
   onAddPeople: () => void
 }
 
@@ -39,9 +51,11 @@ export function ShotList({
   onChange,
   onMove,
   onRemove,
+  onSave,
   onAddPeople,
 }: ShotListProps): React.JSX.Element {
   const [removing, setRemoving] = useState<{ id: number; number: number } | null>(null)
+  const [saving, setSaving] = useState<{ id: number; number: number } | null>(null)
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
@@ -63,10 +77,6 @@ export function ShotList({
     >
       <SortableContext items={shots.map((shot) => shot.id)} strategy={verticalListSortingStrategy}>
         <div className="flex flex-col gap-3">
-          <p className="text-xs text-muted-foreground">
-            Drag a shot by its handle to reorder it. From the keyboard, focus the handle, press
-            space, move with the arrows and press space again.
-          </p>
           {shots.map((shot, index) => (
             <ShotRow
               key={shot.id}
@@ -77,6 +87,7 @@ export function ShotList({
               vocabularies={vocabularies}
               onChange={(fields) => onChange(shot.id, fields)}
               onRemove={() => setRemoving({ id: shot.id, number: index + 1 })}
+              onSave={() => setSaving({ id: shot.id, number: index + 1 })}
               onAddPeople={onAddPeople}
             />
           ))}
@@ -92,8 +103,76 @@ export function ShotList({
               }}
             />
           )}
+          {saving && (
+            <NameShotDialog
+              number={saving.number}
+              onCancel={() => setSaving(null)}
+              onSave={(name) => {
+                onSave(saving.id, name)
+                setSaving(null)
+              }}
+            />
+          )}
         </div>
       </SortableContext>
     </DndContext>
+  )
+}
+
+interface NameShotDialogProps {
+  number: number
+  onSave: (name: string) => void
+  onCancel: () => void
+}
+
+/** Asks what to call a shot, which is the only place a saved shot is named. */
+function NameShotDialog({ number, onSave, onCancel }: NameShotDialogProps): React.JSX.Element {
+  const [name, setName] = useState("")
+  const trimmed = name.trim()
+
+  return (
+    <Dialog
+      open
+      onOpenChange={(open) => {
+        if (!open) onCancel()
+      }}
+    >
+      <DialogContent>
+        <form
+          className="flex flex-col gap-4"
+          onSubmit={(event) => {
+            event.preventDefault()
+            if (trimmed.length > 0) onSave(trimmed)
+          }}
+        >
+          <DialogHeader>
+            <DialogTitle>Save shot {number} to the library</DialogTitle>
+            <DialogDescription>
+              A copy goes in the library, with whatever it shows, ready to drop into another clip.
+              This one stays where it is.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex flex-col gap-1">
+            <Label htmlFor="saved-shot-name">Name</Label>
+            <Input
+              id="saved-shot-name"
+              autoFocus
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+            />
+          </div>
+
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={onCancel}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={trimmed.length === 0}>
+              Save
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   )
 }

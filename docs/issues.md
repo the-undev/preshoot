@@ -28,16 +28,16 @@ says so.
 - A clip has one style for every shot, so it cannot change style at a cut.
 - A clip carries no seed, so two generations of the same clip cannot be asked
   to come out the same. The request takes one; nothing holds it.
-- The language of a line of dialogue is free text rather than a picklist.
-- The shot editor saves as it is changed, so there is no undo.
-- Closing the tab of a clip that was never saved throws the clip away. There
-  is no undo and no reopening of a closed tab, only the question asked first.
+- The language of a clip is free text rather than a picklist, and so is the
+  override on a line.
+- Undo is per clip and lasts as long as the app runs. Closing the project and
+  opening it again starts from nothing to go back to.
+- Closing the tab of a clip that was never saved throws the clip away. The app
+  asks first, and Ctrl Shift T only brings back a clip that was saved.
 - The save dialog offers no file type filter, and appends nothing when a
   name is typed without an extension.
 - Streaming tokens to the renderer as they arrive needs a subscription link
   over the `trpc://` scheme, which nothing implements yet.
-- A tab can be moved only by closing it and opening the clip again, since
-  nothing reorders them.
 
 ## What the prompt still gets wrong
 
@@ -45,8 +45,6 @@ Checked against the H3 prompt guides, which are linked from
 `docs/minimax-h3.md`. The prompt is written from the clip alone, so what is
 wrong here is wrong every time rather than some of the time.
 
-- The prose is mechanical. It states each thing in turn rather than writing a
-  scene, which is what a prompt written from a clip and nothing else can do.
 - A line of dialogue carried across a cut is not actually split. The app holds
   one line, so it writes the whole line in the shot it belongs to and marks it
   `<scenetrans>`, where the guide splits the words between the two shots and
@@ -57,8 +55,9 @@ wrong here is wrong every time rather than some of the time.
   than a quotation.
 - Unintelligible speech in reference audio is written `[unclear]` rather than
   guessed at. Nothing says so.
-- Nothing counts the words of the main field, which the guide wants between
-  350 and 500 for a generation body.
+- A prompt written from short lines comes out far shorter than the 350 to 500
+  words the guide wants for a generation body. The count is shown; nothing
+  fills the gap.
 
 ## Improvements
 
@@ -67,23 +66,23 @@ wrong here is wrong every time rather than some of the time.
   rather than which frame.
 - Nothing turns the fields into a request body. That wants a real endpoint
   to build against, which arrives with Runpod or ComfyUI.
-- A shot is reordered by dragging its handle. From the keyboard that means
-  focusing the handle, pressing space to lift it, moving with the arrows and
-  pressing space again, which nothing on screen says.
+- A shot or a line is reordered by dragging its handle. From the keyboard that
+  means focusing the handle, pressing space to lift it, moving with the arrows
+  and pressing space again, which nothing on screen says.
+- A line cannot be turned from something that happens into something that is
+  said. It has to be removed and written again as the other kind.
 - The library screen puts the form on the left and the list on the right,
   which reads backwards: you pick from the list, then edit.
+- A saved shot keeps a copy of the subjects it showed. Two saved shots of the
+  same person hold two copies of them, and editing one leaves the other.
 - A library thing cannot be added without leaving the clip that needs it.
 - The prompt that describes a picture is a constant in the code, so it cannot
   be tuned without an edit and a rebuild.
-- A drafted description replaces whatever is in the box. There is no way to
-  keep both and choose.
-- A picture is shown at whatever size it was imported at, so a large one is
-  read into the page in full to be drawn as a thumbnail.
+- A thumbnail is resized on every request rather than kept, so scrolling a
+  library of large pictures does the work again each time.
 - Image editing (Qwen Image Edit) as a shot type that edits a library image.
 - Saving a branch always makes a new saved clip. There is no way to write one
   back over the clip it came from.
-- The tab bar scrolls sideways once there are more tabs than fit, with nothing
-  to say that tabs are off screen.
 
 ## Environment and tooling
 
@@ -94,13 +93,19 @@ wrong here is wrong every time rather than some of the time.
   same migration, which fails on a fresh database, and it asks an
   interactive question when a column is dropped and another added together.
   Neither can be answered from a script, so a change like that goes in two
-  passes.
+  passes. It has also dropped a foreign key from a table it rebuilt for an
+  unrelated reason. Every generated migration is read before it is committed,
+  and one that rebuilds a table anything points at is covered by a test that
+  fills the tables first.
+- The `PRAGMA foreign_keys=OFF` that drizzle-kit writes at the top of a table
+  rebuild does nothing, because the migrator runs inside a transaction and
+  SQLite ignores the pragma there. The keys are turned off around the whole
+  migration in `openProjectDatabase` instead, and turned back on after.
 
-- Nothing exercises the main process's start-up. Registering a second
-  scheme broke every request the renderer makes and no test noticed, because
-  the window, the protocol handlers and the context are wired together in
-  `index.ts` where nothing can reach them. The menu the app now sets is in the
-  same place and is untested for the same reason.
+- The window, the protocol handlers and the context are still wired together in
+  `index.ts`, where nothing can reach them, so nothing exercises start-up
+  itself. The two things that once broke it are now data in modules of their
+  own and are covered: the list of schemes, and the menu the app sets.
 
 - The multimodal projector has to stay off the GPU on this card. Loaded onto
   it, an image encode aborted inside CUDA while another model held VRAM.

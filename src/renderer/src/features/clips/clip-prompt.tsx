@@ -83,6 +83,8 @@ export function ClipPromptPanel({
   }
 
   const fields = fieldsOf(prompt.request)
+  const short = prompt.body.words < prompt.body.min
+  const long = prompt.body.words > prompt.body.max
 
   return (
     <div className="flex min-w-0 flex-col gap-5">
@@ -133,7 +135,14 @@ export function ClipPromptPanel({
 
       <section className="flex min-w-0 flex-col gap-2">
         <div className="flex items-center justify-between gap-2">
-          <h3 className="font-heading text-sm font-semibold text-muted-foreground">Prompt</h3>
+          <div className="flex items-baseline gap-2">
+            <h3 className="font-heading text-sm font-semibold text-muted-foreground">Prompt</h3>
+            <span className={short ? "text-xs text-destructive" : "text-xs text-muted-foreground"}>
+              {prompt.body.words} words
+              {short ? `, short of the ${prompt.body.min} the model wants` : ""}
+              {long ? `, past the ${prompt.body.max} the model wants` : ""}
+            </span>
+          </div>
           <Button variant="outline" size="sm" onClick={() => void copy("prompt", prompt.rendered)}>
             {copied === "prompt" ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
             Copy

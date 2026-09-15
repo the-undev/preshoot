@@ -3,9 +3,11 @@ import { join } from "path"
 import { electronApp, optimizer, is } from "@electron-toolkit/utils"
 import icon from "../../resources/icon.png?asset"
 import { LlamaServerClient } from "./core/prompting/llama-server-client"
+import { ClipHistory } from "./core/composition/history"
 import { ProjectSession } from "./core/projects/session"
 import { AppSettingsStore } from "./core/settings/app-settings"
 import { createDialogs } from "./dialogs"
+import { APP_MENU } from "./menu"
 import { handleAssetRequests } from "./images/protocol"
 import { PRIVILEGED_SCHEMES } from "./schemes"
 import { handleTrpcRequests } from "./trpc/protocol"
@@ -15,16 +17,10 @@ import type { Context } from "./trpc/context"
 protocol.registerSchemesAsPrivileged(PRIVILEGED_SCHEMES)
 
 const projects = new ProjectSession()
+const history = new ClipHistory()
 
-/**
- * The app's own menu, which is an accelerator table rather than something to look at: the bar is
- * hidden. Electron's default menu binds Ctrl and W to closing the window, and the renderer uses it
- * to close a tab, so the window menu is left out.
- */
 function setMenu(): void {
-  Menu.setApplicationMenu(
-    Menu.buildFromTemplate([{ role: "fileMenu" }, { role: "editMenu" }, { role: "viewMenu" }])
-  )
+  Menu.setApplicationMenu(Menu.buildFromTemplate(APP_MENU))
 }
 
 /** Migrations ship beside the app once packaged and come from the repo in development. */
@@ -45,6 +41,7 @@ function createContext(window: BrowserWindow): () => Context {
       node: process.versions.node,
     },
     projects,
+    history,
     settings,
     migrationsFolder: migrationsFolder(),
     dialogs: createDialogs(window),

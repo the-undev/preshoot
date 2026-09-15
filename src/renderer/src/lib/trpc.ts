@@ -48,9 +48,12 @@ export type Asset = RouterOutputs["assets"]["list"][number]
 /** One reference picture of a library thing. */
 export type AssetImage = RouterOutputs["assets"]["images"][number]
 
-/** Where the renderer reads a picture from. */
-export function assetImageUrl(imageId: number): string {
-  return `asset://${imageId}`
+/**
+ * Where the renderer reads a picture from. A width asks for it drawn that wide, so a thumbnail
+ * does not read the whole photograph. Only 80, 160 and 320 are offered.
+ */
+export function assetImageUrl(imageId: number, width?: 80 | 160 | 320): string {
+  return width === undefined ? `asset://${imageId}` : `asset://${imageId}/${width}`
 }
 
 /** What a library thing can be. */
@@ -58,6 +61,9 @@ export type AssetKind = RouterInputs["assets"]["create"]["kind"]
 
 /** A clip without its shots. */
 export type ClipSummary = RouterOutputs["clips"]["list"][number]
+
+/** One shot saved in the library, ready to drop into a clip. */
+export type SavedShot = RouterOutputs["clips"]["savedShots"][number]
 
 /** The open tabs and which one is being looked at. */
 export type Workspace = RouterOutputs["tabs"]["list"]
@@ -83,11 +89,14 @@ export type FrameComposition = ClipComposition["frames"][number]
 /** One shot of a clip. */
 export type ShotComposition = ClipComposition["shots"][number]
 
-/** A voice in a clip. */
-export type SpeakerComposition = ClipComposition["speakers"][number]
+/** One of the people, places or objects a clip holds. */
+export type SubjectComposition = ClipComposition["cast"][number]
 
-/** One spoken line in a shot. */
-export type DialogueLine = ShotComposition["dialogue"][number]
+/** One thing that happens in a shot, which is something done or something said. */
+export type LineComposition = ShotComposition["lines"][number]
+
+/** One line as the editor sends it back, which is a stored one without its id or its names. */
+export type LineInput = RouterInputs["clips"]["updateShot"]["lines"][number]
 
 /** The words the clip's target accepts, for the pickers in the editor. */
 export type Vocabularies = RouterOutputs["clips"]["vocabularies"]

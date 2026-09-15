@@ -18,6 +18,7 @@ const ready: ClipPrompt = {
     height: 1080,
     conditions: [],
   },
+  body: { words: 92, min: 350, max: 500 },
 }
 
 function renderPanel(prompt: ClipPrompt = ready): { copied: string[] } {
@@ -59,6 +60,18 @@ describe("ClipPromptPanel", () => {
     fireEvent.click(screen.getByRole("button", { name: "Copy Height" }))
 
     expect(copied).toEqual(["1920", "1080"])
+  })
+
+  it("says how long the body came out against what the model wants", () => {
+    renderPanel()
+
+    expect(screen.getByText(/92 words, short of the 350 the model wants/)).toBeInTheDocument()
+  })
+
+  it("says nothing about the length when it is in range", () => {
+    renderPanel({ ...ready, body: { words: 400, min: 350, max: 500 } } as ClipPrompt)
+
+    expect(screen.getByText("400 words")).toBeInTheDocument()
   })
 
   it("says what is still missing rather than showing an empty prompt", () => {

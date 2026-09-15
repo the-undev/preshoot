@@ -61,6 +61,12 @@ Lightning LoRA.
   system prompt, and an edited prompt was a dead end because nothing carried
   it back to the clip. The builder is the product; a model may come back later
   to improve one field at a time, where its job is small enough to check.
+- The prompt is written as a scene rather than as a list of fields: a subject
+  is described by the first line it does something in and named after that, the
+  camera and the light are sentences rather than labels, and a cut lands on
+  what the next shot shows. The words of the main field are counted against
+  what the guide asks for, because a prompt written from short lines comes out
+  far shorter than the model wants.
 - The prompt is a function of the clip rather than a thing to produce. It is
   read back after every change and shown beside the editor as it is typed, and
   nothing is stored, because the same clip always writes the same prompt.
@@ -88,9 +94,35 @@ Lightning LoRA.
   `auto` ratio is gone: a clip that cannot say what it generates at cannot be
   reproduced. The seed is gone too; the request takes one, so whatever runs
   the generation picks it.
+- The people, places and objects of a clip belong to that clip. One with no
+  clip is saved in the library as a starting point, and using one copies it, so
+  changing a clip's Anna changes nothing anywhere else and saving her is just
+  another starting point. A saved shot and a saved clip work the same way, so
+  there is one idea rather than three, and the same person dressed differently
+  in two clips needs no feature of its own.
+- A subject that speaks carries how it sounds beside how it looks, and (S1),
+  (S2) follow the order they first speak in. There is no separate list of
+  voices: a spoken line names subjects the way an action does.
+- Undo is a stack of whole clips held for as long as the app runs. A clip is
+  small and is written as it is typed, so putting one back is writing it again
+  rather than reversing what was done to it.
 - A field explains itself behind a question mark beside its label, never with
   an example inside it. An example in an empty field reads as something the
   clip already holds.
+- What happens in a shot and what is said in it are one ordered list, not two,
+  so the prompt reads in the order it was written. That is what the guide asks
+  for: actions and reactions in order with the dialogue among them. A line is
+  something someone does or something someone says.
+- A shot is written by typing. Enter makes the next line and puts the cursor in
+  it, backspace on an empty line takes it away, and a plus between two lines
+  adds one there, so nothing has to be added at the end and dragged into place.
+  Reordering is a handle, removing is a bin.
+- A clip is in one language, which a line overrides only when somebody speaks
+  another. Every line carrying its own was a field on every row for something
+  that almost never varies.
+- What a clip generates at lives in a bar under the tabs, as what it is set to
+  now and a dialog to change it, because it is set once and then left alone
+  while the shots are worked on the whole time.
 - Every keyboard shortcut is one entry in one list, which both the bindings
   and the dialog behind `?` read, so a shortcut cannot work without being
   documented or be listed without working. The app sets its own Electron menu,
@@ -135,49 +167,48 @@ Lightning LoRA.
 2. A library of the people, places and objects a project refers to, with
    reference pictures copied in and a description drafted from them by the
    local vision model.
-3. Clips built from shots, with camera moves, cuts, timings, subjects, what
-   happens in each shot, sound and dialogue, including who speaks, off-screen
-   voices, lines carried across a cut and lines the clip ends over.
+3. Clips built from shots, with camera moves, cuts, timings, subjects, sound,
+   and one ordered list per shot of what happens and what is said, including
+   who speaks, off-screen voices, lines carried across a cut and lines the clip
+   ends over.
 4. The four H3 forms. A clip says which one it is written for, the image forms
    anchor to pictures from the library, and the prompt opens with the line the
    guide gives for that form.
-5. The complete output: the prompt beside the shape, the short edge, the seed
-   and the duration a generation needs, each copyable on its own, rewritten as
-   the clip is edited, and exportable into the project or to a chosen file.
+5. The complete output: the prompt beside the width, the height, the aspect
+   ratio and the duration a generation needs, each copyable on its own, with
+   the prompt's length against what the guide wants, rewritten as the clip is
+   edited, and exportable into the project or to a chosen file.
 6. A workspace of tabs holding scratch clips, saved clips and branches of
-   either, with keyboard shortcuts and a list of them behind `?`.
+   either, with keyboard shortcuts and a list of them behind `?`, and undo
+   per clip.
+7. A library of starting points: saved clips, saved shots and saved subjects,
+   each copied when it is used rather than shared.
 
 ## Milestones
 
-7. The shot editor: a shot as something you type into rather than a wall of
-   dropdowns. Subjects referred to inline, the way `@` works in a chat app, so
-   naming someone in what happens is what puts them in the shot; fields added
-   as they are wanted rather than all present and empty; slash commands for
-   the same from the keyboard. This changes how a beat is stored, from a row
-   naming one subject to text carrying references, so it wants its own plan.
-8. Reusable shots: a saved shot dropped into any clip, with its subjects
-   swappable once it lands.
+8. The shot editor: subjects referred to inline, the way `@` works in a chat
+   app, so naming someone in a line is what puts them in the shot; fields added
+   as they are wanted rather than all present and empty; slash commands for the
+   same from the keyboard. The lines are already one ordered list carrying
+   text, so this is a renderer change rather than another migration.
 9. Improving a field with a model: an enhance action on one text field at a
    time, which is a job small enough to check, rather than a model writing the
    whole prompt. Worth looking at what the ComfyUI prompt enhancer nodes do
    and which models they use.
-10. Subject variants: the same person dressed differently or with different
-    hair, as rows under one library subject, each with its own pictures, so a
-    shot picks a look rather than a person.
-11. Full reference mode: pictures and audio labelled as `<Picture N>` and
+10. Full reference mode: pictures and audio labelled as `<Picture N>` and
     `<Audio N>`, subjects built from them, retention markers, and a second
     target whose prompt is six sections rather than three.
     `docs/h3-mapping.md` says what is missing before it can be built.
-12. Storyboard editor: clips in order across a film, chained by last frame
+11. Storyboard editor: clips in order across a film, chained by last frame
     to first frame.
-13. Runpod link: connect to a pod, pull outputs into the project, show each
+12. Runpod link: connect to a pod, pull outputs into the project, show each
     take next to its shot, mark good or bad with notes, export chosen takes.
     Four separate features, none assuming the others: takes, remote files over
     SSH, a provider interface with Runpod as one implementation, and a
     generation backend such as ComfyUI.
-14. ComfyUI templates: API-format workflow JSON per target with named slots,
+13. ComfyUI templates: API-format workflow JSON per target with named slots,
     filled and submitted by the app.
-15. Local ComfyUI management: model downloads, start and stop, RefMod
+14. Local ComfyUI management: model downloads, start and stop, RefMod
     creation if the H3 VAE fits in 8GB with offload (TBD).
 
 ## Open questions

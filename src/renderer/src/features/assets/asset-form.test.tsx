@@ -7,6 +7,7 @@ const keeper: AssetFields = {
   kind: "person",
   name: "Keeper",
   description: "an elderly man in oilskins",
+  voice: null,
 }
 
 function renderForm(over: Partial<React.ComponentProps<typeof AssetForm>> = {}): {
@@ -47,7 +48,10 @@ describe("AssetForm", () => {
   })
 
   it("adds rather than saves when the thing is new", () => {
-    renderForm({ isExisting: false, fields: { kind: "object", name: "", description: "" } })
+    renderForm({
+      isExisting: false,
+      fields: { kind: "object", name: "", description: "", voice: null },
+    })
 
     expect(screen.getByRole("button", { name: "Add" })).toBeInTheDocument()
   })

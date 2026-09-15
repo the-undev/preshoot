@@ -7,12 +7,20 @@ export const projectSettings = sqliteTable("project_settings", {
   updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
 })
 
-/** Things the clips refer to: the people, places and objects of this project. */
+/**
+ * The people, places and objects a clip refers to. A subject belongs to the clip that holds it,
+ * and one with no clip is saved in the library as a starting point, copied whenever it is used.
+ */
 export const assets = sqliteTable("assets", {
   id: integer("id").primaryKey({ autoIncrement: true }),
+  // A plain column rather than a key. Removing a clip has to take the picture files of its cast
+  // off the disk as well as their rows, which nothing a key does can reach, so it does both.
+  clipId: integer("clip_id"),
   kind: text("kind").notNull(),
   name: text("name").notNull(),
   description: text("description").notNull(),
+  // How they sound, which the prompt needs to fix a voice. Nothing until they say something.
+  voice: text("voice"),
   createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
 })
 
@@ -40,6 +48,8 @@ export const clips = sqliteTable("clips", {
   form: text("form").notNull().default("t2v"),
   shortEdge: integer("short_edge").notNull().default(768),
   aspectRatio: text("aspect_ratio").notNull().default("16:9"),
+  // What is spoken in this clip unless a line says otherwise, since most clips are in one language.
+  language: text("language").notNull().default("English"),
   // The saved clip this one was branched from, which a branch of a branch still points at. A plain
   // column rather than a key: a self-referencing key would be checked row by row on every insert.
   savedFromId: integer("saved_from_id"),
@@ -58,24 +68,13 @@ export const clipFrames = sqliteTable("clip_frames", {
   role: text("role").notNull(),
 })
 
-/** A voice in a clip. Its position is its number, so speaker 1 is spoken of as (S1). */
-export const speakers = sqliteTable("speakers", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  clipId: integer("clip_id")
-    .notNull()
-    .references(() => clips.id, { onDelete: "cascade" }),
-  position: integer("position").notNull(),
-  // A voice is either one of the library's subjects or somebody described here and nowhere else.
-  assetId: integer("asset_id").references(() => assets.id, { onDelete: "set null" }),
-  description: text("description").notNull(),
-})
-
 /** One shot of a clip. The vocabulary columns hold values the target accepts, or nothing. */
 export const shots = sqliteTable("shots", {
   id: integer("id").primaryKey({ autoIncrement: true }),
-  clipId: integer("clip_id")
-    .notNull()
-    .references(() => clips.id, { onDelete: "cascade" }),
+  // Nothing when the shot is saved in the library as a starting point rather than used in a clip.
+  clipId: integer("clip_id").references(() => clips.id, { onDelete: "cascade" }),
+  // The name it was saved under. A shot in a clip has none: it is called by its place in the clip.
+  name: text("name"),
   position: integer("position").notNull(),
   durationMs: integer("duration_ms").notNull(),
   cameraMotion: text("camera_motion"),
@@ -87,17 +86,31 @@ export const shots = sqliteTable("shots", {
 })
 
 /**
- * What happens in a shot, in order. A beat belongs to one of the shot's subjects, or to nobody
- * when it is about the scene rather than a person.
+ * What happens in a shot, in order: something someone does, or something someone says. Both are
+ * one list, because a shot reads as one run of events rather than as everything that happens and
+ * then everything that is said.
  */
-export const shotBeats = sqliteTable("shot_beats", {
+export const shotLines = sqliteTable("shot_lines", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   shotId: integer("shot_id")
     .notNull()
     .references(() => shots.id, { onDelete: "cascade" }),
-  assetId: integer("asset_id").references(() => assets.id, { onDelete: "set null" }),
   position: integer("position").notNull(),
+  // Either "action" or "speech", which decides how many subjects the line can name.
+  kind: text("kind").notNull(),
+  /*
+   * Who the line is about. An action names one subject or none, which means the scene. Speech
+   * names at least one, and several sharing a line are written as a compound id such as (S1,S2).
+   * A list rather than a key, so nothing points at a subject and removing one edits these.
+   */
+  subjectIds: text("subject_ids", { mode: "json" }).$type<number[]>().notNull().default([]),
+  // Kept as typed, because the target reproduces what is said word for word.
   text: text("text").notNull(),
+  // Nothing unless this line is spoken in another language than the rest of the clip.
+  language: text("language"),
+  offScreen: integer("off_screen", { mode: "boolean" }).notNull().default(false),
+  crossesCut: integer("crosses_cut", { mode: "boolean" }).notNull().default(false),
+  cutOff: integer("cut_off", { mode: "boolean" }).notNull().default(false),
 })
 
 /** Which library things a shot shows. Restricted, so a thing in use cannot vanish under a clip. */
@@ -109,31 +122,11 @@ export const shotAssets = sqliteTable(
       .references(() => shots.id, { onDelete: "cascade" }),
     assetId: integer("asset_id")
       .notNull()
-      .references(() => assets.id, { onDelete: "restrict" }),
+      .references(() => assets.id, { onDelete: "cascade" }),
     position: integer("position").notNull(),
   },
   (table) => [primaryKey({ columns: [table.shotId, table.assetId] })]
 )
-
-/**
- * One spoken line, kept as typed because the target reproduces it word for word. Several speakers
- * can share a line, which the target writes as a compound id such as (S1,S2), so the speakers are
- * a list rather than a key. Nothing else in the schema points at speakers, so removing one has to
- * take itself out of these by hand.
- */
-export const dialogueLines = sqliteTable("dialogue_lines", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  shotId: integer("shot_id")
-    .notNull()
-    .references(() => shots.id, { onDelete: "cascade" }),
-  speakerIds: text("speaker_ids", { mode: "json" }).$type<number[]>().notNull().default([]),
-  position: integer("position").notNull(),
-  language: text("language").notNull(),
-  text: text("text").notNull(),
-  offScreen: integer("off_screen", { mode: "boolean" }).notNull().default(false),
-  crossesCut: integer("crosses_cut", { mode: "boolean" }).notNull().default(false),
-  cutOff: integer("cut_off", { mode: "boolean" }).notNull().default(false),
-})
 
 /**
  * The tabs open in the workspace, left to right. A tab with no clip shows the list of clips, so
@@ -141,6 +134,8 @@ export const dialogueLines = sqliteTable("dialogue_lines", {
  */
 export const openTabs = sqliteTable("open_tabs", {
   id: integer("id").primaryKey({ autoIncrement: true }),
-  clipId: integer("clip_id").references(() => clips.id, { onDelete: "cascade" }),
+  // A plain column rather than a key. Removing a clip has to take the picture files of its cast
+  // off the disk as well as their rows, which nothing a key does can reach, so it does both.
+  clipId: integer("clip_id"),
   position: integer("position").notNull(),
 })

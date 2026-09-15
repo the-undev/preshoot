@@ -3,9 +3,13 @@ import {
   useTRPC,
   type ClipComposition,
   type ClipPrompt,
-  type DialogueLine,
+  type LineInput,
   type Vocabularies,
 } from "@renderer/lib/trpc"
+import type { SubjectFields } from "./clip-cast"
+
+/** One of the cast as the editor sends it back, which always says how they sound. */
+export type SubjectEdit = Omit<SubjectFields, "savedId"> & { voice: string }
 
 /** Everything one shot holds, as the editor sends it back. */
 export interface ShotFields {
@@ -16,9 +20,8 @@ export interface ShotFields {
   transition: string | null
   lighting: string | null
   soundNote: string
-  beats: { assetId: number | null; text: string }[]
   things: number[]
-  dialogue: DialogueLine[]
+  lines: LineInput[]
 }
 
 /** The clip's own fields, without its shots. Its name is set by saving it, not by editing it. */
@@ -29,6 +32,7 @@ export interface ClipFields {
   form: ClipComposition["form"]
   shortEdge: number
   aspectRatio: string
+  language: string
 }
 
 /** One open clip and every call that changes it. */
@@ -39,17 +43,24 @@ export interface ClipPanel {
   isSaving: boolean
   errorMessage: string | null
   updateClip(fields: ClipFields): void
+  undo(): void
+  redo(): void
+  canUndo: boolean
+  canRedo: boolean
   save(name: string): void
   branch(opened: (clipId: number) => void): void
   isSaved: boolean
   setFrame(role: "first" | "last", imageId: number | null): void
   addShot(): void
+  addSavedShot(savedShotId: number): void
+  saveShot(shotId: number, name: string): void
   updateShot(shotId: number, fields: ShotFields): void
   moveShot(shotId: number, toPosition: number): void
   removeShot(shotId: number): void
-  addSpeaker(fields: { assetId: number | null; description: string }): void
-  updateSpeaker(speakerId: number, fields: { assetId: number | null; description: string }): void
-  removeSpeaker(speakerId: number): void
+  addSubject(fields: SubjectFields): void
+  updateSubject(subjectId: number, fields: SubjectEdit): void
+  saveSubject(subjectId: number): void
+  removeSubject(subjectId: number): void
 }
 
 /**
@@ -65,22 +76,42 @@ export function useClip(clipId: number): ClipPanel {
   const composition = useQuery(compositionOptions)
   const vocabularies = useQuery(trpc.clips.vocabularies.queryOptions({ clipId }))
   const prompt = useQuery(promptOptions)
+  const reachOptions = trpc.clips.reach.queryOptions({ clipId })
+  const reach = useQuery(reachOptions)
 
-  // Every change rewrites the prompt, so the panel beside the editor never shows a stale one.
+  // Every change rewrites the prompt and what there is to go back to, so neither goes stale.
   const replace = async (next: ClipComposition): Promise<void> => {
     queryClient.setQueryData(compositionOptions.queryKey, next)
     await queryClient.invalidateQueries({ queryKey: promptOptions.queryKey })
+    await queryClient.invalidateQueries({ queryKey: reachOptions.queryKey })
   }
 
   const composed = { onSuccess: replace }
   const setFrame = useMutation(trpc.clips.setFrame.mutationOptions(composed))
   const addShot = useMutation(trpc.clips.addShot.mutationOptions(composed))
+  const addSavedShot = useMutation(trpc.clips.addSavedShot.mutationOptions(composed))
+  const saveShot = useMutation(
+    trpc.clips.saveShot.mutationOptions({
+      onSuccess: async () => {
+        await queryClient.invalidateQueries({ queryKey: trpc.clips.savedShots.queryKey() })
+      },
+    })
+  )
   const updateShot = useMutation(trpc.clips.updateShot.mutationOptions(composed))
   const moveShot = useMutation(trpc.clips.moveShot.mutationOptions(composed))
   const removeShot = useMutation(trpc.clips.removeShot.mutationOptions(composed))
-  const addSpeaker = useMutation(trpc.clips.addSpeaker.mutationOptions(composed))
-  const updateSpeaker = useMutation(trpc.clips.updateSpeaker.mutationOptions(composed))
-  const removeSpeaker = useMutation(trpc.clips.removeSpeaker.mutationOptions(composed))
+  const addSubject = useMutation(trpc.clips.addSubject.mutationOptions(composed))
+  const updateSubject = useMutation(trpc.clips.updateSubject.mutationOptions(composed))
+  const removeSubject = useMutation(trpc.clips.removeSubject.mutationOptions(composed))
+  const undo = useMutation(trpc.clips.undo.mutationOptions(composed))
+  const redo = useMutation(trpc.clips.redo.mutationOptions(composed))
+  const saveSubject = useMutation(
+    trpc.assets.save.mutationOptions({
+      onSuccess: async () => {
+        await queryClient.invalidateQueries({ queryKey: trpc.assets.pathKey() })
+      },
+    })
+  )
 
   // The clip's own fields change what its tab says, so those queries are refreshed instead.
   const refreshed = {
@@ -96,13 +127,18 @@ export function useClip(clipId: number): ClipPanel {
   const writes = [
     setFrame,
     addShot,
+    addSavedShot,
+    saveShot,
     updateShot,
     moveShot,
     removeShot,
-    addSpeaker,
-    updateSpeaker,
-    removeSpeaker,
+    addSubject,
+    updateSubject,
+    removeSubject,
+    saveSubject,
     updateClip,
+    undo,
+    redo,
     save,
     branch,
   ]
@@ -115,16 +151,23 @@ export function useClip(clipId: number): ClipPanel {
     // The message from main already says what the user can do about it.
     errorMessage: writes.map((write) => write.error?.message).find(Boolean) ?? null,
     updateClip: (fields) => updateClip.mutate({ id: clipId, ...fields }),
+    undo: () => undo.mutate({ clipId }),
+    redo: () => redo.mutate({ clipId }),
+    canUndo: reach.data?.back ?? false,
+    canRedo: reach.data?.forward ?? false,
     save: (name) => save.mutate({ id: clipId, name }),
     branch: (opened) => branch.mutate({ id: clipId }, { onSuccess: (copy) => opened(copy.id) }),
     isSaved: (composition.data?.name ?? null) !== null,
     setFrame: (role, imageId) => setFrame.mutate({ clipId, role, imageId }),
     addShot: () => addShot.mutate({ clipId }),
+    addSavedShot: (savedShotId) => addSavedShot.mutate({ clipId, savedShotId }),
+    saveShot: (shotId, name) => saveShot.mutate({ shotId, name }),
     updateShot: (shotId, fields) => updateShot.mutate({ shotId, ...fields }),
     moveShot: (shotId, toPosition) => moveShot.mutate({ shotId, toPosition }),
     removeShot: (shotId) => removeShot.mutate({ shotId }),
-    addSpeaker: (fields) => addSpeaker.mutate({ clipId, ...fields }),
-    updateSpeaker: (speakerId, fields) => updateSpeaker.mutate({ speakerId, ...fields }),
-    removeSpeaker: (speakerId) => removeSpeaker.mutate({ speakerId }),
+    addSubject: (fields) => addSubject.mutate({ clipId, ...fields }),
+    updateSubject: (subjectId, fields) => updateSubject.mutate({ subjectId, ...fields }),
+    saveSubject: (subjectId) => saveSubject.mutate({ id: subjectId }),
+    removeSubject: (subjectId) => removeSubject.mutate({ subjectId }),
   }
 }

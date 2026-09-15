@@ -1,7 +1,24 @@
 import { fireEvent, render, screen } from "@testing-library/react"
 import { describe, expect, it, vi } from "vitest"
-import type { OpenTab } from "@renderer/lib/trpc"
+import type { AspectRatio, ClipComposition, OpenTab } from "@renderer/lib/trpc"
 import { ClipBar } from "./clip-bar"
+
+const shapes: AspectRatio[] = [{ value: "16:9", name: "Widescreen", width: 16, height: 9 }]
+
+const composition = {
+  id: 1,
+  name: "Lighthouse",
+  form: "t2v",
+  shortEdge: 1080,
+  aspectRatio: "16:9",
+  frames: [],
+  style: "Live-action",
+  note: "",
+  musicNote: "",
+  language: "English",
+  speakers: [],
+  shots: [],
+} as unknown as ClipComposition
 
 const saved: OpenTab = {
   id: 1,
@@ -16,11 +33,27 @@ const scratch: OpenTab = { ...saved, clipName: null }
 function renderBar(tab: OpenTab = saved): {
   onSave: ReturnType<typeof vi.fn>
   onBranch: ReturnType<typeof vi.fn>
+  onSettings: ReturnType<typeof vi.fn>
 } {
   const onSave = vi.fn()
   const onBranch = vi.fn()
-  render(<ClipBar tab={tab} isSaving={false} onSave={onSave} onBranch={onBranch} />)
-  return { onSave, onBranch }
+  const onSettings = vi.fn()
+  render(
+    <ClipBar
+      tab={tab}
+      composition={composition}
+      aspectRatios={shapes}
+      isSaving={false}
+      canUndo={false}
+      canRedo={false}
+      onUndo={vi.fn()}
+      onRedo={vi.fn()}
+      onSave={onSave}
+      onBranch={onBranch}
+      onSettings={onSettings}
+    />
+  )
+  return { onSave, onBranch, onSettings }
 }
 
 describe("ClipBar", () => {
@@ -59,6 +92,24 @@ describe("ClipBar", () => {
     fireEvent.click(screen.getByRole("button", { name: /^Save/ }))
 
     expect(onSave).toHaveBeenCalled()
+  })
+
+  it("says what the clip generates at, without leaving the shots", () => {
+    renderBar()
+
+    expect(screen.getByRole("button", { name: "Clip settings: t2va" })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Clip settings: 16:9" })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Clip settings: 1920 × 1080" })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Clip settings: Live-action" })).toBeInTheDocument()
+  })
+
+  it("opens the settings from a chip as well as from the button", () => {
+    const { onSettings } = renderBar()
+
+    fireEvent.click(screen.getByRole("button", { name: "Clip settings: 16:9" }))
+    fireEvent.click(screen.getByRole("button", { name: /^Settings/ }))
+
+    expect(onSettings).toHaveBeenCalledTimes(2)
   })
 
   it("asks to branch the clip", () => {

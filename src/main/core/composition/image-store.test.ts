@@ -24,6 +24,7 @@ describe("image store", () => {
     dir = mkdtempSync(join(tmpdir(), "preshoot-images-"))
     handle = openProjectDatabase(join(dir, "project.db"), migrationsFolder)
     assetId = insertAsset(handle.db, {
+      clipId: null,
       kind: "person",
       name: "Keeper",
       description: "an elderly man",

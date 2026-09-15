@@ -8,6 +8,7 @@ import { ClipEditor } from "@renderer/features/clips/clip-editor"
 import { ClipList } from "@renderer/features/clips/clip-list"
 import { ClipBar } from "@renderer/features/clips/clip-bar"
 import { ClipPromptPanel } from "@renderer/features/clips/clip-prompt"
+import { ClipSettingsDialog } from "@renderer/features/clips/clip-settings-dialog"
 import { SaveClipDialog } from "@renderer/features/clips/save-clip-dialog"
 import { TabBar } from "@renderer/features/clips/tab-bar"
 import { tabTitle } from "@renderer/features/clips/tab-title"
@@ -57,6 +58,7 @@ function Workspace(): React.JSX.Element {
     firstTab: () => tabs.jumpTo(0),
     lastTab: () => tabs.jumpTo(-1),
     clipList: tabs.showClipList,
+    reopenTab: tabs.reopenClosed,
     newClip: startClip,
   })
 
@@ -68,6 +70,7 @@ function Workspace(): React.JSX.Element {
           activeId={tabs.active?.id ?? null}
           onActivate={tabs.activate}
           onClose={closeTab}
+          onMove={tabs.move}
           onOpenEmpty={tabs.openEmpty}
         />
       </div>
@@ -136,12 +139,14 @@ interface OpenClipProps {
 function OpenClip({ clipId, tab, onBranched }: OpenClipProps): React.JSX.Element {
   const clip = useClip(clipId)
   const [naming, setNaming] = useState(false)
+  const [settingsOpen, setSettingsOpen] = useState(false)
   const library = useAssets()
   const pictures = useAssetImages()
   const exporting = useExportPrompt(clipId)
   const navigate = useNavigate()
   const trpc = useTRPC()
   const shapes = useQuery(trpc.clips.aspectRatios.queryOptions())
+  const savedShots = useQuery(trpc.clips.savedShots.queryOptions())
 
   useShortcuts({
     addShot: clip.addShot,
@@ -150,19 +155,38 @@ function OpenClip({ clipId, tab, onBranched }: OpenClipProps): React.JSX.Element
     },
     saveClip: () => setNaming(true),
     branchClip: () => clip.branch(onBranched),
+    clipSettings: () => setSettingsOpen(true),
+    undo: clip.undo,
+    redo: clip.redo,
   })
 
   if (!clip.composition || !clip.vocabularies) {
     return <p className="text-sm text-muted-foreground">Loading the clip…</p>
   }
 
+  // Only the subjects that say something are asked how they sound, so the rest keep one field.
+  const speaking = [
+    ...new Set(
+      clip.composition.shots.flatMap((shot) =>
+        shot.lines.filter((line) => line.kind === "speech").flatMap((line) => line.subjectIds)
+      )
+    ),
+  ]
+
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <ClipBar
         tab={tab}
+        composition={clip.composition}
+        aspectRatios={shapes.data ?? []}
         isSaving={clip.isSaving}
+        canUndo={clip.canUndo}
+        canRedo={clip.canRedo}
+        onUndo={clip.undo}
+        onRedo={clip.redo}
         onSave={() => setNaming(true)}
         onBranch={() => clip.branch(onBranched)}
+        onSettings={() => setSettingsOpen(true)}
       />
 
       {naming && (
@@ -176,24 +200,38 @@ function OpenClip({ clipId, tab, onBranched }: OpenClipProps): React.JSX.Element
         />
       )}
 
+      {settingsOpen && (
+        <ClipSettingsDialog
+          composition={clip.composition}
+          vocabularies={clip.vocabularies}
+          libraryImages={pictures.images}
+          aspectRatios={shapes.data ?? []}
+          onChange={clip.updateClip}
+          onSetFrame={clip.setFrame}
+          onClose={() => setSettingsOpen(false)}
+        />
+      )}
+
       <main className="mx-auto grid min-h-0 w-full max-w-[1400px] flex-1 gap-8 overflow-hidden p-8 xl:grid-cols-2">
         <section className="flex min-h-0 min-w-0 flex-col gap-4 overflow-y-auto pr-2">
           <ClipEditor
             composition={clip.composition}
             vocabularies={clip.vocabularies}
             library={library.assets}
-            libraryImages={pictures.images}
-            aspectRatios={shapes.data ?? []}
             isSaving={clip.isSaving}
-            onClipChange={clip.updateClip}
             onAddShot={clip.addShot}
             onShotChange={clip.updateShot}
             onMoveShot={clip.moveShot}
             onRemoveShot={clip.removeShot}
-            onAddSpeaker={clip.addSpeaker}
-            onUpdateSpeaker={clip.updateSpeaker}
-            onRemoveSpeaker={clip.removeSpeaker}
-            onSetFrame={clip.setFrame}
+            onSaveShot={clip.saveShot}
+            savedShots={savedShots.data ?? []}
+            onAddSavedShot={clip.addSavedShot}
+            saved={library.assets}
+            speaking={speaking}
+            onAddSubject={clip.addSubject}
+            onUpdateSubject={clip.updateSubject}
+            onSaveSubject={clip.saveSubject}
+            onRemoveSubject={clip.removeSubject}
             onAddPeople={() => void navigate({ to: "/project/library" })}
           />
 
