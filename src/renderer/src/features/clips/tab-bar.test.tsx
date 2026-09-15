@@ -22,6 +22,7 @@ function renderBar(over: Partial<React.ComponentProps<typeof TabBar>> = {}): {
       activeId={2}
       onActivate={onActivate}
       onClose={onClose}
+      onMove={vi.fn()}
       onOpenEmpty={onOpenEmpty}
       {...over}
     />

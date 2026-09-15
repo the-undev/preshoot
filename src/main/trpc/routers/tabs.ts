@@ -2,9 +2,11 @@ import { z } from "zod"
 import {
   activateTab,
   closeTab,
+  moveTab,
   openClipInTab,
   openEmptyTab,
   readWorkspace,
+  reopenClosedTab,
   showClipListInTab,
 } from "../../core/composition/tab-store"
 import { asClientError } from "../client-errors"
@@ -48,6 +50,20 @@ export const tabsRouter = router({
       asClientError(error)
     }
   }),
+
+  /** Opens the last tab to close again, when the clip it held is still in the project. */
+  reopenClosed: publicProcedure.mutation(({ ctx }) => reopenClosedTab(requireProject(ctx))),
+
+  /** Puts a tab at `toPosition`, sliding the others around it. */
+  move: publicProcedure
+    .input(z.object({ tabId, toPosition: z.number().int().min(0) }))
+    .mutation(({ ctx, input }) => {
+      try {
+        return moveTab(requireProject(ctx), input.tabId, input.toPosition)
+      } catch (error) {
+        asClientError(error)
+      }
+    }),
 
   /** Closes a tab and looks at whichever took its place. */
   close: publicProcedure.input(z.object({ tabId })).mutation(({ ctx, input }) => {

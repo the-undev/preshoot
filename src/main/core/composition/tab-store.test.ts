@@ -14,9 +14,11 @@ import {
 import {
   activateTab,
   closeTab,
+  moveTab,
   openClipInTab,
   openEmptyTab,
   readWorkspace,
+  reopenClosedTab,
   showClipListInTab,
 } from "./tab-store"
 
@@ -213,6 +215,33 @@ describe("tab store", () => {
     const workspace = openClipInTab(handle.db, addClip("Lighthouse"))
 
     expect(workspace.tabs[0].savedFrom).toBeNull()
+  })
+
+  it("opens the last saved clip whose tab was closed", () => {
+    const clipId = addClip("Lighthouse")
+    const opened = openClipInTab(handle.db, clipId)
+    closeTab(handle.db, dir, opened.tabs[0].id)
+
+    const back = reopenClosedTab(handle.db)
+
+    expect(back.tabs.map((tab) => tab.clipId)).toEqual([clipId])
+  })
+
+  it("has nothing to reopen when the clip went with its tab", () => {
+    const opened = openClipInTab(handle.db, addScratchClip("climbs"))
+    closeTab(handle.db, dir, opened.tabs[0].id)
+
+    expect(reopenClosedTab(handle.db)).toEqual({ tabs: [], activeTabId: null })
+  })
+
+  it("moves a tab and slides the others around it", () => {
+    openClipInTab(handle.db, addClip("One"))
+    openClipInTab(handle.db, addClip("Two"))
+    const three = openClipInTab(handle.db, addClip("Three"))
+
+    const moved = moveTab(handle.db, three.tabs[2].id, 0)
+
+    expect(moved.tabs.map((tab) => tab.clipName)).toEqual(["Three", "One", "Two"])
   })
 
   it("refuses a tab that is not open", () => {

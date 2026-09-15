@@ -48,9 +48,12 @@ export type Asset = RouterOutputs["assets"]["list"][number]
 /** One reference picture of a library thing. */
 export type AssetImage = RouterOutputs["assets"]["images"][number]
 
-/** Where the renderer reads a picture from. */
-export function assetImageUrl(imageId: number): string {
-  return `asset://${imageId}`
+/**
+ * Where the renderer reads a picture from. A width asks for it drawn that wide, so a thumbnail
+ * does not read the whole photograph. Only 80, 160 and 320 are offered.
+ */
+export function assetImageUrl(imageId: number, width?: 80 | 160 | 320): string {
+  return width === undefined ? `asset://${imageId}` : `asset://${imageId}/${width}`
 }
 
 /** What a library thing can be. */

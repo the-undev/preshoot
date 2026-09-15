@@ -31,7 +31,7 @@ export function AssetList({ assets, images, onEdit, onRemove }: AssetListProps):
                   <div className="flex min-w-0 items-start gap-3">
                     {first(images, asset.id) && (
                       <img
-                        src={assetImageUrl(first(images, asset.id)!.id)}
+                        src={assetImageUrl(first(images, asset.id)!.id, 80)}
                         alt=""
                         className="size-12 shrink-0 rounded border object-cover"
                       />

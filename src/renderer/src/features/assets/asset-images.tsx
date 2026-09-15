@@ -32,7 +32,7 @@ export function AssetImages({
           {images.map((image, index) => (
             <li key={image.id} className="relative">
               <img
-                src={assetImageUrl(image.id)}
+                src={assetImageUrl(image.id, 160)}
                 alt={`Reference picture ${index + 1}`}
                 className="size-24 rounded border object-cover"
               />

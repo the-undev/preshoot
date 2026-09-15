@@ -11,6 +11,8 @@ export interface TabPanel {
   showClipList(): void
   activate(tabId: number): void
   close(tabId: number): void
+  reopenClosed(): void
+  move(tabId: number, toPosition: number): void
   step(by: number): void
   jumpTo(index: number): void
 }
@@ -36,8 +38,10 @@ export function useTabs(): TabPanel {
   const showClipList = useMutation(trpc.tabs.showClipList.mutationOptions(written))
   const activate = useMutation(trpc.tabs.activate.mutationOptions(written))
   const close = useMutation(trpc.tabs.close.mutationOptions(written))
+  const reopenClosed = useMutation(trpc.tabs.reopenClosed.mutationOptions(written))
+  const move = useMutation(trpc.tabs.move.mutationOptions(written))
 
-  const writes = [openClip, openEmpty, showClipList, activate, close]
+  const writes = [openClip, openEmpty, showClipList, activate, close, reopenClosed, move]
   const tabs = workspace.data?.tabs ?? []
   const active = tabs.find((tab) => tab.id === workspace.data?.activeTabId) ?? null
   const at = active ? tabs.indexOf(active) : -1
@@ -54,6 +58,8 @@ export function useTabs(): TabPanel {
     },
     activate: (tabId) => activate.mutate({ tabId }),
     close: (tabId) => close.mutate({ tabId }),
+    reopenClosed: () => reopenClosed.mutate(),
+    move: (tabId, toPosition) => move.mutate({ tabId, toPosition }),
     // Stepping wraps around, so holding the shortcut walks the whole bar rather than stopping.
     step: (by) => {
       if (tabs.length < 2 || at === -1) return

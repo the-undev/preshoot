@@ -58,6 +58,7 @@ function Workspace(): React.JSX.Element {
     firstTab: () => tabs.jumpTo(0),
     lastTab: () => tabs.jumpTo(-1),
     clipList: tabs.showClipList,
+    reopenTab: tabs.reopenClosed,
     newClip: startClip,
   })
 
@@ -69,6 +70,7 @@ function Workspace(): React.JSX.Element {
           activeId={tabs.active?.id ?? null}
           onActivate={tabs.activate}
           onClose={closeTab}
+          onMove={tabs.move}
           onOpenEmpty={tabs.openEmpty}
         />
       </div>

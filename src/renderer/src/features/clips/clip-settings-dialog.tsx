@@ -247,7 +247,7 @@ function ClipFrame({ role, label, frame, library, onChoose }: ClipFrameProps): R
       <div className="flex min-w-0 items-center gap-2">
         {frame && (
           <img
-            src={assetImageUrl(frame.imageId)}
+            src={assetImageUrl(frame.imageId, 80)}
             alt={`${label} picture`}
             className="size-10 rounded border object-cover"
           />

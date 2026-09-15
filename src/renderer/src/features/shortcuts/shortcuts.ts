@@ -7,6 +7,7 @@ export const SHORTCUTS = [
   { id: "closeTab", keys: "ctrl+w", group: "Tabs", label: "Close this tab" },
   { id: "nextTab", keys: "ctrl+tab", group: "Tabs", label: "Next tab" },
   { id: "previousTab", keys: "ctrl+shift+tab", group: "Tabs", label: "Previous tab" },
+  { id: "reopenTab", keys: "ctrl+shift+t", group: "Tabs", label: "Open the last tab closed again" },
   { id: "firstTab", keys: "ctrl+1", group: "Tabs", label: "First tab" },
   { id: "lastTab", keys: "ctrl+9", group: "Tabs", label: "Last tab" },
   { id: "clipList", keys: "ctrl+l", group: "Clips", label: "Show the clip list in this tab" },
