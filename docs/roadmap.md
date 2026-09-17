@@ -62,11 +62,16 @@ Lightning LoRA.
   it back to the clip. The builder is the product; a model may come back later
   to improve one field at a time, where its job is small enough to check.
 - The prompt is written as a scene rather than as a list of fields: a subject
-  is described by the first line it does something in and named after that, the
-  camera and the light are sentences rather than labels, and a cut lands on
-  what the next shot shows. The words of the main field are counted against
-  what the guide asks for, because a prompt written from short lines comes out
-  far shorter than the model wants.
+  is named every time and how it looks is set off by commas the first time it
+  is named, because a description standing in for a name leaves the sentence
+  with nothing doing the acting, and one written as `wearing a space suit`
+  rather than as `a man in a space suit` reads as nonsense on its own. The
+  camera
+  and the light are sentences rather than labels, and a cut lands on what the
+  next shot shows, or is written as a sentence of its own when the shot does
+  not open on something to land on. The words of the main field are counted
+  against what the guide asks for, because a prompt written from short lines
+  comes out far shorter than the model wants.
 - The prompt is a function of the clip rather than a thing to produce. It is
   read back after every change and shown beside the editor as it is typed, and
   nothing is stored, because the same clip always writes the same prompt.
@@ -109,14 +114,45 @@ Lightning LoRA.
 - A field explains itself behind a question mark beside its label, never with
   an example inside it. An example in an empty field reads as something the
   clip already holds.
-- What happens in a shot and what is said in it are one ordered list, not two,
-  so the prompt reads in the order it was written. That is what the guide asks
-  for: actions and reactions in order with the dialogue among them. A line is
-  something someone does or something someone says.
-- A shot is written by typing. Enter makes the next line and puts the cursor in
-  it, backspace on an empty line takes it away, and a plus between two lines
-  adds one there, so nothing has to be added at the end and dragged into place.
+- A shot is nothing but its lines. What it shows, what happens in it and what
+  is said in it are one ordered list, so the prompt reads in the order it was
+  written. That is what the guide asks for: actions and reactions in order with
+  the dialogue among them. A line shows what is on screen, says what someone
+  does, or says what someone says. Only a spoken line has to name one of the
+  cast: the other two name one when there is one to name and otherwise hold
+  the words written on them, so a shot says what it opens on without first
+  making a cast member of it. A cut lands on the line a shot opens on when
+  that line shows something, and is written as a sentence of its own when the
+  shot opens on somebody acting, on the camera or on the light, because
+  nothing there reads on from `cuts to`. What a shot showed used to be a separate set of
+  library things picked from chips, which meant two places to name a subject
+  and two pools to name it from, and a line about a chipped thing pointed at
+  something the prompt could not find.
+- A shot is written by typing. A shot opens with a line in it, enter makes the
+  next line and puts the cursor in it, backspace on an empty line takes it
+  away, and the gap under a line lights up and adds one there when the pointer
+  is over it, so nothing has to be added at the end and dragged into place.
   Reordering is a handle, removing is a bin.
+- A line says what it is above its box rather than beside it. Its type comes
+  first and never moves, so changing what a line is is always in the same
+  place, and who it is about follows from the type rather than standing in for
+  it. The types are called Description, Action and Dialogue. Reading the head
+  as a sentence was tried first, `Astronaut says` against `Something happens`,
+  and dropped: the words moved about as the type changed, so there was nowhere
+  steady to look, and the same type had to be called two things to stay
+  grammatical. The box below runs the full width, because the words are what
+  the clip is made of and a picker beside them took a third of the room.
+- Ctrl and Space on a line opens a menu of everything that can be done from
+  where the cursor is: what the line is, who is in it, what the shot is made
+  of, and what the library holds. A chord rather than a slash, because it
+  cannot collide with what is being typed, needs no rule about where it is
+  allowed, and leaves nothing behind when it is dismissed. A slash opens the
+  same menu on a line with nothing on it yet, where it is unambiguous, so the
+  affordance people expect is still there.
+- What is set on a shot reads as a chip and what is not stays behind a plus.
+  A shot used to open on six dropdowns holding nothing. The cast reads the
+  same way: a strip of chips rather than a stack of boxes to fill in before
+  anything can be written.
 - A clip is in one language, which a line overrides only when somebody speaks
   another. Every line carrying its own was a field on every row for something
   that almost never varies.
@@ -128,8 +164,10 @@ Lightning LoRA.
   documented or be listed without working. The app sets its own Electron menu,
   leaving out the window menu, because the default one binds Ctrl and W to
   closing the window and the renderer needs it for closing a tab.
-- The workspace is a centred band no wider than 1400px, on the ultrawide as
-  everywhere else.
+- The workspace is a centred band that fills a 1080p screen and stops at
+  1920px, so the ultrawide does not stretch a line of a shot across a metre.
+  The editor takes two thirds of it and the prompt one, because one is worked
+  in and the other is read.
 - Reference pictures are copied into the project rather than referenced where
   they sit, so a project stays a folder that can be moved, and the renderer
   reads them through an `asset://` scheme that serves only the open project.

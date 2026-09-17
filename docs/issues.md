@@ -32,6 +32,11 @@ says so.
   override on a line.
 - Undo is per clip and lasts as long as the app runs. Closing the project and
   opening it again starts from nothing to go back to.
+- Keyboard shortcuts are fixed. They are one list in the code, which a settings
+  screen could write to, but nothing does.
+- Ctrl and Space opens the command menu. It is also the default key for
+  switching input method under IBus and fcitx, so setting one of those up for
+  another language would take the chord away from the app.
 - Closing the tab of a clip that was never saved throws the clip away. The app
   asks first, and Ctrl Shift T only brings back a clip that was saved.
 - The save dialog offers no file type filter, and appends nothing when a
@@ -69,13 +74,10 @@ wrong here is wrong every time rather than some of the time.
 - A shot or a line is reordered by dragging its handle. From the keyboard that
   means focusing the handle, pressing space to lift it, moving with the arrows
   and pressing space again, which nothing on screen says.
-- A line cannot be turned from something that happens into something that is
-  said. It has to be removed and written again as the other kind.
 - The library screen puts the form on the left and the list on the right,
   which reads backwards: you pick from the list, then edit.
 - A saved shot keeps a copy of the subjects it showed. Two saved shots of the
   same person hold two copies of them, and editing one leaves the other.
-- A library thing cannot be added without leaving the clip that needs it.
 - The prompt that describes a picture is a constant in the code, so it cannot
   be tuned without an edit and a rebuild.
 - A thumbnail is resized on every request rather than kept, so scrolling a

@@ -107,7 +107,7 @@ describe("clips router", () => {
     expect(composition.shots).toHaveLength(3)
   })
 
-  it("rewrites a shot with the things it shows and what is said", async () => {
+  it("rewrites a shot with what it shows, what happens and what is said", async () => {
     const { clipId, shotId } = await clipWithShot()
     const withKeeper = await caller.clips.addSubject({
       clipId,
@@ -134,8 +134,8 @@ describe("clips router", () => {
       transition: null,
       lighting: "night",
       soundNote: "wind on the glass",
-      things: [keeper.id],
       lines: [
+        { ...action(keeper.id, ""), kind: "shows" as const },
         action(null, "climbs the last steps"),
         speech([withSpeaker.cast[0].id], "Almost there."),
       ],
@@ -144,9 +144,9 @@ describe("clips router", () => {
     const [shot] = composition.shots
     expect(shot.durationMs).toBe(4500)
     expect(shot.cameraMotion).toBe("push in")
-    expect(shot.things).toEqual([expect.objectContaining({ id: keeper.id, name: "Keeper" })])
-    expect(shot.lines.map((line) => line.kind)).toEqual(["action", "speech"])
-    expect(shot.lines[1].text).toBe("Almost there.")
+    expect(shot.lines.map((line) => line.kind)).toEqual(["shows", "action", "speech"])
+    expect(shot.lines[0].subjectIds).toEqual([keeper.id])
+    expect(shot.lines[2].text).toBe("Almost there.")
   })
 
   it("keeps a dialogue line that has not been typed into yet", async () => {
@@ -168,7 +168,6 @@ describe("clips router", () => {
       transition: null,
       lighting: null,
       soundNote: "",
-      things: [],
       lines: [action(null, "climbs"), speech([withSpeaker.cast[0].id], "")],
     })
 
@@ -206,7 +205,6 @@ describe("clips router", () => {
       transition: null,
       lighting: "night",
       soundNote: "wind",
-      things: [],
       lines: [action(null, "climbs the stairs")],
     })
 
@@ -257,7 +255,6 @@ describe("clips router", () => {
       transition: null,
       lighting: null,
       soundNote: "",
-      things: [],
       lines: [speech([speakerId], "Almost there.")],
     })
 
@@ -294,7 +291,6 @@ describe("clips router", () => {
         transition: null,
         lighting: null,
         soundNote: "",
-        things: [],
         lines: [action(null, "climbs")],
       })
     ).rejects.toThrow(expect.objectContaining({ message: expect.stringContaining("durationMs") }))
@@ -313,7 +309,6 @@ describe("clips router", () => {
         transition: null,
         lighting: null,
         soundNote: "",
-        things: [],
         lines: [action(null, "climbs")],
       })
     ).rejects.toThrow(expect.objectContaining({ code: "BAD_REQUEST" }))
@@ -410,7 +405,6 @@ describe("clips router", () => {
       transition: null,
       lighting: "night",
       soundNote: "wind",
-      things: [keeper.id],
       lines: [action(keeper.id, "climbs the steps")],
     })
 
@@ -451,8 +445,7 @@ describe("clips router", () => {
       transition: null,
       lighting: null,
       soundNote: "",
-      things: [withKeeper.cast[0].id],
-      lines: [],
+      lines: [{ ...action(withKeeper.cast[0].id, ""), kind: "shows" as const }],
     })
     const saved = await caller.clips.saveShot({ shotId, name: "A shot of the keeper" })
 
@@ -491,14 +484,14 @@ describe("clips router", () => {
       transition: null,
       lighting: null,
       soundNote: "",
-      things: [],
       lines: [action(null, "climbs the steps")],
     })
 
     expect((await caller.clips.reach({ clipId })).back).toBe(true)
     const undone = await caller.clips.undo({ clipId })
 
-    expect(undone.shots[0].lines).toEqual([])
+    // A shot opens with one empty line, which is what it goes back to.
+    expect(undone.shots[0].lines).toEqual([expect.objectContaining({ text: "" })])
   })
 
   it("does an undone change again", async () => {
@@ -512,7 +505,6 @@ describe("clips router", () => {
       transition: null,
       lighting: null,
       soundNote: "",
-      things: [],
       lines: [action(null, "climbs the steps")],
     })
     await caller.clips.undo({ clipId })

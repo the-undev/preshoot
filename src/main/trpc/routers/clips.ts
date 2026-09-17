@@ -29,7 +29,6 @@ import {
   restoreComposition,
   saveClip,
   setShotLines,
-  setShotThings,
   updateClip,
   updateShot,
   setClipFrame,
@@ -62,7 +61,6 @@ const shotInput = z.object({
   transition: z.string().nullable(),
   lighting: z.string().nullable(),
   soundNote: z.string(),
-  things: z.array(z.number().int()),
   lines: z.array(
     z.object({
       kind: z.enum(LINE_KINDS as [LineKind, ...LineKind[]]),
@@ -235,7 +233,7 @@ export const clipsRouter = router({
     }
   }),
 
-  /** Rewrites one shot, the things it shows and what is said in it. */
+  /** Rewrites one shot and every line in it. */
   updateShot: publicProcedure.input(shotInput).mutation(({ ctx, input }) => {
     const db = requireProject(ctx)
     try {
@@ -256,7 +254,6 @@ export const clipsRouter = router({
         lighting: input.lighting,
         soundNote: input.soundNote,
       })
-      setShotThings(db, input.shotId, input.things)
       setShotLines(db, input.shotId, input.lines)
       return readComposition(db, id)
     } catch (error) {

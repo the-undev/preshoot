@@ -6,16 +6,11 @@ import {
   FieldHelp,
   Input,
   Label,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
 } from "@renderer/design-system"
 import type { Asset, AssetKind, SubjectComposition } from "@renderer/lib/trpc"
-
-/** Stands for a subject written here rather than taken from the library. */
-const NEW_SUBJECT = "new"
 
 /** What each kind is called on screen. */
 const KIND_NAMES: { id: AssetKind; name: string }[] = [
@@ -32,20 +27,30 @@ export interface SubjectFields {
   description: string
 }
 
+/** One of the cast as the editor sends it back, which always says how they sound. */
+export type SubjectEdit = Omit<SubjectFields, "savedId"> & { voice: string }
+
+/** The look of a chip, whether it holds a subject or is offering to make one. */
+function chipClass(set: boolean): string {
+  const shared = "rounded-full border px-2.5 py-0.5 text-xs whitespace-nowrap hover:bg-accent"
+  return set ? `${shared} bg-accent/40` : `${shared} border-dashed text-muted-foreground`
+}
+
 interface ClipCastProps {
   cast: SubjectComposition[]
   /** Which subjects speak, so only those are asked how they sound. */
   speaking: number[]
   saved: Asset[]
   onAdd: (fields: SubjectFields) => void
-  onUpdate: (subjectId: number, fields: Omit<SubjectFields, "savedId"> & { voice: string }) => void
+  onUpdate: (subjectId: number, fields: SubjectEdit) => void
   onSave: (subjectId: number) => void
   onRemove: (subjectId: number) => void
 }
 
 /**
- * The people, places and objects this clip holds. They belong to the clip, so changing one here
- * changes nothing in any other clip, and saving one copies it into the library as a starting point.
+ * The people, places and objects this clip holds, as a strip of chips. They belong to the clip, so
+ * changing one here changes nothing in any other clip, and saving one copies it into the library
+ * as a starting point.
  */
 export function ClipCast({
   cast,
@@ -56,15 +61,12 @@ export function ClipCast({
   onSave,
   onRemove,
 }: ClipCastProps): React.JSX.Element {
-  const [name, setName] = useState("")
-  const [kind, setKind] = useState<AssetKind>("person")
   const [removing, setRemoving] = useState<SubjectComposition | null>(null)
-  const trimmed = name.trim()
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-wrap items-center gap-1.5">
       {cast.map((subject) => (
-        <CastRow
+        <CastChip
           key={subject.id}
           subject={subject}
           speaks={speaking.includes(subject.id)}
@@ -74,65 +76,12 @@ export function ClipCast({
         />
       ))}
 
-      <form
-        className="flex min-w-0 flex-wrap items-center gap-2"
-        onSubmit={(event) => {
-          event.preventDefault()
-          if (trimmed.length === 0) return
-          onAdd({ savedId: null, kind, name: trimmed, description: "" })
-          setName("")
-        }}
-      >
-        <Select value={kind} onValueChange={(value) => setKind(value as AssetKind)}>
-          <SelectTrigger aria-label="What kind of subject" className="w-28 min-w-0">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {KIND_NAMES.map((entry) => (
-              <SelectItem key={entry.id} value={entry.id}>
-                {entry.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        <Input
-          className="min-w-32 flex-1"
-          aria-label="Name a new subject"
-          placeholder="Name"
-          value={name}
-          onChange={(event) => setName(event.target.value)}
-        />
-
-        <Button type="submit" variant="ghost" size="icon" className="size-8" aria-label="Add">
-          <Plus className="size-4" />
-        </Button>
-
-        {saved.length > 0 && (
-          <Select
-            value={NEW_SUBJECT}
-            onValueChange={(value) =>
-              onAdd({ savedId: Number(value), kind, name: "", description: "" })
-            }
-          >
-            <SelectTrigger aria-label="Add a saved subject" className="w-48 min-w-0">
-              <SelectValue placeholder="From the library" />
-            </SelectTrigger>
-            <SelectContent>
-              {saved.map((subject) => (
-                <SelectItem key={subject.id} value={String(subject.id)}>
-                  {subject.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
-      </form>
+      <AddCastChip saved={saved} onAdd={onAdd} />
 
       {removing && (
         <ConfirmDialog
           title={`Take ${removing.name} out of this clip?`}
-          description="The shots and the lines that name them go with it. Anything saved in the library stays."
+          description="The lines that name them go with it. Anything saved in the library stays."
           confirmLabel="Remove"
           onCancel={() => setRemoving(null)}
           onConfirm={() => {
@@ -145,75 +94,195 @@ export function ClipCast({
   )
 }
 
-interface CastRowProps {
+interface CastChipProps {
   subject: SubjectComposition
   speaks: boolean
-  onUpdate: (fields: Omit<SubjectFields, "savedId"> & { voice: string }) => void
+  onUpdate: (fields: SubjectEdit) => void
   onSave: () => void
   onRemove: () => void
 }
 
 /** One of the cast: what they are, how they look, and how they sound once they say something. */
-function CastRow({ subject, speaks, onUpdate, onSave, onRemove }: CastRowProps): React.JSX.Element {
+function CastChip({
+  subject,
+  speaks,
+  onUpdate,
+  onSave,
+  onRemove,
+}: CastChipProps): React.JSX.Element {
+  const [open, setOpen] = useState(false)
   const [name, setName] = useState(subject.name)
   const [description, setDescription] = useState(subject.description)
   const [voice, setVoice] = useState(subject.voice ?? "")
 
-  const commit = (over: Partial<Omit<SubjectFields, "savedId"> & { voice: string }>): void => {
+  const commit = (over: Partial<SubjectEdit>): void => {
     onUpdate({ kind: subject.kind as AssetKind, name, description, voice, ...over })
   }
 
   return (
-    <div className="flex min-w-0 flex-wrap items-center gap-2">
-      <Input
-        className="w-32 min-w-0"
-        aria-label={`Name of ${subject.name}`}
-        value={name}
-        onChange={(event) => setName(event.target.value)}
-        onBlur={() => commit({ name })}
-      />
-      <Input
-        className="min-w-40 flex-1"
-        aria-label={`How ${subject.name} looks`}
-        value={description}
-        onChange={(event) => setDescription(event.target.value)}
-        onBlur={() => commit({ description })}
-      />
-      {speaks && (
-        <div className="flex min-w-0 items-center gap-1.5">
-          <Label htmlFor={`voice-${subject.id}`} className="text-xs font-normal">
-            Voice
-          </Label>
-          <FieldHelp label="the voice">
-            How they sound, which the prompt states once to fix it: age, pitch, timbre, pace or
-            accent. It falls back to how they look when it is left empty.
-          </FieldHelp>
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button type="button" aria-label={`Edit ${subject.name}`} className={chipClass(true)}>
+          {subject.name}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="flex w-80 flex-col gap-3">
+        <div className="flex flex-col gap-1">
+          <Label htmlFor={`cast-${subject.id}-name`}>Name</Label>
           <Input
-            id={`voice-${subject.id}`}
-            className="w-40 min-w-0"
-            value={voice}
-            onChange={(event) => setVoice(event.target.value)}
-            onBlur={() => commit({ voice })}
+            id={`cast-${subject.id}-name`}
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            onBlur={() => commit({ name })}
           />
         </div>
-      )}
-      <Button
-        variant="ghost"
-        size="sm"
-        aria-label={`Save ${subject.name} to the library`}
-        onClick={onSave}
-      >
-        Save
-      </Button>
-      <Button
-        variant="ghost"
-        size="icon"
-        className="size-8"
-        aria-label={`Remove ${subject.name}`}
-        onClick={onRemove}
-      >
-        <Trash2 className="size-4" />
-      </Button>
-    </div>
+
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center gap-1.5">
+            <Label htmlFor={`cast-${subject.id}-description`}>How they look</Label>
+            <FieldHelp label="how they look">
+              Said once, beside their name, the first time the clip names them. Write it as it would
+              read after the name: `an elderly man in oilskins`.
+            </FieldHelp>
+          </div>
+          <Input
+            id={`cast-${subject.id}-description`}
+            value={description}
+            onChange={(event) => setDescription(event.target.value)}
+            onBlur={() => commit({ description })}
+          />
+        </div>
+
+        {speaks && (
+          <div className="flex flex-col gap-1">
+            <div className="flex items-center gap-1.5">
+              <Label htmlFor={`cast-${subject.id}-voice`}>Voice</Label>
+              <FieldHelp label="the voice">
+                How they sound, which the prompt states once to fix it: age, pitch, timbre, pace or
+                accent. It falls back to how they look when it is left empty.
+              </FieldHelp>
+            </div>
+            <Input
+              id={`cast-${subject.id}-voice`}
+              value={voice}
+              onChange={(event) => setVoice(event.target.value)}
+              onBlur={() => commit({ voice })}
+            />
+          </div>
+        )}
+
+        <div className="flex items-center justify-between">
+          <Button
+            variant="ghost"
+            size="sm"
+            aria-label={`Save ${subject.name} to the library`}
+            onClick={onSave}
+          >
+            Save to the library
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-8"
+            aria-label={`Remove ${subject.name}`}
+            onClick={() => {
+              setOpen(false)
+              onRemove()
+            }}
+          >
+            <Trash2 className="size-4" />
+          </Button>
+        </div>
+      </PopoverContent>
+    </Popover>
+  )
+}
+
+interface AddCastChipProps {
+  saved: Asset[]
+  onAdd: (fields: SubjectFields) => void
+}
+
+/** Adds a subject to the clip, either written here or copied from the library. */
+function AddCastChip({ saved, onAdd }: AddCastChipProps): React.JSX.Element {
+  const [open, setOpen] = useState(false)
+  const [kind, setKind] = useState<AssetKind>("person")
+  const [name, setName] = useState("")
+  const trimmed = name.trim()
+
+  const add = (): void => {
+    if (trimmed.length === 0) return
+    onAdd({ savedId: null, kind, name: trimmed, description: "" })
+    setName("")
+    setOpen(false)
+  }
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="size-6 rounded-full"
+          aria-label="Add a subject"
+        >
+          <Plus className="size-3.5" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="flex w-72 flex-col gap-3">
+        <div className="flex gap-1">
+          {KIND_NAMES.map((entry) => (
+            <button
+              key={entry.id}
+              type="button"
+              aria-pressed={kind === entry.id}
+              className={chipClass(kind === entry.id)}
+              onClick={() => setKind(entry.id)}
+            >
+              {entry.name}
+            </button>
+          ))}
+        </div>
+
+        <form
+          className="flex items-center gap-2"
+          onSubmit={(event) => {
+            event.preventDefault()
+            add()
+          }}
+        >
+          <Input
+            autoFocus
+            aria-label="Name a new subject"
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+          />
+          <Button type="submit" size="sm" disabled={trimmed.length === 0}>
+            Add
+          </Button>
+        </form>
+
+        {saved.length > 0 && (
+          <div className="flex flex-col gap-1">
+            <span className="text-xs text-muted-foreground">From the library</span>
+            <div className="flex max-h-40 flex-col gap-0.5 overflow-y-auto">
+              {saved.map((subject) => (
+                <button
+                  key={subject.id}
+                  type="button"
+                  className="rounded px-2 py-1 text-left text-sm hover:bg-accent"
+                  onClick={() => {
+                    onAdd({ savedId: subject.id, kind, name: "", description: "" })
+                    setOpen(false)
+                  }}
+                >
+                  {subject.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </PopoverContent>
+    </Popover>
   )
 }

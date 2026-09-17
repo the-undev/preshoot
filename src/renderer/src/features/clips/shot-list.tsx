@@ -26,33 +26,37 @@ import {
   Input,
   Label,
 } from "@renderer/design-system"
-import type { Asset, ShotComposition, SubjectComposition, Vocabularies } from "@renderer/lib/trpc"
+import type { ShotComposition, SubjectComposition, Vocabularies } from "@renderer/lib/trpc"
+import type { ClipMenuContext } from "./line-commands"
 import { ShotRow } from "./shot-row"
 import type { ShotFields } from "./use-clip"
 
 interface ShotListProps {
   shots: ShotComposition[]
+  subjects: SubjectComposition[]
   speakers: SubjectComposition[]
-  library: Asset[]
   vocabularies: Vocabularies
+  /** The shot just added, which is opened and taken to rather than left folded at the end. */
+  showShot: number | null
+  menu: ClipMenuContext
   onChange: (shotId: number, fields: ShotFields) => void
   onMove: (shotId: number, toPosition: number) => void
   onRemove: (shotId: number) => void
   onSave: (shotId: number, name: string) => void
-  onAddPeople: () => void
 }
 
 /** The clip's shots in order, each collapsible, and draggable into another order. */
 export function ShotList({
   shots,
+  subjects,
   speakers,
-  library,
   vocabularies,
+  showShot,
+  menu,
   onChange,
   onMove,
   onRemove,
   onSave,
-  onAddPeople,
 }: ShotListProps): React.JSX.Element {
   const [removing, setRemoving] = useState<{ id: number; number: number } | null>(null)
   const [saving, setSaving] = useState<{ id: number; number: number } | null>(null)
@@ -82,13 +86,14 @@ export function ShotList({
               key={shot.id}
               shot={shot}
               index={index}
+              subjects={subjects}
               speakers={speakers}
-              library={library}
               vocabularies={vocabularies}
+              showing={shot.id === showShot}
+              menu={menu}
               onChange={(fields) => onChange(shot.id, fields)}
               onRemove={() => setRemoving({ id: shot.id, number: index + 1 })}
               onSave={() => setSaving({ id: shot.id, number: index + 1 })}
-              onAddPeople={onAddPeople}
             />
           ))}
           {removing && (

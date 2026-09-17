@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, isNotNull, isNull, sum } from "drizzle-orm"
+import { and, asc, count, desc, eq, inArray, isNotNull, isNull, sum } from "drizzle-orm"
 import { schema, type ProjectDatabase, type ProjectDb } from "../db"
 import type { ClipComposition, ClipForm, FrameComposition, LineKind, ShotComposition } from "./clip"
 import { listCast } from "./asset-store"
@@ -226,16 +226,6 @@ function copyShotContents(
   toShotId: number,
   subjects: Map<number, number>
 ): void {
-  for (const thing of tx
-    .select()
-    .from(schema.shotAssets)
-    .where(eq(schema.shotAssets.shotId, shotId))
-    .all()) {
-    tx.insert(schema.shotAssets)
-      .values({ ...thing, shotId: toShotId, assetId: subjects.get(thing.assetId) ?? thing.assetId })
-      .run()
-  }
-
   for (const line of tx
     .select()
     .from(schema.shotLines)
@@ -300,22 +290,6 @@ export function readComposition(db: ProjectDatabase, clipId: number): ClipCompos
     .orderBy(asc(schema.shots.position))
     .all()
 
-  const thingRows = db
-    .select({
-      shotId: schema.shotAssets.shotId,
-      id: schema.assets.id,
-      kind: schema.assets.kind,
-      name: schema.assets.name,
-      description: schema.assets.description,
-      voice: schema.assets.voice,
-    })
-    .from(schema.shotAssets)
-    .innerJoin(schema.shots, eq(schema.shots.id, schema.shotAssets.shotId))
-    .innerJoin(schema.assets, eq(schema.assets.id, schema.shotAssets.assetId))
-    .where(eq(schema.shots.clipId, clipId))
-    .orderBy(asc(schema.shotAssets.position))
-    .all()
-
   const lineRows = db
     .select({
       id: schema.shotLines.id,
@@ -342,9 +316,6 @@ export function readComposition(db: ProjectDatabase, clipId: number): ClipCompos
     speed: shot.speed,
     transition: shot.transition,
     lighting: shot.lighting,
-    things: thingRows
-      .filter((thing) => thing.shotId === shot.id)
-      .map(({ id, kind, name, description, voice }) => ({ id, kind, name, description, voice })),
     lines: lineRows
       .filter((line) => line.shotId === shot.id)
       .map((line) => ({
@@ -448,6 +419,12 @@ export function insertShot(db: ProjectDatabase, clipId: number): number {
     })
     .returning()
     .all()
+
+  // A shot opens with a line to type into, so there is somewhere to write and somewhere to put
+  // the cursor. An empty line is not written into the prompt.
+  db.insert(schema.shotLines)
+    .values({ shotId: row.id, position: 0, kind: "action", subjectIds: [], text: "" })
+    .run()
   return row.id
 }
 
@@ -491,17 +468,6 @@ export function moveShot(db: ProjectDatabase, shotId: number, toPosition: number
   db.transaction((tx) => {
     ids.forEach((id, position) => {
       tx.update(schema.shots).set({ position }).where(eq(schema.shots.id, id)).run()
-    })
-  })
-}
-
-/** Replaces the library things a shot shows, in the order given. */
-export function setShotThings(db: ProjectDatabase, shotId: number, assetIds: number[]): void {
-  clipOfShot(db, shotId)
-  db.transaction((tx) => {
-    tx.delete(schema.shotAssets).where(eq(schema.shotAssets.shotId, shotId)).run()
-    assetIds.forEach((assetId, position) => {
-      tx.insert(schema.shotAssets).values({ shotId, assetId, position }).run()
     })
   })
 }
@@ -661,13 +627,22 @@ export function deleteSavedShot(db: ProjectDatabase, shotId: number): void {
  * the same name used instead of a second copy of the same person.
  */
 function copySubjects(tx: ProjectDb, shotId: number, toClipId: number | null): Map<number, number> {
-  const sources = tx
-    .select()
-    .from(schema.assets)
-    .innerJoin(schema.shotAssets, eq(schema.shotAssets.assetId, schema.assets.id))
-    .where(eq(schema.shotAssets.shotId, shotId))
-    .all()
-    .map((row) => row.assets)
+  const named = new Set(
+    tx
+      .select({ subjectIds: schema.shotLines.subjectIds })
+      .from(schema.shotLines)
+      .where(eq(schema.shotLines.shotId, shotId))
+      .all()
+      .flatMap((line) => line.subjectIds)
+  )
+  const sources =
+    named.size === 0
+      ? []
+      : tx
+          .select()
+          .from(schema.assets)
+          .where(inArray(schema.assets.id, [...named]))
+          .all()
 
   const already = tx
     .select()
@@ -749,11 +724,6 @@ export function restoreComposition(db: ProjectDatabase, composition: ClipComposi
         })
         .run()
 
-      shot.things.forEach((thing, at) => {
-        tx.insert(schema.shotAssets)
-          .values({ shotId: shot.id, assetId: thing.id, position: at })
-          .run()
-      })
       shot.lines.forEach((line, at) => {
         tx.insert(schema.shotLines)
           .values({

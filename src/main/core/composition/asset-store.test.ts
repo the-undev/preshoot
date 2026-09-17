@@ -11,7 +11,22 @@ import {
   listSavedAssets,
   updateAsset,
 } from "./asset-store"
-import { insertClip, insertShot, setShotThings } from "./clip-store"
+import { insertClip, insertShot, readComposition, setShotLines } from "./clip-store"
+import type { LineInput } from "./clip-store"
+
+/** One line as the editor sends it, with everything the caller does not care about filled in. */
+function line(over: Partial<LineInput>): LineInput {
+  return {
+    kind: "action",
+    subjectIds: [],
+    text: "",
+    language: null,
+    offScreen: false,
+    crossesCut: false,
+    cutOff: false,
+    ...over,
+  }
+}
 
 const migrationsFolder = join(__dirname, "../../../../resources/migrations")
 
@@ -114,11 +129,12 @@ describe("asset store", () => {
       description: "an elderly man",
     })
     const shotId = insertShot(handle.db, clip.id)
-    setShotThings(handle.db, shotId, [subject.id])
+    setShotLines(handle.db, shotId, [line({ kind: "shows", subjectIds: [subject.id] })])
 
     deleteAsset(handle.db, dir, subject.id)
 
     expect(listCast(handle.db, clip.id)).toEqual([])
+    expect(readComposition(handle.db, clip.id).shots[0].lines[0].subjectIds).toEqual([])
   })
 
   it("copies a saved subject into a clip, leaving the saved one alone", () => {

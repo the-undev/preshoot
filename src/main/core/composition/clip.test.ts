@@ -4,6 +4,7 @@ import {
   shotStartMs,
   speakerLabelOf,
   speakingOrder,
+  subjectIdsOf,
   subjectOf,
   type ClipComposition,
   type LineComposition,
@@ -33,7 +34,6 @@ function shot(id: number, durationMs: number): ShotComposition {
     speed: null,
     transition: null,
     lighting: null,
-    things: [],
     lines: [action(id, `Shot ${id} happens.`)],
     soundNote: "",
   }
@@ -118,5 +118,25 @@ describe("speakingOrder", () => {
   it("leaves out a subject that never says anything", () => {
     expect(speakingOrder(composition)).toEqual([])
     expect(speakerLabelOf(composition, 7)).toBeNull()
+  })
+})
+
+describe("subjectIdsOf", () => {
+  it("names each subject once, in the order the lines first name it", () => {
+    const shown = {
+      ...shot(1, 4000),
+      lines: [
+        { ...action(1, ""), kind: "shows" as const, subjectIds: [9] },
+        { ...action(2, "climbs the steps"), subjectIds: [7] },
+        { ...action(3, "reaches for the lamp"), subjectIds: [7] },
+        action(4, "rain runs down the glass"),
+      ],
+    }
+
+    expect(subjectIdsOf(shown)).toEqual([9, 7])
+  })
+
+  it("names nobody for a shot whose lines are all about the scene", () => {
+    expect(subjectIdsOf(shot(1, 4000))).toEqual([])
   })
 })

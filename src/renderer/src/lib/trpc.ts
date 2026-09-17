@@ -98,5 +98,8 @@ export type LineComposition = ShotComposition["lines"][number]
 /** One line as the editor sends it back, which is a stored one without its id or its names. */
 export type LineInput = RouterInputs["clips"]["updateShot"]["lines"][number]
 
+/** What a line of a shot is: something shown, something that happens, or something said. */
+export type LineKind = LineInput["kind"]
+
 /** The words the clip's target accepts, for the pickers in the editor. */
 export type Vocabularies = RouterOutputs["clips"]["vocabularies"]

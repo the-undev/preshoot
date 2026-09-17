@@ -1,6 +1,6 @@
 import { useState } from "react"
 import { useQuery } from "@tanstack/react-query"
-import { createFileRoute, useNavigate } from "@tanstack/react-router"
+import { createFileRoute } from "@tanstack/react-router"
 import { Alert, AlertDescription, ConfirmDialog } from "@renderer/design-system"
 import { useAssetImages } from "@renderer/features/assets/use-asset-images"
 import { useAssets } from "@renderer/features/assets/use-assets"
@@ -108,7 +108,7 @@ function Workspace(): React.JSX.Element {
       )}
 
       {clipId === null ? (
-        <main className="mx-auto min-h-0 w-full max-w-[1400px] flex-1 overflow-hidden p-8">
+        <main className="mx-auto min-h-0 w-full max-w-[1920px] flex-1 overflow-hidden p-8">
           <ClipList
             clips={clips.clips}
             onCreate={startClip}
@@ -138,18 +138,19 @@ interface OpenClipProps {
 /** The clip being written, and the prompt it makes as it is written. */
 function OpenClip({ clipId, tab, onBranched }: OpenClipProps): React.JSX.Element {
   const clip = useClip(clipId)
+  // The shot just added, which the editor opens, scrolls to and puts the cursor in.
+  const [showing, setShowing] = useState<number | null>(null)
   const [naming, setNaming] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const library = useAssets()
   const pictures = useAssetImages()
   const exporting = useExportPrompt(clipId)
-  const navigate = useNavigate()
   const trpc = useTRPC()
   const shapes = useQuery(trpc.clips.aspectRatios.queryOptions())
   const savedShots = useQuery(trpc.clips.savedShots.queryOptions())
 
   useShortcuts({
-    addShot: clip.addShot,
+    addShot: () => clip.addShot(setShowing),
     copyPrompt: () => {
       if (clip.prompt?.ready) void navigator.clipboard.writeText(clip.prompt.rendered)
     },
@@ -212,27 +213,28 @@ function OpenClip({ clipId, tab, onBranched }: OpenClipProps): React.JSX.Element
         />
       )}
 
-      <main className="mx-auto grid min-h-0 w-full max-w-[1400px] flex-1 gap-8 overflow-hidden p-8 xl:grid-cols-2">
+      {/* The editor takes two thirds: the prompt beside it is read, not worked in. The band fills
+          a 1080p screen and stops there, so the ultrawide does not stretch a line across a metre. */}
+      <main className="mx-auto grid min-h-0 w-full max-w-[1920px] flex-1 gap-8 overflow-hidden p-8 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
         <section className="flex min-h-0 min-w-0 flex-col gap-4 overflow-y-auto pr-2">
           <ClipEditor
             composition={clip.composition}
             vocabularies={clip.vocabularies}
-            library={library.assets}
             isSaving={clip.isSaving}
-            onAddShot={clip.addShot}
+            showShot={showing}
+            onAddShot={() => clip.addShot(setShowing)}
             onShotChange={clip.updateShot}
             onMoveShot={clip.moveShot}
             onRemoveShot={clip.removeShot}
             onSaveShot={clip.saveShot}
             savedShots={savedShots.data ?? []}
-            onAddSavedShot={clip.addSavedShot}
+            onAddSavedShot={(savedShotId) => clip.addSavedShot(savedShotId, setShowing)}
             saved={library.assets}
             speaking={speaking}
             onAddSubject={clip.addSubject}
             onUpdateSubject={clip.updateSubject}
             onSaveSubject={clip.saveSubject}
             onRemoveSubject={clip.removeSubject}
-            onAddPeople={() => void navigate({ to: "/project/library" })}
           />
 
           {clip.errorMessage && (

@@ -21,3 +21,11 @@ globalThis.ResizeObserver ??= class {
     return
   }
 }
+
+/**
+ * jsdom has no scrollIntoView. Nothing in it scrolls, so what a real one would do here is nothing,
+ * and code that brings an element into view can still be tested for everything else it does.
+ */
+Element.prototype.scrollIntoView ??= function scrollIntoView(): void {
+  return
+}

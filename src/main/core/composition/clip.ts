@@ -14,22 +14,23 @@ export interface SubjectComposition {
   voice: string | null
 }
 
-/** What a line of a shot is: something someone does, or something someone says. */
-export type LineKind = "action" | "speech"
+/** What a line of a shot is: something the shot shows, something someone does, or something said. */
+export type LineKind = "shows" | "action" | "speech"
 
-/** Both kinds, for the picker and for what the router will accept. */
-export const LINE_KINDS: LineKind[] = ["action", "speech"]
+/** Every kind, for the menu and for what the router will accept. */
+export const LINE_KINDS: LineKind[] = ["shows", "action", "speech"]
 
 /**
- * One thing that happens in a shot. An action belongs to one of the shot's subjects or to nobody
- * in particular, which means the scene. Speech is kept verbatim because the target reproduces it
- * word for word, and can be shared by several speakers, spoken off screen, carried across the cut
- * that follows it, or cut off by the end of the clip.
+ * One line of a shot. A `shows` line names a subject the shot puts on screen, and its text adds
+ * whatever is true of it here. An action belongs to one of the clip's subjects or to nobody in
+ * particular, which means the scene. Speech is kept verbatim because the target reproduces it word
+ * for word, and can be shared by several speakers, spoken off screen, carried across the cut that
+ * follows it, or cut off by the end of the clip.
  */
 export interface LineComposition {
   id: number
   kind: LineKind
-  /** Who the line is about: nobody for the scene, one for an action, one or more for speech. */
+  /** Who it is about: nobody for the scene, one to show or to act, one or more to speak. */
   subjectIds: number[]
   text: string
   /** Nothing unless this line is spoken in another language than the rest of the clip. */
@@ -40,9 +41,9 @@ export interface LineComposition {
 }
 
 /**
- * One shot: how long it lasts, how it is shot, what it shows, what happens in it and what is
- * said. The motion, amplitude, speed, transition and lighting hold values from the target's
- * vocabularies.
+ * One shot: how long it lasts, how it is shot, and its lines, which are everything it shows, does
+ * and says in the order they were written. The motion, amplitude, speed, transition and lighting
+ * hold values from the target's vocabularies.
  */
 export interface ShotComposition {
   id: number
@@ -52,7 +53,6 @@ export interface ShotComposition {
   speed: string | null
   transition: string | null
   lighting: string | null
-  things: SubjectComposition[]
   lines: LineComposition[]
   soundNote: string
 }
@@ -137,6 +137,17 @@ export function speakingOrder(composition: ClipComposition): number[] {
     }
   }
   return order
+}
+
+/** The subjects a shot names, in the order its lines first name them. */
+export function subjectIdsOf(shot: ShotComposition): number[] {
+  const named: number[] = []
+  for (const line of shot.lines) {
+    for (const id of line.subjectIds) {
+      if (!named.includes(id)) named.push(id)
+    }
+  }
+  return named
 }
 
 /** What the prompt calls a subject that speaks, such as `S1`. */

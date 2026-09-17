@@ -102,11 +102,11 @@ describe("the migration to a cast the clip owns", () => {
       .from(schema.assets)
       .all()
       .find((asset) => asset.clipId === 1)
-    const shown = handle.db.select().from(schema.shotAssets).all()
     const lines = handle.db.select().from(schema.shotLines).all()
+    const shown = lines.find((line) => line.shotId === 1 && line.kind === "shows")
 
     expect(own).toBeDefined()
-    expect(shown.find((entry) => entry.shotId === 1)?.assetId).toBe(own?.id)
+    expect(shown?.subjectIds).toEqual([own?.id])
     expect(lines.find((line) => line.text === "climbs the steps")?.subjectIds).toEqual([own?.id])
     handle.close()
   })

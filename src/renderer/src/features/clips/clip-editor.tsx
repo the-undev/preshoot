@@ -1,13 +1,5 @@
 import { Plus } from "lucide-react"
-import {
-  Button,
-  FieldHelp,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@renderer/design-system"
+import { Button, FieldHelp } from "@renderer/design-system"
 import type { Asset, ClipComposition, SavedShot, Vocabularies } from "@renderer/lib/trpc"
 import type { SubjectEdit } from "./use-clip"
 import { clipReadiness } from "./readiness"
@@ -21,8 +13,9 @@ const MAX_CLIP_SECONDS = 15
 interface ClipEditorProps {
   composition: ClipComposition
   vocabularies: Vocabularies
-  library: Asset[]
   isSaving: boolean
+  /** The shot just added, which the list opens and takes the user to. */
+  showShot: number | null
   onAddShot: () => void
   onShotChange: (shotId: number, fields: ShotFields) => void
   onMoveShot: (shotId: number, toPosition: number) => void
@@ -36,15 +29,14 @@ interface ClipEditorProps {
   onUpdateSubject: (subjectId: number, fields: SubjectEdit) => void
   onSaveSubject: (subjectId: number) => void
   onRemoveSubject: (subjectId: number) => void
-  onAddPeople: () => void
 }
 
 /** The voices and the shots of a clip, which is what a clip is worked on through. */
 export function ClipEditor({
   composition,
   vocabularies,
-  library,
   isSaving,
+  showShot,
   onAddShot,
   onShotChange,
   onMoveShot,
@@ -58,7 +50,6 @@ export function ClipEditor({
   onUpdateSubject,
   onSaveSubject,
   onRemoveSubject,
-  onAddPeople,
 }: ClipEditorProps): React.JSX.Element {
   const seconds = composition.shots.reduce((total, shot) => total + shot.durationMs, 0) / 1000
   const tooLong = seconds > MAX_CLIP_SECONDS
@@ -66,7 +57,7 @@ export function ClipEditor({
 
   return (
     <div className="flex min-w-0 flex-col gap-6">
-      <section className="flex flex-col gap-2">
+      <section className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2">
         <div className="flex items-center gap-1.5">
           <h2 className="font-heading text-sm font-semibold text-muted-foreground">Cast</h2>
           <FieldHelp label="the cast">
@@ -98,14 +89,25 @@ export function ClipEditor({
 
         <ShotList
           shots={composition.shots}
+          subjects={composition.cast}
           speakers={composition.cast.filter((subject) => subject.kind === "person")}
-          library={library}
           vocabularies={vocabularies}
+          showShot={showShot}
+          menu={{
+            vocabularies,
+            savedShots,
+            onAddSavedShot,
+            savedSubjects: saved,
+            onAddSavedSubject: (savedId) =>
+              onAddSubject({ savedId, kind: "person", name: "", description: "" }),
+            onAddSubject: (name) =>
+              onAddSubject({ savedId: null, kind: "person", name, description: "" }),
+            onNewShot: onAddShot,
+          }}
           onChange={onShotChange}
           onMove={onMoveShot}
           onRemove={onRemoveShot}
           onSave={onSaveShot}
-          onAddPeople={onAddPeople}
         />
 
         <div className="flex flex-wrap items-center gap-2">
@@ -119,21 +121,6 @@ export function ClipEditor({
           >
             <Plus className="size-4" />
           </Button>
-
-          {savedShots.length > 0 && (
-            <Select value="" onValueChange={(value) => onAddSavedShot(Number(value))}>
-              <SelectTrigger aria-label="Add a saved shot" className="w-52 min-w-0">
-                <SelectValue placeholder="From the library" />
-              </SelectTrigger>
-              <SelectContent>
-                {savedShots.map((shot) => (
-                  <SelectItem key={shot.id} value={String(shot.id)}>
-                    {shot.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
         </div>
       </section>
 

@@ -6,10 +6,9 @@ import {
   type LineInput,
   type Vocabularies,
 } from "@renderer/lib/trpc"
-import type { SubjectFields } from "./clip-cast"
+import type { SubjectEdit, SubjectFields } from "./clip-cast"
 
-/** One of the cast as the editor sends it back, which always says how they sound. */
-export type SubjectEdit = Omit<SubjectFields, "savedId"> & { voice: string }
+export type { SubjectEdit }
 
 /** Everything one shot holds, as the editor sends it back. */
 export interface ShotFields {
@@ -20,8 +19,12 @@ export interface ShotFields {
   transition: string | null
   lighting: string | null
   soundNote: string
-  things: number[]
   lines: LineInput[]
+}
+
+/** The shot a clip was just given, which is always the one on the end. */
+function lastShotIn(composition: ClipComposition): number {
+  return composition.shots[composition.shots.length - 1].id
 }
 
 /** The clip's own fields, without its shots. Its name is set by saving it, not by editing it. */
@@ -51,8 +54,9 @@ export interface ClipPanel {
   branch(opened: (clipId: number) => void): void
   isSaved: boolean
   setFrame(role: "first" | "last", imageId: number | null): void
-  addShot(): void
-  addSavedShot(savedShotId: number): void
+  /** Adds a shot and says which one, so the editor can take the user to it. */
+  addShot(added: (shotId: number) => void): void
+  addSavedShot(savedShotId: number, added: (shotId: number) => void): void
   saveShot(shotId: number, name: string): void
   updateShot(shotId: number, fields: ShotFields): void
   moveShot(shotId: number, toPosition: number): void
@@ -159,8 +163,13 @@ export function useClip(clipId: number): ClipPanel {
     branch: (opened) => branch.mutate({ id: clipId }, { onSuccess: (copy) => opened(copy.id) }),
     isSaved: (composition.data?.name ?? null) !== null,
     setFrame: (role, imageId) => setFrame.mutate({ clipId, role, imageId }),
-    addShot: () => addShot.mutate({ clipId }),
-    addSavedShot: (savedShotId) => addSavedShot.mutate({ clipId, savedShotId }),
+    addShot: (added) =>
+      addShot.mutate({ clipId }, { onSuccess: (composition) => added(lastShotIn(composition)) }),
+    addSavedShot: (savedShotId, added) =>
+      addSavedShot.mutate(
+        { clipId, savedShotId },
+        { onSuccess: (composition) => added(lastShotIn(composition)) }
+      ),
     saveShot: (shotId, name) => saveShot.mutate({ shotId, name }),
     updateShot: (shotId, fields) => updateShot.mutate({ shotId, ...fields }),
     moveShot: (shotId, toPosition) => moveShot.mutate({ shotId, toPosition }),

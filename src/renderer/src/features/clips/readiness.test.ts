@@ -26,7 +26,6 @@ function shot(id: number, text: string): ShotComposition {
     speed: null,
     transition: null,
     lighting: null,
-    things: [],
     lines: [line(id, text)],
     soundNote: "",
   }

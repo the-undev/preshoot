@@ -26,6 +26,7 @@ export {
 } from "./ui/dialog"
 export { Input } from "./ui/input"
 export { Label } from "./ui/label"
+export { Popover, PopoverAnchor, PopoverContent, PopoverTrigger } from "./ui/popover"
 export { ScrollArea, ScrollBar } from "./ui/scroll-area"
 export {
   Select,

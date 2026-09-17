@@ -8,7 +8,6 @@ import {
   type ClipComposition,
   type LineComposition,
   type ShotComposition,
-  type SubjectComposition,
 } from "../../composition/clip"
 import type { BodyLength, PromptTarget, TargetFields, Vocabularies } from "../target"
 
@@ -137,6 +136,22 @@ const CAMERA_SENTENCES: Record<string, string> = {
   "roll counterclockwise": "The camera rolls counterclockwise",
 }
 
+/**
+ * The transition as a sentence that stands on its own, for a shot with nothing to cut to. The
+ * vocabulary is written to run into what follows, and taking the `to` off the end leaves wording
+ * like `the shot changes` that says nothing, so each is written out instead.
+ */
+const TRANSITION_SENTENCES: Record<string, string> = {
+  "the camera cuts to": "the camera cuts",
+  "the shot cuts to": "the shot cuts",
+  "the shot transitions to": "the shot changes",
+  "the shot changes to": "the shot changes",
+  "the shot switches to": "the shot changes",
+  "the shot cross-dissolves to": "there is a cross-dissolve",
+  "the shot fades to": "there is a fade",
+  "the shot wipes to": "there is a wipe",
+}
+
 /** One of the phrases the guide gives for saying that speech carries over a cut. */
 const CONTINUES_ACROSS_CUT = "The line continues seamlessly across the cut."
 
@@ -189,9 +204,13 @@ function speakerLabel(composition: ClipComposition, line: LineComposition): stri
   return labels.length > 0 ? `(${labels.join(",")})` : "(S1)"
 }
 
-/** The lines of `shot` that have something in them. A line being typed has nothing yet. */
+/** The lines of `shot` that say something. A line being typed says nothing yet. */
 function writtenLines(shot: ShotComposition): LineComposition[] {
-  return shot.lines.filter((line) => line.text.trim().length > 0)
+  return shot.lines.filter((line) =>
+    line.kind === "shows"
+      ? line.subjectIds.length > 0 || line.text.trim().length > 0
+      : line.text.trim().length > 0
+  )
 }
 
 /** Lowers an opening article so the prose reads on from the phrase written before it. */
@@ -204,12 +223,28 @@ function lowerOpeningArticle(text: string): string {
  * marker for a line that crosses a cut or runs past the end of the clip goes after the closing
  * tag rather than inside the span the model reproduces.
  */
-function spokenSentence(composition: ClipComposition, line: LineComposition): string {
-  const speaker = subjectOf(composition, line.subjectIds[0])
-  // The voice is what the prompt has to fix, and it falls back to how they look when none is given.
-  const said = speaker?.voice?.trim() ?? speaker?.description.trim()
-  const who = [said, speakerLabel(composition, line)]
-    .filter((part) => part && part.length > 0)
+function spokenSentence(
+  composition: ClipComposition,
+  introduced: Introduced,
+  line: LineComposition
+): string {
+  const speakerId = line.subjectIds[0]
+  const speaker = subjectOf(composition, speakerId)
+  const voice = speaker?.voice?.trim() ?? ""
+  /*
+   * The voice is what the prompt has to fix, and how they look stands in for it when none is
+   * given. A speaker with a voice is not described here, and is not counted as described, so the
+   * first line that does something with them still says how they look.
+   */
+  const reference =
+    voice.length > 0
+      ? { name: speaker?.name ?? "", aside: voice }
+      : referTo(composition, introduced, speakerId)
+  const who = [
+    [reference.name, reference.aside].filter(Boolean).join(", "),
+    speakerLabel(composition, line),
+  ]
+    .filter((part) => part.length > 0)
     .join(" ")
   const says = line.offScreen ? "says in an off-screen voiceover" : "says"
   const language = line.language ?? composition.language
@@ -224,7 +259,14 @@ function spokenSentence(composition: ClipComposition, line: LineComposition): st
   if (line.offScreen) {
     parts.push("Their lips remain closed.")
   }
-  return parts.join(" ")
+  /*
+   * A spoken line is a sentence like any other, so it is closed off and whatever follows reads as
+   * its own. The stop goes after the closing tag, never inside it, because the model reproduces
+   * what the tag holds word for word, and only when the words do not close themselves, so a line
+   * typed as a sentence does not come out with two stops around its tag.
+   */
+  const written = parts.join(" ")
+  return /[.!?]$/.test(line.text.trim()) ? written : sentence(written)
 }
 
 /**
@@ -234,74 +276,126 @@ function spokenSentence(composition: ClipComposition, line: LineComposition): st
  */
 type Introduced = Set<number>
 
-/** Everything of `shot` that has not been described yet, in the order the shot holds it. */
-function newThings(shot: ShotComposition, introduced: Introduced): SubjectComposition[] {
-  return shot.things.filter((thing) => !introduced.has(thing.id))
+/** How a subject is referred to: always by name, with how it looks the first time it is named. */
+interface Reference {
+  name: string
+  /** How they look, said once and set off by commas. Empty after the first time, and for nobody. */
+  aside: string
 }
 
-/** Whether a subject is named by a line of this shot, and so will be described by one. */
-function actsInShot(shot: ShotComposition, thing: SubjectComposition): boolean {
-  return writtenLines(shot).some((line) => line.subjectIds.includes(thing.id))
+/** The reference for `subjectId`, which is what marks it as described from here on. */
+function referTo(
+  composition: ClipComposition,
+  introduced: Introduced,
+  subjectId: number
+): Reference {
+  const subject = subjectOf(composition, subjectId)
+  if (!subject) return { name: "", aside: "" }
+  if (introduced.has(subject.id)) return { name: subject.name, aside: "" }
+  introduced.add(subject.id)
+  return { name: subject.name, aside: subject.description.trim() }
 }
 
 /**
- * What the shot opens on: its places and props, and the light they are in. The subjects who do
- * something are left out, because each is described by the first line it does something in.
+ * A subject at the head of a sentence, with how it looks set off by commas. The name is always
+ * there: a description alone leaves the sentence with nothing doing the acting, and one written
+ * as `wearing a space suit` rather than as `a man in a space suit` reads as nonsense without it.
  */
-function openingComposition(shot: ShotComposition, introduced: Introduced): string {
-  const scene = newThings(shot, introduced)
-    .filter((thing) => !actsInShot(shot, thing))
-    .map((thing) => {
-      introduced.add(thing.id)
-      return thing.description.trim()
-    })
-    .filter((description) => description.length > 0)
-
-  const lit = shot.lighting ? (LIGHTING_PHRASES[shot.lighting] ?? `in ${shot.lighting}`) : ""
-  const opening = [scene.join(", "), lit].filter(Boolean).join(", ")
-  return opening.length > 0 ? sentence(capitalise(opening)) : ""
+function subjectPhrase(reference: Reference): string {
+  if (reference.name.length === 0) return ""
+  return reference.aside.length > 0 ? `${reference.name}, ${reference.aside},` : reference.name
 }
 
-/** How a line names whoever it is about: by describing them the first time, by name after that. */
-function nameIn(composition: ClipComposition, introduced: Introduced, subjectId: number): string {
-  const subject = subjectOf(composition, subjectId)
-  if (!subject) return ""
-  if (introduced.has(subject.id)) return subject.name
-  introduced.add(subject.id)
-  const description = subject.description.trim()
-  return description.length > 0 ? capitalise(description) : subject.name
+/**
+ * What a `shows` line puts on screen, with `lighting` when it is the line the shot opens on.
+ * Nothing at all when the subject was described earlier and this line adds nothing to it.
+ */
+function shownSentence(
+  composition: ClipComposition,
+  introduced: Introduced,
+  line: LineComposition,
+  lighting: string
+): string {
+  const extra = line.text.trim()
+  const subjectId = line.subjectIds[0]
+  // A line naming nobody is whatever was typed on it, which is how a shot says what it opens on
+  // without first making a cast member of it.
+  if (subjectId === undefined) {
+    if (extra.length === 0) return ""
+    return sentence(capitalise([extra, lighting].filter(Boolean).join(", ")))
+  }
+
+  const described = introduced.has(subjectId)
+  const reference = referTo(composition, introduced, subjectId)
+  if (reference.name.length === 0) return ""
+  if (described && extra.length === 0 && lighting.length === 0) return ""
+  return sentence(
+    capitalise([reference.name, reference.aside, extra, lighting].filter(Boolean).join(", "))
+  )
 }
 
-/** Everything inside one shot, written from the composition alone. */
+/** The light as it is said in prose. Nothing when the shot names none. */
+function lightingPhrase(shot: ShotComposition): string {
+  if (!shot.lighting) return ""
+  return LIGHTING_PHRASES[shot.lighting] ?? `in ${shot.lighting}`
+}
+
+/** A shot written out, and whether a transition can run straight into it. */
+interface ShotProse {
+  text: string
+  /** Whether it opens on what the shot shows, which reads on from `the camera cuts to`. */
+  opensOnWhatItShows: boolean
+}
+
+/**
+ * Everything inside one shot, written from the composition alone. The lines are taken in the order
+ * they were written, so a shot says what it shows where the writer put it.
+ */
 function describeShot(
   composition: ClipComposition,
   shotId: number,
   introduced: Introduced
-): string {
+): ShotProse {
   const shot = composition.shots.find((entry) => entry.id === shotId)
   if (!shot) {
     throw new Error(`Shot ${shotId} is not in clip ${composition.id}`)
   }
 
-  const sentences = [openingComposition(shot, introduced), cameraSentence(shot)]
+  const lighting = lightingPhrase(shot)
+  const sentences: string[] = []
+  let opensOnWhatItShows = false
 
-  // Then what happens, in the order it was written, which is where the dialogue sits as well.
-  for (const line of writtenLines(shot)) {
-    if (line.kind === "speech") {
-      sentences.push(spokenSentence(composition, line))
-      continue
+  writtenLines(shot).forEach((line, index) => {
+    if (line.kind === "shows") {
+      // The light belongs to the sentence the shot opens on, where it reads as part of the scene.
+      const shown = shownSentence(composition, introduced, line, index === 0 ? lighting : "")
+      if (shown.length === 0) return
+      sentences.push(shown)
+      if (index === 0) {
+        opensOnWhatItShows = true
+        sentences.push(cameraSentence(shot))
+      }
+      return
     }
+
+    if (line.kind === "speech") {
+      sentences.push(spokenSentence(composition, introduced, line))
+      return
+    }
+
     const named = line.subjectIds[0]
-    const who = named === undefined ? "" : `${nameIn(composition, introduced, named)} `
-    sentences.push(sentence(capitalise(`${who}${line.text}`)))
+    const who =
+      named === undefined ? "" : `${subjectPhrase(referTo(composition, introduced, named))} `
+    sentences.push(sentence(capitalise(`${who.trimStart()}${line.text}`)))
+  })
+
+  // A shot that opens on something else still has to say how it is lit and how it is shot.
+  if (!opensOnWhatItShows) {
+    sentences.unshift(cameraSentence(shot))
+    if (lighting.length > 0) sentences.unshift(sentence(`The shot is ${lighting}`))
   }
 
-  // Anything the shot shows and nothing says a word about still has to be described.
-  for (const thing of newThings(shot, introduced)) {
-    introduced.add(thing.id)
-    sentences.push(sentence(capitalise(thing.description)))
-  }
-  return sentences.filter(Boolean).join(" ")
+  return { text: sentences.filter(Boolean).join(" "), opensOnWhatItShows }
 }
 
 /** Everything heard in the clip that is not spoken, gathered from the shots that name it. */
@@ -319,14 +413,20 @@ function assemble(composition: ClipComposition): TargetFields {
   const introduced: Introduced = new Set()
 
   const body = composition.shots.map((shot, index) => {
-    const text = describeShot(composition, shot.id, introduced)
+    const prose = describeShot(composition, shot.id, introduced)
     if (index === 0) {
       // A clip whose style has been emptied still opens on shot one, just without it.
-      return ["[Shot 1]", sentence(composition.style), text].filter(Boolean).join(" ")
+      return ["[Shot 1]", sentence(composition.style), prose.text].filter(Boolean).join(" ")
     }
     const start = formatCutTime(shotStartMs(composition, shot.id))
     const transition = shot.transition ?? DEFAULT_TRANSITION
-    return `[Shot ${index + 1}] At ${start}, ${transition} ${lowerOpeningArticle(text)}`
+    if (prose.opensOnWhatItShows) {
+      return `[Shot ${index + 1}] At ${start}, ${transition} ${lowerOpeningArticle(prose.text)}`
+    }
+    // Nothing follows the cut for it to land on, so the cut is written as a sentence of its own.
+    const alone = TRANSITION_SENTENCES[transition] ?? transition.replace(/\s+to$/, "")
+    const cut = sentence(`At ${start}, ${alone}`)
+    return [`[Shot ${index + 1}]`, cut, prose.text].filter(Boolean).join(" ")
   })
 
   return {

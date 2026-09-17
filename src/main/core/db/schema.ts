@@ -1,4 +1,4 @@
-import { integer, primaryKey, sqliteTable, text } from "drizzle-orm/sqlite-core"
+import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core"
 
 /** Project-level key/value settings such as default target model and clip length. */
 export const projectSettings = sqliteTable("project_settings", {
@@ -112,21 +112,6 @@ export const shotLines = sqliteTable("shot_lines", {
   crossesCut: integer("crosses_cut", { mode: "boolean" }).notNull().default(false),
   cutOff: integer("cut_off", { mode: "boolean" }).notNull().default(false),
 })
-
-/** Which library things a shot shows. Restricted, so a thing in use cannot vanish under a clip. */
-export const shotAssets = sqliteTable(
-  "shot_assets",
-  {
-    shotId: integer("shot_id")
-      .notNull()
-      .references(() => shots.id, { onDelete: "cascade" }),
-    assetId: integer("asset_id")
-      .notNull()
-      .references(() => assets.id, { onDelete: "cascade" }),
-    position: integer("position").notNull(),
-  },
-  (table) => [primaryKey({ columns: [table.shotId, table.assetId] })]
-)
 
 /**
  * The tabs open in the workspace, left to right. A tab with no clip shows the list of clips, so

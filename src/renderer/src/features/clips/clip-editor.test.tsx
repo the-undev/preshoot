@@ -41,7 +41,6 @@ function shot(id: number, durationMs: number): ShotComposition {
     speed: null,
     transition: null,
     lighting: null,
-    things: [],
     lines: [action(id, `Shot ${id}`)],
     soundNote: "",
   }
@@ -70,8 +69,8 @@ function renderEditor(over: Partial<React.ComponentProps<typeof ClipEditor>> = {
     <ClipEditor
       composition={composition}
       vocabularies={vocabularies}
-      library={[]}
       isSaving={false}
+      showShot={null}
       onAddShot={onAddShot}
       onShotChange={vi.fn()}
       onMoveShot={vi.fn()}
@@ -85,7 +84,6 @@ function renderEditor(over: Partial<React.ComponentProps<typeof ClipEditor>> = {
       onUpdateSubject={vi.fn()}
       onSaveSubject={vi.fn()}
       onRemoveSubject={vi.fn()}
-      onAddPeople={vi.fn()}
       {...over}
     />
   )

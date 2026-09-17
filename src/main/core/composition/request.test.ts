@@ -11,7 +11,6 @@ function shot(id: number, durationMs: number): ShotComposition {
     speed: null,
     transition: null,
     lighting: null,
-    things: [],
     lines: [
       {
         id,

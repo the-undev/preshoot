@@ -17,6 +17,11 @@ function action(text: string, subjectId: number | null = null): LineComposition 
   }
 }
 
+/** A subject the shot puts on screen, with whatever is true of it here. */
+function shows(subjectId: number, text = ""): LineComposition {
+  return { ...action(text), kind: "shows", subjectIds: [subjectId] }
+}
+
 /** Something said, by the subjects given. */
 function speech(text: string, over: Partial<LineComposition> = {}): LineComposition {
   return { ...action(text), kind: "speech", subjectIds: [7], ...over }
@@ -42,7 +47,6 @@ function shot(
     speed: null,
     transition: null,
     lighting: null,
-    things: [],
     lines: [action(`Something happens in shot ${id}`)],
     soundNote: "",
     ...over,
@@ -82,15 +86,6 @@ const composition: ClipComposition = {
       amplitude: "with small amplitude",
       speed: "at slow speed",
       lighting: "night",
-      things: [
-        {
-          id: 5,
-          kind: "person",
-          name: "Keeper",
-          description: "an elderly man in oilskins",
-          voice: null,
-        },
-      ],
       lines: [action("climbs the last steps of the tower", 5), speech("Almost there.")],
       soundNote: "wind battering the glass",
     }),
@@ -99,6 +94,15 @@ const composition: ClipComposition = {
       lines: [action("the lamp turns and catches")],
     }),
   ],
+}
+
+/** A place to show, which the clip's own fixture does not hold. */
+const cellar = {
+  id: 6,
+  kind: "place",
+  name: "Cellar",
+  description: "a low brick cellar",
+  voice: null,
 }
 
 /** The clip's main field, which is where everything a shot says ends up. */
@@ -129,10 +133,12 @@ describe("formatCutTime", () => {
 })
 
 describe("what a shot says", () => {
-  it("describes a subject in the line it first does something in, rather than up front", () => {
+  it("names a subject and says how it looks in the line that first names it", () => {
     const written = body()
 
-    expect(written).toContain("An elderly man in oilskins climbs the last steps of the tower.")
+    expect(written).toContain(
+      "Keeper, an elderly man in oilskins, climbs the last steps of the tower."
+    )
     expect(written).not.toContain("Keeper: an elderly man in oilskins.")
   })
 
@@ -145,41 +151,99 @@ describe("what a shot says", () => {
       ],
     })
 
-    expect(written).toContain("An elderly man in oilskins climbs the steps.")
+    expect(written).toContain("Keeper, an elderly man in oilskins, climbs the steps.")
     expect(written).toContain("Keeper reaches for the lamp.")
   })
 
   it("writes the light and the camera as prose rather than as labels", () => {
     const written = body()
     const place = body({
-      shots: [
-        shot(11, 4000, {
-          lighting: "candlelight",
-          things: [
-            {
-              id: 6,
-              kind: "place",
-              name: "Cellar",
-              description: "a low brick cellar",
-              voice: null,
-            },
-          ],
-        }),
-      ],
+      cast: [...composition.cast, cellar],
+      shots: [shot(11, 4000, { lighting: "candlelight", lines: [shows(6)] })],
     })
 
-    expect(place).toContain("A low brick cellar, by candlelight.")
+    expect(place).toContain("Cellar, a low brick cellar, by candlelight.")
 
-    expect(written).toContain("At night.")
+    expect(written).toContain("The shot is at night.")
     expect(written).toContain("The camera pushes in with small amplitude at slow speed.")
     expect(written).not.toContain("The lighting is")
     expect(written).not.toContain("Camera:")
   })
 
-  it("writes the dialogue with the speaker it was given", () => {
+  it("describes what a shot shows once, and names it when a later shot shows it again", () => {
+    const written = body({
+      cast: [...composition.cast, cellar],
+      shots: [
+        shot(11, 4000, { lines: [shows(6), action("a draught moves the air")] }),
+        shot(12, 3000, { lines: [shows(6, "colder now"), action("the door swings shut")] }),
+      ],
+    })
+
+    expect(written).toContain("Cellar, a low brick cellar.")
+    expect(written).toContain("Cellar, colder now.")
+  })
+
+  it("writes a line that shows something in its own words, with the light", () => {
+    const written = body({
+      shots: [
+        shot(11, 4000, {
+          lighting: "night",
+          lines: [{ ...shows(0), subjectIds: [], text: "a cramped lamp room" }],
+        }),
+      ],
+    })
+
+    expect(written).toContain("A cramped lamp room, at night.")
+  })
+
+  it("leaves out a line that shows nobody and says nothing", () => {
+    const written = body({
+      shots: [shot(11, 4000, { lines: [{ ...shows(0), subjectIds: [], text: "  " }] })],
+    })
+
+    expect(written).toBe("[Shot 1] Live-action, cinematic.")
+  })
+
+  it("says nothing for a shot showing again what it showed before and adding nothing", () => {
+    const written = body({
+      cast: [...composition.cast, cellar],
+      shots: [shot(11, 4000, { lines: [shows(6), shows(6), action("a draught moves the air")] })],
+    })
+
+    // Named once by the line that shows it, and not again by the line that shows it a second time.
+    expect(written.match(/cellar/gi)).toHaveLength(2)
+  })
+
+  it("writes the dialogue with the speaker it was given, named and with their voice", () => {
     expect(body()).toContain(
-      `The elderly keeper, low and weathered (S1) says: ${dialogueTag("English", "Almost there.")}`
+      `Radio, The elderly keeper, low and weathered (S1) says: ${dialogueTag("English", "Almost there.")}`
     )
+  })
+
+  it("says how a speaker with no voice of their own looks, once", () => {
+    const written = body({
+      cast: [{ ...composition.cast[1], voice: null }],
+      shots: [
+        shot(11, 4000, {
+          lines: [speech("Almost there."), speech("Say again.")],
+        }),
+      ],
+    })
+
+    expect(written).toContain("Radio, a radio on the sill (S1) says:")
+    expect(written).toContain("Radio (S1) says:")
+  })
+
+  it("still says how a speaker with a voice looks when a line does something with them", () => {
+    const written = body({
+      shots: [
+        shot(11, 4000, {
+          lines: [speech("Almost there."), action("crackles and cuts out", 7)],
+        }),
+      ],
+    })
+
+    expect(written).toContain("Radio, a radio on the sill, crackles and cuts out.")
   })
 
   it("names the subject a line belongs to", () => {
@@ -187,7 +251,7 @@ describe("what a shot says", () => {
       shots: [shot(11, 4000, { lines: [action("reaches for the lamp", 5)] })],
     })
 
-    expect(written).toContain("An elderly man in oilskins reaches for the lamp.")
+    expect(written).toContain("Keeper, an elderly man in oilskins, reaches for the lamp.")
   })
 
   it("says nothing about who when the line is about the scene", () => {
@@ -280,6 +344,41 @@ describe("what a line of dialogue says", () => {
     )
   })
 
+  it("closes off the sentence after the tag, not inside it", () => {
+    const open = body({
+      shots: [shot(11, 4000, { lines: [speech("Holy cow look at that view")] })],
+    })
+
+    expect(open).toContain(`${dialogueTag("English", "Holy cow look at that view")}.`)
+    expect(open).not.toContain("that view.</d>")
+  })
+
+  it("leaves a line that closes itself with one stop rather than two", () => {
+    expect(written({})).toContain(dialogueTag("English", "Almost there."))
+    expect(written({})).not.toContain(`${dialogueTag("English", "Almost there.")}.`)
+  })
+
+  it("runs the next line on as its own sentence rather than into the dialogue", () => {
+    const after = body({
+      shots: [
+        shot(11, 4000, {
+          lines: [speech("Holy cow look at that view"), action("the beam sweeps the water")],
+        }),
+      ],
+    })
+
+    expect(after).toContain(
+      `${dialogueTag("English", "Holy cow look at that view")}. The beam sweeps the water.`
+    )
+  })
+
+  it("does not close a sentence a marker has already closed", () => {
+    expect(written({ crossesCut: true })).toContain("continues seamlessly across the cut.")
+    expect(written({ crossesCut: true })).not.toContain("across the cut..")
+    expect(written({ cutOff: true })).not.toContain("over these words..")
+    expect(written({ offScreen: true })).not.toContain("lips remain closed..")
+  })
+
   it("leaves out a line with nothing typed in it yet", () => {
     expect(written({ text: "   " })).not.toContain("(S1) says:")
   })
@@ -290,26 +389,74 @@ describe("assembling the prompt", () => {
     const written = body()
 
     expect(written).toContain("[Shot 1] Live-action, cinematic.")
-    expect(written).toContain("[Shot 2] At 00:04.500, the shot cuts to")
+    expect(written).toContain("[Shot 2] At 00:04.500, the shot cuts.")
   })
 
   it("writes a plain camera cut when the shot names no transition", () => {
     expect(body({ shots: [composition.shots[0], shot(12, 3000)] })).toContain(
-      "[Shot 2] At 00:04.500, the camera cuts to"
+      "[Shot 2] At 00:04.500, the camera cuts."
     )
   })
 
   it("opens on shot one without the style when the style has been emptied", () => {
     const written = body({ style: "" })
 
-    expect(written.startsWith("[Shot 1] At night.")).toBe(true)
+    expect(written.startsWith("[Shot 1] The shot is at night.")).toBe(true)
   })
 
   it("lands a cut on what the shot shows rather than on a label", () => {
+    const written = body({
+      cast: [...composition.cast, cellar],
+      shots: [
+        composition.shots[0],
+        shot(12, 3000, {
+          transition: "the shot cuts to",
+          lines: [shows(6), action("the door swings shut")],
+        }),
+      ],
+    })
+
+    expect(written).toContain("[Shot 2] At 00:04.500, the shot cuts to Cellar, a low brick cellar.")
+    expect(written).not.toContain("cuts to Cellar:")
+  })
+
+  it("lands a cut on a line that shows something in its own words", () => {
+    const written = body({
+      shots: [
+        composition.shots[0],
+        shot(12, 3000, {
+          transition: "the camera cuts to",
+          lines: [
+            { ...shows(0), subjectIds: [], text: "the outside of the space station" },
+            action("the earth turns below"),
+          ],
+        }),
+      ],
+    })
+
+    expect(written).toContain(
+      "[Shot 2] At 00:04.500, the camera cuts to the outside of the space station."
+    )
+    expect(written).toContain("The earth turns below.")
+  })
+
+  it("cuts without an object when the shot does not open on what it shows", () => {
     const written = body()
 
-    expect(written).toContain("[Shot 2] At 00:04.500, the shot cuts to")
-    expect(written).not.toContain("cuts to Lamp:")
+    expect(written).toContain("[Shot 2] At 00:04.500, the shot cuts. The lamp turns and catches.")
+  })
+
+  it("writes a transition that stands on its own rather than one missing its object", () => {
+    const written = (transition: string): string =>
+      body({ shots: [composition.shots[0], shot(12, 3000, { transition })] })
+
+    expect(written("the shot changes to")).toContain("At 00:04.500, the shot changes.")
+    expect(written("the shot switches to")).toContain("At 00:04.500, the shot changes.")
+    expect(written("the shot fades to")).toContain("At 00:04.500, there is a fade.")
+    expect(written("the shot wipes to")).toContain("At 00:04.500, there is a wipe.")
+    expect(written("the shot cross-dissolves to")).toContain(
+      "At 00:04.500, there is a cross-dissolve."
+    )
   })
 
   it("gathers the sound of every shot into the soundscape", () => {

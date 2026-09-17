@@ -18,6 +18,12 @@ export const SHORTCUTS = [
   { id: "undo", keys: "ctrl+z", group: "Clips", label: "Undo the last change to this clip" },
   { id: "redo", keys: "ctrl+shift+z", group: "Clips", label: "Do it again" },
   { id: "addShot", keys: "ctrl+shift+n", group: "Clips", label: "Add a shot" },
+  {
+    id: "commandMenu",
+    keys: "ctrl+space",
+    group: "Clips",
+    label: "Open the command menu on a line",
+  },
   { id: "copyPrompt", keys: "ctrl+shift+c", group: "Clips", label: "Copy the prompt" },
   { id: "showShortcuts", keys: "?", group: "Help", label: "Show the keyboard shortcuts" },
 ] as const
@@ -49,8 +55,18 @@ export function shortcutKeys(shortcut: Shortcut): string[] {
     if (key === "shift") return "Shift"
     if (key === "alt") return "Alt"
     if (key === "tab") return "Tab"
+    if (key === "space") return "Space"
     return key.toUpperCase()
   })
+}
+
+/** One shortcut by name, for a handler that binds it itself rather than through `useShortcuts`. */
+export function shortcutNamed(id: ShortcutId): Shortcut {
+  const found = SHORTCUTS.find((shortcut) => shortcut.id === id)
+  if (!found) {
+    throw new Error(`No shortcut called ${id}`)
+  }
+  return found
 }
 
 /**
@@ -62,7 +78,8 @@ export function matchesShortcut(
   shortcut: Shortcut
 ): boolean {
   const parts = shortcut.keys.split("+")
-  const key = parts[parts.length - 1]
+  // The space bar reports itself as a space, which cannot be written in a list joined by plus.
+  const key = parts[parts.length - 1] === "space" ? " " : parts[parts.length - 1]
   if (event.key.toLowerCase() !== key) return false
 
   const wants = (modifier: string): boolean => parts.includes(modifier)

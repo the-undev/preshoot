@@ -13,7 +13,6 @@ import {
   moveShot,
   readComposition,
   setShotLines,
-  setShotThings,
   updateClip,
   updateShot,
   type LineInput,
@@ -199,28 +198,25 @@ describe("clip store", () => {
     ])
   })
 
-  it("replaces the things a shot shows, keeping the order given", () => {
+  it("keeps what a shot shows as lines of its own, in the order given", () => {
     const shotId = insertShot(handle.db, clipId)
-    const keeper = insertAsset(handle.db, {
-      clipId: null,
-      kind: "person",
-      name: "Keeper",
-      description: "an elderly man",
-    })
     const lamp = insertAsset(handle.db, {
-      clipId: null,
+      clipId,
       kind: "object",
       name: "Lamp",
       description: "brass and glass",
     })
 
-    setShotThings(handle.db, shotId, [lamp.id, keeper.id])
-    setShotThings(handle.db, shotId, [keeper.id, lamp.id])
+    setShotLines(handle.db, shotId, [
+      { ...action(lamp.id, "unlit"), kind: "shows" },
+      action(null, "the beam sweeps the water"),
+    ])
 
     const [shot] = readComposition(handle.db, clipId).shots
-    expect(shot.things.map((thing) => thing.name)).toEqual(["Keeper", "Lamp"])
-    expect(shot.things.map((thing) => thing.id)).toEqual([keeper.id, lamp.id])
-    expect(shot.things[0].description).toBe("an elderly man")
+    expect(shot.lines).toEqual([
+      expect.objectContaining({ kind: "shows", subjectIds: [lamp.id], text: "unlit" }),
+      expect.objectContaining({ kind: "action", text: "the beam sweeps the water" }),
+    ])
   })
 
   it("keeps a clip's own cast apart from what is saved in the library", () => {

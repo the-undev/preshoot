@@ -63,8 +63,8 @@ describe("the migration that made a shot savable", () => {
     const handle = openProjectDatabase(path, migrationsFolder)
 
     expect(handle.db.select().from(schema.shots).all()).toHaveLength(1)
-    expect(handle.db.select().from(schema.shotLines).all()).toHaveLength(1)
-    expect(handle.db.select().from(schema.shotAssets).all()).toHaveLength(1)
+    // What the shot showed became a line of its own, so the one line written here is now two.
+    expect(handle.db.select().from(schema.shotLines).all()).toHaveLength(2)
     expect(handle.db.select().from(schema.assetImages).all()).toHaveLength(1)
     expect(handle.db.select().from(schema.clipFrames).all()).toHaveLength(1)
     expect(handle.db.select().from(schema.openTabs).all()).toHaveLength(1)

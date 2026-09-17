@@ -24,7 +24,6 @@ const composition: ClipComposition = {
       speed: null,
       transition: null,
       lighting: null,
-      things: [],
       lines: [
         {
           id: 21,
