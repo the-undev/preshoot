@@ -8,6 +8,7 @@ import { ClipEditor } from "@renderer/features/clips/clip-editor"
 import { ClipList } from "@renderer/features/clips/clip-list"
 import { ClipBar } from "@renderer/features/clips/clip-bar"
 import { ClipPromptPanel } from "@renderer/features/clips/clip-prompt"
+import { PastePromptDialog } from "@renderer/features/clips/paste-prompt-dialog"
 import { ClipSettingsDialog } from "@renderer/features/clips/clip-settings-dialog"
 import { SaveClipDialog } from "@renderer/features/clips/save-clip-dialog"
 import { TabBar } from "@renderer/features/clips/tab-bar"
@@ -33,6 +34,7 @@ function Workspace(): React.JSX.Element {
   const clips = useClips()
   const [removing, setRemoving] = useState<ClipSummary | null>(null)
   const [discarding, setDiscarding] = useState<OpenTab | null>(null)
+  const [pasting, setPasting] = useState(false)
   const clipId = tabs.active?.clipId ?? null
 
   const startClip = (): void => clips.create(tabs.openClip)
@@ -94,6 +96,16 @@ function Workspace(): React.JSX.Element {
         />
       )}
 
+      {pasting && (
+        <PastePromptDialog
+          onPaste={(text) => {
+            clips.paste(text, tabs.openClip)
+            setPasting(false)
+          }}
+          onCancel={() => setPasting(false)}
+        />
+      )}
+
       {discarding && (
         <ConfirmDialog
           title={`Discard ${tabTitle(discarding)}?`}
@@ -112,6 +124,7 @@ function Workspace(): React.JSX.Element {
           <ClipList
             clips={clips.clips}
             onCreate={startClip}
+            onPaste={() => setPasting(true)}
             onOpen={tabs.openClip}
             onBranch={branchClip}
             onRemove={setRemoving}
@@ -225,6 +238,7 @@ function OpenClip({ clipId, tab, onBranched }: OpenClipProps): React.JSX.Element
             onAddShot={() => clip.addShot(setShowing)}
             onShotChange={clip.updateShot}
             onMoveShot={clip.moveShot}
+            onMoveLine={clip.moveLine}
             onRemoveShot={clip.removeShot}
             onSaveShot={clip.saveShot}
             savedShots={savedShots.data ?? []}

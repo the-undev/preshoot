@@ -75,7 +75,6 @@ describe("prompts router", () => {
         speed: null,
         transition: null,
         lighting: null,
-        soundNote: "",
         lines: [
           {
             kind: "action",

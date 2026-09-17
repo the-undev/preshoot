@@ -11,6 +11,7 @@ const clips: ClipSummary[] = [
     style: "vintage film",
     note: "",
     musicNote: "",
+    soundscape: "",
     form: "t2v",
     shortEdge: 768,
     aspectRatio: "16:9",
@@ -27,6 +28,7 @@ const clips: ClipSummary[] = [
     style: "Live-action, cinematic",
     note: "",
     musicNote: "",
+    soundscape: "",
     form: "i2v",
     shortEdge: 768,
     aspectRatio: "16:9",
@@ -45,6 +47,7 @@ describe("ClipList", () => {
         clips={clips}
         onOpen={vi.fn()}
         onCreate={vi.fn()}
+        onPaste={vi.fn()}
         onBranch={vi.fn()}
         onRemove={vi.fn()}
       />
@@ -61,6 +64,7 @@ describe("ClipList", () => {
         clips={clips}
         onOpen={vi.fn()}
         onCreate={vi.fn()}
+        onPaste={vi.fn()}
         onBranch={vi.fn()}
         onRemove={vi.fn()}
       />
@@ -77,6 +81,7 @@ describe("ClipList", () => {
         clips={clips}
         onOpen={onOpen}
         onCreate={vi.fn()}
+        onPaste={vi.fn()}
         onBranch={vi.fn()}
         onRemove={vi.fn()}
       />
@@ -94,6 +99,7 @@ describe("ClipList", () => {
         clips={clips}
         onOpen={vi.fn()}
         onCreate={onCreate}
+        onPaste={vi.fn()}
         onBranch={vi.fn()}
         onRemove={vi.fn()}
       />
@@ -111,6 +117,7 @@ describe("ClipList", () => {
         clips={clips}
         onOpen={vi.fn()}
         onCreate={vi.fn()}
+        onPaste={vi.fn()}
         onBranch={onBranch}
         onRemove={vi.fn()}
       />
@@ -128,6 +135,7 @@ describe("ClipList", () => {
         clips={clips}
         onOpen={vi.fn()}
         onCreate={vi.fn()}
+        onPaste={vi.fn()}
         onBranch={vi.fn()}
         onRemove={onRemove}
       />
@@ -144,11 +152,30 @@ describe("ClipList", () => {
         clips={[]}
         onOpen={vi.fn()}
         onCreate={vi.fn()}
+        onPaste={vi.fn()}
         onBranch={vi.fn()}
         onRemove={vi.fn()}
       />
     )
 
     expect(screen.getByText(/Nothing saved yet/)).toBeInTheDocument()
+  })
+
+  it("offers to open a prompt from somewhere else", () => {
+    const onPaste = vi.fn()
+    render(
+      <ClipList
+        clips={[]}
+        onCreate={vi.fn()}
+        onPaste={onPaste}
+        onOpen={vi.fn()}
+        onBranch={vi.fn()}
+        onRemove={vi.fn()}
+      />
+    )
+
+    fireEvent.click(screen.getByRole("button", { name: "Paste a prompt" }))
+
+    expect(onPaste).toHaveBeenCalled()
   })
 })

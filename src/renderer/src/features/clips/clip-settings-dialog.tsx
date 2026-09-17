@@ -70,12 +70,14 @@ export function ClipSettingsDialog({
   const [language, setLanguage] = useState(composition.language)
   const [note, setNote] = useState(composition.note)
   const [musicNote, setMusicNote] = useState(composition.musicNote)
+  const [soundscape, setSoundscape] = useState(composition.soundscape)
 
   function commit(over: Partial<ClipFields>): void {
     onChange({
       style,
       note,
       musicNote,
+      soundscape,
       form: composition.form,
       shortEdge: composition.shortEdge,
       aspectRatio: composition.aspectRatio,
@@ -194,11 +196,29 @@ export function ClipSettingsDialog({
 
           <div className="flex flex-col gap-1">
             <div className="flex items-center gap-1.5">
+              <Label htmlFor="clip-soundscape">Sound</Label>
+              <FieldHelp label="the sound">
+                Everything heard in the clip that nobody says: weather, footfalls, machinery,
+                breathing. The model takes it as one field for the whole clip, so it is written here
+                rather than shot by shot.
+              </FieldHelp>
+            </div>
+            <Textarea
+              id="clip-soundscape"
+              rows={2}
+              value={soundscape}
+              onChange={(event) => setSoundscape(event.target.value)}
+              onBlur={() => commit({ soundscape })}
+            />
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <div className="flex items-center gap-1.5">
               <Label htmlFor="clip-music">Music</Label>
               <FieldHelp label="music">
                 Music only the audience hears, which the model takes as its own field.
                 Instrumentation, tempo and how it changes. Music playing in the scene itself belongs
-                in the sound of a shot instead.
+                in the sound of the clip instead.
               </FieldHelp>
             </div>
             <Input

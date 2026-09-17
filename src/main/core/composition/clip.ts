@@ -43,7 +43,8 @@ export interface LineComposition {
 /**
  * One shot: how long it lasts, how it is shot, and its lines, which are everything it shows, does
  * and says in the order they were written. The motion, amplitude, speed, transition and lighting
- * hold values from the target's vocabularies.
+ * hold values from the target's vocabularies. What is heard belongs to the clip, not to a shot,
+ * because the target has one field for it and nothing can say which shot a sound came from.
  */
 export interface ShotComposition {
   id: number
@@ -54,7 +55,6 @@ export interface ShotComposition {
   transition: string | null
   lighting: string | null
   lines: LineComposition[]
-  soundNote: string
 }
 
 /** Which of the target's forms a clip is written for. */
@@ -84,6 +84,8 @@ export interface ClipComposition {
   style: string
   note: string
   musicNote: string
+  /** Everything heard in the clip that nobody says. */
+  soundscape: string
   /** What is spoken in this clip unless a line says otherwise. */
   language: string
   /** The people, places and objects this clip holds, which its shots and lines pick from. */

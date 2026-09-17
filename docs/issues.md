@@ -32,6 +32,16 @@ says so.
   override on a line.
 - Undo is per clip and lasts as long as the app runs. Closing the project and
   opening it again starts from nothing to go back to.
+- A pasted prompt comes back with less structure than wrote it, which is
+  expected rather than a defect: a Description reads the same as an Action so
+  every line comes back as an Action, and the last shot's length is not in the
+  text so it takes the length of a new shot.
+- A pasted prompt only says a line is about somebody when the line opens on a
+  name it has already seen speak. A subject who never speaks comes back as part
+  of the line rather than as one of the cast.
+- A pasted transition comes back as a line rather than as the shot's cut, so
+  writing the prompt again puts the phrase in the text instead of in front of
+  it.
 - Keyboard shortcuts are fixed. They are one list in the code, which a settings
   screen could write to, but nothing does.
 - Ctrl and Space opens the command menu. It is also the default key for
@@ -73,7 +83,9 @@ wrong here is wrong every time rather than some of the time.
   to build against, which arrives with Runpod or ComfyUI.
 - A shot or a line is reordered by dragging its handle. From the keyboard that
   means focusing the handle, pressing space to lift it, moving with the arrows
-  and pressing space again, which nothing on screen says.
+  and pressing space again, which nothing on screen says. A line can be moved
+  between shots by dragging, and from the keyboard it cannot be moved out of
+  the shot it is in.
 - The library screen puts the form on the left and the list on the right,
   which reads backwards: you pick from the list, then edit.
 - A saved shot keeps a copy of the subjects it showed. Two saved shots of the

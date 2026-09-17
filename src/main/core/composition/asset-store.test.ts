@@ -128,7 +128,7 @@ describe("asset store", () => {
       name: "Keeper",
       description: "an elderly man",
     })
-    const shotId = insertShot(handle.db, clip.id)
+    const shotId = insertShot(handle.db, clip.id, "the camera cuts to")
     setShotLines(handle.db, shotId, [line({ kind: "shows", subjectIds: [subject.id] })])
 
     deleteAsset(handle.db, dir, subject.id)

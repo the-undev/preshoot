@@ -12,6 +12,7 @@ import {
 import type { ShotComposition, SubjectComposition, Vocabularies } from "@renderer/lib/trpc"
 import { asLineInput } from "./line-input"
 import type { ClipMenuContext } from "./line-commands"
+import { shotId as shotDragId } from "./line-drag"
 import { ShotChips } from "./shot-chips"
 import { ShotLines } from "./shot-lines"
 import type { ShotFields } from "./use-clip"
@@ -53,7 +54,7 @@ export function ShotRow({
     card.current?.scrollIntoView({ block: "nearest", behavior: "smooth" })
   }, [showing])
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
-    id: shot.id,
+    id: shotDragId(shot.id),
   })
 
   /** The whole shot as it stands, with `over` applied, which is what the router expects back. */
@@ -65,7 +66,6 @@ export function ShotRow({
       speed: shot.speed,
       transition: shot.transition,
       lighting: shot.lighting,
-      soundNote: shot.soundNote,
       lines: shot.lines.map(asLineInput),
       ...over,
     })
@@ -78,7 +78,7 @@ export function ShotRow({
         setNodeRef(element)
       }}
       style={{ transform: CSS.Translate.toString(transform), transition }}
-      className={`flex min-w-0 flex-col gap-4 rounded-lg border p-4 ${isDragging ? "opacity-60" : ""}`}
+      className={`flex min-w-0 flex-col gap-4 rounded-lg border p-4 ${isDragging ? "opacity-30" : ""}`}
     >
       <Collapsible open={open} onOpenChange={setOpen}>
         <header className="flex items-center gap-2">

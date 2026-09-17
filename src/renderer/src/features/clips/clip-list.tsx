@@ -12,6 +12,7 @@ const FORM_NAMES: Record<string, string> = {
 interface ClipListProps {
   clips: ClipSummary[]
   onCreate: () => void
+  onPaste: () => void
   onOpen: (clipId: number) => void
   onBranch: (clipId: number) => void
   onRemove: (clip: ClipSummary) => void
@@ -21,6 +22,7 @@ interface ClipListProps {
 export function ClipList({
   clips,
   onCreate,
+  onPaste,
   onOpen,
   onBranch,
   onRemove,
@@ -29,14 +31,20 @@ export function ClipList({
     <div className="mx-auto flex h-full w-full max-w-2xl min-w-0 flex-col gap-6 overflow-y-auto">
       <div className="flex items-center justify-between gap-4">
         <h2 className="font-heading text-sm font-semibold text-muted-foreground">Saved clips</h2>
-        <Button onClick={onCreate} title="Ctrl and N">
-          New clip
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={onPaste}>
+            Paste a prompt
+          </Button>
+          <Button onClick={onCreate} title="Ctrl and N">
+            New clip
+          </Button>
+        </div>
       </div>
 
       {clips.length === 0 ? (
         <p className="text-sm text-muted-foreground">
-          Nothing saved yet. Start a clip, and save it when it is worth coming back to.
+          Nothing saved yet. Start a clip, or paste a prompt to open one from it, and save it when
+          it is worth coming back to.
         </p>
       ) : (
         <ul className="flex flex-col gap-1">

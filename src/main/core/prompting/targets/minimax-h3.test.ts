@@ -48,7 +48,6 @@ function shot(
     transition: null,
     lighting: null,
     lines: [action(`Something happens in shot ${id}`)],
-    soundNote: "",
     ...over,
   }
 }
@@ -63,6 +62,7 @@ const composition: ClipComposition = {
   style: "Live-action, cinematic",
   note: "A keeper lights the lamp during a storm.",
   musicNote: "",
+  soundscape: "",
   language: "English",
   cast: [
     {
@@ -87,7 +87,6 @@ const composition: ClipComposition = {
       speed: "at slow speed",
       lighting: "night",
       lines: [action("climbs the last steps of the tower", 5), speech("Almost there.")],
-      soundNote: "wind battering the glass",
     }),
     shot(12, 3000, {
       transition: "the shot cuts to",
@@ -385,6 +384,13 @@ describe("what a line of dialogue says", () => {
 })
 
 describe("assembling the prompt", () => {
+  it("puts each shot on a line of its own", () => {
+    const written = body()
+
+    expect(written.split("\n")).toHaveLength(2)
+    expect(written.split("\n")[1].startsWith("[Shot 2]")).toBe(true)
+  })
+
   it("puts the style on the first shot and a cut time on the rest", () => {
     const written = body()
 
@@ -392,10 +398,18 @@ describe("assembling the prompt", () => {
     expect(written).toContain("[Shot 2] At 00:04.500, the shot cuts.")
   })
 
-  it("writes a plain camera cut when the shot names no transition", () => {
+  it("runs a shot cut into with nothing straight on from the time it starts at", () => {
     expect(body({ shots: [composition.shots[0], shot(12, 3000)] })).toContain(
-      "[Shot 2] At 00:04.500, the camera cuts."
+      "[Shot 2] At 00:04.500, something happens in shot 12."
     )
+  })
+
+  it("leaves one of the cast a capital wherever in a sentence their name lands", () => {
+    const written = body({
+      shots: [composition.shots[0], shot(12, 3000, { lines: [action("climbs the ladder", 5)] })],
+    })
+
+    expect(written).toContain("[Shot 2] At 00:04.500, Keeper climbs the ladder.")
   })
 
   it("opens on shot one without the style when the style has been emptied", () => {
@@ -459,16 +473,13 @@ describe("assembling the prompt", () => {
     )
   })
 
-  it("gathers the sound of every shot into the soundscape", () => {
+  it("writes what the clip says is heard into the soundscape", () => {
     const assembled = minimaxH3.assemble({
       ...composition,
-      shots: [
-        shot(11, 4000, { soundNote: "wind battering the glass" }),
-        shot(12, 3000, { soundNote: "the lamp motor grinding" }),
-      ],
+      soundscape: "wind battering the glass, the lamp motor grinding",
     })
 
-    expect(assembled.overall_soundscape).toBe("Wind battering the glass. The lamp motor grinding.")
+    expect(assembled.overall_soundscape).toBe("Wind battering the glass, the lamp motor grinding.")
   })
 
   it("says N/A for a field the clip gives nothing to", () => {

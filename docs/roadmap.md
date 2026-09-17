@@ -75,9 +75,31 @@ Lightning LoRA.
 - The prompt is a function of the clip rather than a thing to produce. It is
   read back after every change and shown beside the editor as it is typed, and
   nothing is stored, because the same clip always writes the same prompt.
-- A target owns one model's vocabularies and how its fields are written and
-  rendered, and is looked up by id, so another target is one file and one line
-  in an index.
+- A target owns one model's vocabularies and how its fields are written,
+  rendered and read back, and is looked up by id, so another target is one file
+  and one line in an index.
+- A feature that maps to text does not have to map back. The app offers pieces
+  that make a prompt easier to write, and a prompt read back gives plain lines,
+  not those pieces again. So a parse is judged on losing nothing, never on
+  recovering the structure that wrote it, and no feature is shaped by what it
+  would take to invert it.
+- What the prompt says, the editor shows. A shot after the first was written
+  as `the camera cuts to` whether or not anybody chose it, while the chip that
+  sets it read as empty. A shot boundary is a cut, so a shot is given one when
+  it is made, which is what lets it be seen and taken away like anything else.
+  The prompt invents nothing that is not on the clip.
+- The app holds no structure the target has no field for. What is heard was a
+  note per shot, joined into the one soundscape field on the way out, which is
+  a distinction the prompt cannot carry and nothing can hand back. The clip
+  holds one soundscape, as the target does.
+- A pasted prompt opens as a clip, and nothing in it is dropped. What the
+  format marks is recognised and becomes structure: the fields, the shot
+  markers, the cut times, the dialogue tags and their language, the speaker
+  labels and the voices in front of them. Nothing is required. A prompt with no
+  field labels is all description, one with no shot markers is one shot, and a
+  sentence that matches no camera move or lighting stays the sentence it is. So
+  a prompt written anywhere else opens as shots of plain lines to work on
+  rather than being refused, which is what most pasted prompts will be.
 - A clip has no name until it is saved. An unsaved clip is a scratch one that
   lives as long as its tab, so an idea can be tried without being titled and
   without leaving anything behind. Saving names it and puts it in the list an
@@ -118,7 +140,8 @@ Lightning LoRA.
   is said in it are one ordered list, so the prompt reads in the order it was
   written. That is what the guide asks for: actions and reactions in order with
   the dialogue among them. A line shows what is on screen, says what someone
-  does, or says what someone says. Only a spoken line has to name one of the
+  does, or says what someone says. What is heard is not one of them: it goes
+  into a field of its own, so the clip holds it rather than any shot. Only a spoken line has to name one of the
   cast: the other two name one when there is one to name and otherwise hold
   the words written on them, so a shot says what it opens on without first
   making a cast member of it. A cut lands on the line a shot opens on when

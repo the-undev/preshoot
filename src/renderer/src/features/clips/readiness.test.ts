@@ -27,7 +27,6 @@ function shot(id: number, text: string): ShotComposition {
     transition: null,
     lighting: null,
     lines: [line(id, text)],
-    soundNote: "",
   }
 }
 
@@ -41,6 +40,7 @@ const composition: ClipComposition = {
   style: "Live-action, cinematic",
   note: "",
   musicNote: "",
+  soundscape: "",
   language: "English",
   cast: [],
   shots: [shot(11, "climbs the stairs")],

@@ -49,7 +49,7 @@ describe("tab store", () => {
       target: "minimax-h3",
       style: "Live-action",
     }).id
-    setShotLines(handle.db, insertShot(handle.db, clipId), [
+    setShotLines(handle.db, insertShot(handle.db, clipId, "the camera cuts to"), [
       {
         kind: "action",
         subjectIds: [],

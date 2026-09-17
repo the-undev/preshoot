@@ -22,6 +22,7 @@ const composition: ClipComposition = {
   style: "Live-action, cinematic",
   note: "A keeper lights the lamp.",
   musicNote: "",
+  soundscape: "",
   language: "English",
   cast: [],
   shots: [],
@@ -111,5 +112,17 @@ describe("ClipSettingsDialog", () => {
 
     expect(screen.getByLabelText("Note")).not.toHaveAttribute("placeholder")
     expect(screen.getByRole("button", { name: "What the note is for" })).toBeInTheDocument()
+  })
+
+  it("holds what is heard in the clip, since the model takes one field for all of it", () => {
+    const { onChange } = renderSettings()
+
+    const sound = screen.getByLabelText("Sound")
+    fireEvent.change(sound, { target: { value: "wind battering the glass" } })
+    fireEvent.blur(sound)
+
+    expect(onChange).toHaveBeenCalledWith(
+      expect.objectContaining({ soundscape: "wind battering the glass" })
+    )
   })
 })

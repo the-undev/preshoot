@@ -85,6 +85,20 @@
       "when": 1789642179184,
       "tag": "0011_daily_warhawk",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "6",
+      "when": 1789661421068,
+      "tag": "0012_flashy_prism",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "6",
+      "when": 1789661422068,
+      "tag": "0013_settled_transition",
+      "breakpoints": true
     }
   ]
 }

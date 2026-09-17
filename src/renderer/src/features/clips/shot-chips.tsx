@@ -77,8 +77,6 @@ export function ShotChips({
           />
         ))}
 
-      <SoundChip shot={shot} onChange={onChange} />
-
       {unset.length > 0 && !showAll && (
         <Button
           type="button"
@@ -95,9 +93,13 @@ export function ShotChips({
   )
 }
 
-/** The look of a chip, whether it holds something or is only offering to. */
+/**
+ * The look of a chip, whether it holds something or is only offering to. A chip says what is in
+ * it in passing, so a long one is cut short rather than pushing everything beside it off the row.
+ */
 function chipClass(set: boolean): string {
-  const shared = "rounded-full border px-2.5 py-0.5 text-xs whitespace-nowrap hover:bg-accent"
+  const shared =
+    "max-w-64 truncate rounded-full border px-2.5 py-0.5 text-xs whitespace-nowrap hover:bg-accent"
   return set ? `${shared} bg-accent/40` : `${shared} border-dashed text-muted-foreground`
 }
 
@@ -155,13 +157,13 @@ function WordChip({ field, shotId, value, options, onChange }: WordChipProps): R
   )
 }
 
-interface FieldChipProps {
+interface SecondsChipProps {
   shot: ShotComposition
   onChange: (over: Partial<ShotFields>) => void
 }
 
 /** How long the shot runs, which every shot has and so always shows. */
-function SecondsChip({ shot, onChange }: FieldChipProps): React.JSX.Element {
+function SecondsChip({ shot, onChange }: SecondsChipProps): React.JSX.Element {
   const [open, setOpen] = useState(false)
   const [seconds, setSeconds] = useState(String(shot.durationMs / 1000))
 
@@ -196,41 +198,6 @@ function SecondsChip({ shot, onChange }: FieldChipProps): React.JSX.Element {
           onKeyDown={(event) => {
             if (event.key !== "Enter") return
             commit()
-            setOpen(false)
-          }}
-        />
-      </PopoverContent>
-    </Popover>
-  )
-}
-
-/** What is heard in the shot that nobody says, which is gathered into one field of the prompt. */
-function SoundChip({ shot, onChange }: FieldChipProps): React.JSX.Element {
-  const [open, setOpen] = useState(false)
-  const [soundNote, setSoundNote] = useState(shot.soundNote)
-  const written = shot.soundNote.trim().length > 0
-
-  return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <button
-          type="button"
-          aria-label={`Sound of shot ${shot.id}`}
-          className={chipClass(written)}
-        >
-          {written ? shot.soundNote : "Sound"}
-        </button>
-      </PopoverTrigger>
-      <PopoverContent className="w-80 p-2">
-        <Input
-          aria-label="Sound"
-          autoFocus
-          value={soundNote}
-          onChange={(event) => setSoundNote(event.target.value)}
-          onBlur={() => onChange({ soundNote })}
-          onKeyDown={(event) => {
-            if (event.key !== "Enter") return
-            onChange({ soundNote })
             setOpen(false)
           }}
         />

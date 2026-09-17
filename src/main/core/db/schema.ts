@@ -45,6 +45,8 @@ export const clips = sqliteTable("clips", {
   style: text("style").notNull(),
   note: text("note").notNull(),
   musicNote: text("music_note").notNull(),
+  // Everything heard in the clip that nobody says. One field, because the target has one.
+  soundscape: text("soundscape").notNull().default(""),
   form: text("form").notNull().default("t2v"),
   shortEdge: integer("short_edge").notNull().default(768),
   aspectRatio: text("aspect_ratio").notNull().default("16:9"),
@@ -82,7 +84,6 @@ export const shots = sqliteTable("shots", {
   speed: text("speed"),
   transition: text("transition"),
   lighting: text("lighting"),
-  soundNote: text("sound_note").notNull(),
 })
 
 /**

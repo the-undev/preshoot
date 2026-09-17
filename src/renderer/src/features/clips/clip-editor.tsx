@@ -19,6 +19,7 @@ interface ClipEditorProps {
   onAddShot: () => void
   onShotChange: (shotId: number, fields: ShotFields) => void
   onMoveShot: (shotId: number, toPosition: number) => void
+  onMoveLine: (input: { shotId: number; at: number; toShotId: number; toPosition: number }) => void
   onRemoveShot: (shotId: number) => void
   onSaveShot: (shotId: number, name: string) => void
   savedShots: SavedShot[]
@@ -40,6 +41,7 @@ export function ClipEditor({
   onAddShot,
   onShotChange,
   onMoveShot,
+  onMoveLine,
   onRemoveShot,
   onSaveShot,
   savedShots,
@@ -106,6 +108,7 @@ export function ClipEditor({
           }}
           onChange={onShotChange}
           onMove={onMoveShot}
+          onMoveLine={(from, to) => onMoveLine({ ...from, ...to })}
           onRemove={onRemoveShot}
           onSave={onSaveShot}
         />

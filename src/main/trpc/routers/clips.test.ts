@@ -98,6 +98,70 @@ describe("clips router", () => {
     expect(composition.shots[0].durationMs).toBe(4000)
   })
 
+  it("reads a pasted prompt into a scratch clip nobody has to name", async () => {
+    const summary = await caller.clips.paste({
+      text: [
+        "integrated_multimodal_description: [Shot 1] Live-action. Rain runs down the glass.",
+        "A radio, flat and clipped (S1) says: <d>[English] Almost there.</d>",
+        "[Shot 2] At 00:04.500, the lamp turns.",
+        "",
+        "overall_soundscape: Wind on the glass.",
+        "",
+        "non_diegetic_music: A slow piano figure.",
+      ].join("\n"),
+    })
+    const composition = await caller.clips.composition({ clipId: summary.id })
+
+    expect(summary.name).toBeNull()
+    expect(composition.style).toBe("Live-action")
+    expect(composition.musicNote).toBe("A slow piano figure.")
+    expect(composition.shots).toHaveLength(2)
+    expect(composition.soundscape).toBe("Wind on the glass.")
+    expect(composition.cast.map((subject) => subject.name)).toEqual(["A radio"])
+  })
+
+  it("points a pasted line of dialogue at the speaker it made", async () => {
+    const summary = await caller.clips.paste({
+      text: "A radio, flat and clipped (S1) says: <d>[English] Almost there.</d>",
+    })
+    const composition = await caller.clips.composition({ clipId: summary.id })
+    const [radio] = composition.cast
+
+    expect(radio.voice).toBe("flat and clipped")
+    expect(composition.shots[0].lines).toEqual([
+      expect.objectContaining({ kind: "speech", subjectIds: [radio.id], text: "Almost there." }),
+    ])
+  })
+
+  it("writes a pasted prompt back out as the prompt it came in as", async () => {
+    const text = [
+      "integrated_multimodal_description: [Shot 1] Rain runs down the glass.",
+      "",
+      "overall_soundscape: N/A",
+      "",
+      "non_diegetic_music: N/A",
+    ].join("\n")
+    const summary = await caller.clips.paste({ text })
+
+    const prompt = await caller.clips.prompt({ clipId: summary.id })
+
+    expect(prompt.ready).toBe(true)
+    expect(prompt.ready && prompt.rendered).toBe(text)
+  })
+
+  it("takes a prompt that follows none of the format as one shot of plain lines", async () => {
+    const summary = await caller.clips.paste({
+      text: "A man walks into the sea. The camera swoops over the rail.",
+    })
+    const composition = await caller.clips.composition({ clipId: summary.id })
+
+    expect(composition.shots).toHaveLength(1)
+    expect(composition.shots[0].lines.map((line) => line.text)).toEqual([
+      "A man walks into the sea.",
+      "The camera swoops over the rail.",
+    ])
+  })
+
   it("adds shots and gives back the whole clip each time", async () => {
     const clip = await caller.clips.create()
 
@@ -133,7 +197,6 @@ describe("clips router", () => {
       speed: "at slow speed",
       transition: null,
       lighting: "night",
-      soundNote: "wind on the glass",
       lines: [
         { ...action(keeper.id, ""), kind: "shows" as const },
         action(null, "climbs the last steps"),
@@ -167,7 +230,6 @@ describe("clips router", () => {
       speed: null,
       transition: null,
       lighting: null,
-      soundNote: "",
       lines: [action(null, "climbs"), speech([withSpeaker.cast[0].id], "")],
     })
 
@@ -204,7 +266,6 @@ describe("clips router", () => {
       speed: null,
       transition: null,
       lighting: "night",
-      soundNote: "wind",
       lines: [action(null, "climbs the stairs")],
     })
 
@@ -254,7 +315,6 @@ describe("clips router", () => {
       speed: null,
       transition: null,
       lighting: null,
-      soundNote: "",
       lines: [speech([speakerId], "Almost there.")],
     })
 
@@ -290,7 +350,6 @@ describe("clips router", () => {
         speed: null,
         transition: null,
         lighting: null,
-        soundNote: "",
         lines: [action(null, "climbs")],
       })
     ).rejects.toThrow(expect.objectContaining({ message: expect.stringContaining("durationMs") }))
@@ -308,7 +367,6 @@ describe("clips router", () => {
         speed: null,
         transition: null,
         lighting: null,
-        soundNote: "",
         lines: [action(null, "climbs")],
       })
     ).rejects.toThrow(expect.objectContaining({ code: "BAD_REQUEST" }))
@@ -404,7 +462,6 @@ describe("clips router", () => {
       speed: null,
       transition: null,
       lighting: "night",
-      soundNote: "wind",
       lines: [action(keeper.id, "climbs the steps")],
     })
 
@@ -444,7 +501,6 @@ describe("clips router", () => {
       speed: null,
       transition: null,
       lighting: null,
-      soundNote: "",
       lines: [{ ...action(withKeeper.cast[0].id, ""), kind: "shows" as const }],
     })
     const saved = await caller.clips.saveShot({ shotId, name: "A shot of the keeper" })
@@ -483,7 +539,6 @@ describe("clips router", () => {
       speed: null,
       transition: null,
       lighting: null,
-      soundNote: "",
       lines: [action(null, "climbs the steps")],
     })
 
@@ -504,7 +559,6 @@ describe("clips router", () => {
       speed: null,
       transition: null,
       lighting: null,
-      soundNote: "",
       lines: [action(null, "climbs the steps")],
     })
     await caller.clips.undo({ clipId })

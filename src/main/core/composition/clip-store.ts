@@ -3,6 +3,7 @@ import { schema, type ProjectDatabase, type ProjectDb } from "../db"
 import type { ClipComposition, ClipForm, FrameComposition, LineKind, ShotComposition } from "./clip"
 import { listCast } from "./asset-store"
 import { deleteImagesOfAsset } from "./image-store"
+import type { ParsedClip } from "../prompting/target"
 import { CompositionError } from "./errors"
 
 /** How long a new shot runs until the user says otherwise. */
@@ -19,6 +20,8 @@ export interface ClipSummary {
   style: string
   note: string
   musicNote: string
+  /** Everything heard in the clip that nobody says. */
+  soundscape: string
   form: ClipForm
   shortEdge: number
   aspectRatio: string
@@ -38,7 +41,6 @@ export interface ShotInput {
   speed: string | null
   transition: string | null
   lighting: string | null
-  soundNote: string
 }
 
 /** One line as the editor sends it back. */
@@ -102,7 +104,7 @@ export function insertClip(
 ): ClipSummary {
   const [row] = db
     .insert(schema.clips)
-    .values({ ...input, note: "", musicNote: "", createdAt: new Date() })
+    .values({ ...input, note: "", musicNote: "", soundscape: "", createdAt: new Date() })
     .returning()
     .all()
   return toSummary(row, undefined)
@@ -116,6 +118,7 @@ export function updateClip(
     style: string
     note: string
     musicNote: string
+    soundscape: string
     form: ClipForm
     shortEdge: number
     aspectRatio: string
@@ -128,6 +131,7 @@ export function updateClip(
       style: input.style,
       note: input.note,
       musicNote: input.musicNote,
+      soundscape: input.soundscape,
       form: input.form,
       shortEdge: input.shortEdge,
       aspectRatio: input.aspectRatio,
@@ -256,6 +260,90 @@ export function saveClip(db: ProjectDatabase, clipId: number, name: string): Cli
   return toSummary(row, shotTotals(db).get(row.id))
 }
 
+/**
+ * Makes a scratch clip out of a prompt somebody pasted. The clip is what the text said and nothing
+ * more: it is never saved, never named, and whatever the parse could not place is kept in the
+ * note, so opening it loses nothing that was in the paste.
+ */
+export function insertParsedClip(
+  db: ProjectDatabase,
+  parsed: ParsedClip,
+  target: string
+): ClipSummary {
+  return db.transaction((tx) => {
+    const [clip] = tx
+      .insert(schema.clips)
+      .values({
+        name: null,
+        target,
+        style: parsed.style,
+        note: parsed.note,
+        musicNote: parsed.musicNote,
+        soundscape: parsed.soundscape,
+        language: parsed.language,
+        createdAt: new Date(),
+      })
+      .returning()
+      .all()
+
+    const byName = new Map<string, number>()
+    for (const subject of parsed.cast) {
+      const [row] = tx
+        .insert(schema.assets)
+        .values({
+          clipId: clip.id,
+          kind: "person",
+          name: subject.name,
+          description: subject.description,
+          voice: subject.voice,
+          createdAt: new Date(),
+        })
+        .returning()
+        .all()
+      byName.set(subject.name, row.id)
+    }
+
+    parsed.shots.forEach((shot, position) => {
+      const [row] = tx
+        .insert(schema.shots)
+        .values({
+          clipId: clip.id,
+          position,
+          durationMs: shot.durationMs,
+          cameraMotion: null,
+          amplitude: null,
+          speed: null,
+          transition: null,
+          lighting: null,
+        })
+        .returning()
+        .all()
+
+      shot.lines.forEach((line, at) => {
+        const subjectId = line.subject === null ? undefined : byName.get(line.subject)
+        tx.insert(schema.shotLines)
+          .values({
+            shotId: row.id,
+            position: at,
+            kind: line.kind,
+            subjectIds: subjectId === undefined ? [] : [subjectId],
+            text: line.text,
+            language: line.language,
+            offScreen: line.offScreen,
+            crossesCut: line.crossesCut,
+            cutOff: line.cutOff,
+          })
+          .run()
+      })
+    })
+
+    return toSummary(clip, {
+      shots: parsed.shots.length,
+      durationMs: parsed.shots.reduce((total, shot) => total + shot.durationMs, 0),
+    })
+  })
+}
+
 /** Whether a clip has been saved, which decides whether closing its tab throws it away. */
 export function isScratchClip(db: ProjectDatabase, clipId: number): boolean {
   const clip = db.select().from(schema.clips).where(eq(schema.clips.id, clipId)).get()
@@ -328,7 +416,6 @@ export function readComposition(db: ProjectDatabase, clipId: number): ClipCompos
         crossesCut: line.crossesCut,
         cutOff: line.cutOff,
       })),
-    soundNote: shot.soundNote,
   }))
 
   return {
@@ -342,6 +429,7 @@ export function readComposition(db: ProjectDatabase, clipId: number): ClipCompos
     style: clip.style,
     note: clip.note,
     musicNote: clip.musicNote,
+    soundscape: clip.soundscape,
     cast: listCast(db, clipId).map(({ id, kind, name, description, voice }) => ({
       id,
       kind,
@@ -398,7 +486,7 @@ export function clearClipFrame(
 }
 
 /** Adds an empty shot at the end of the clip. */
-export function insertShot(db: ProjectDatabase, clipId: number): number {
+export function insertShot(db: ProjectDatabase, clipId: number, transition: string): number {
   const clip = db.select().from(schema.clips).where(eq(schema.clips.id, clipId)).get()
   if (!clip) {
     throw CompositionError.notFound(`Clip ${clipId}`)
@@ -413,9 +501,10 @@ export function insertShot(db: ProjectDatabase, clipId: number): number {
       cameraMotion: null,
       amplitude: null,
       speed: null,
-      transition: null,
+      // A shot boundary is a cut, so a shot carries one from the start rather than the prompt
+      // writing one nobody chose. Taking it away is then a choice like any other.
+      transition,
       lighting: null,
-      soundNote: "",
     })
     .returning()
     .all()
@@ -439,7 +528,6 @@ export function updateShot(db: ProjectDatabase, input: ShotInput): void {
       speed: input.speed,
       transition: input.transition,
       lighting: input.lighting,
-      soundNote: input.soundNote,
     })
     .where(eq(schema.shots.id, input.id))
     .returning()
@@ -469,6 +557,55 @@ export function moveShot(db: ProjectDatabase, shotId: number, toPosition: number
     ids.forEach((id, position) => {
       tx.update(schema.shots).set({ position }).where(eq(schema.shots.id, id)).run()
     })
+  })
+}
+
+/** The ids of a shot's lines, in the order they happen. */
+function lineIdsInOrder(db: ProjectDb, shotId: number): number[] {
+  return db
+    .select({ id: schema.shotLines.id })
+    .from(schema.shotLines)
+    .where(eq(schema.shotLines.shotId, shotId))
+    .orderBy(asc(schema.shotLines.position), asc(schema.shotLines.id))
+    .all()
+    .map((row) => row.id)
+}
+
+/**
+ * Puts a line somewhere else, in its own shot or in another shot of the same clip. A line is moved
+ * rather than written again, so it keeps its id and everything pointing at it stays pointing.
+ */
+export function moveLine(
+  db: ProjectDatabase,
+  input: { shotId: number; at: number; toShotId: number; toPosition: number }
+): void {
+  const clipId = clipOfShot(db, input.shotId)
+  if (clipOfShot(db, input.toShotId) !== clipId) {
+    throw CompositionError.notFound(`Shot ${input.toShotId} in clip ${clipId}`)
+  }
+
+  db.transaction((tx) => {
+    const source = lineIdsInOrder(tx, input.shotId)
+    const moved = source[input.at]
+    if (moved === undefined) {
+      throw CompositionError.notFound(`Line ${input.at + 1} of shot ${input.shotId}`)
+    }
+    source.splice(input.at, 1)
+
+    const sameShot = input.shotId === input.toShotId
+    const target = sameShot ? source : lineIdsInOrder(tx, input.toShotId)
+    target.splice(Math.min(Math.max(input.toPosition, 0), target.length), 0, moved)
+
+    const renumber = (shotId: number, ids: number[]): void => {
+      ids.forEach((id, position) => {
+        tx.update(schema.shotLines)
+          .set({ shotId, position })
+          .where(eq(schema.shotLines.id, id))
+          .run()
+      })
+    }
+    if (!sameShot) renumber(input.shotId, source)
+    renumber(input.toShotId, target)
   })
 }
 
@@ -690,6 +827,7 @@ export function restoreComposition(db: ProjectDatabase, composition: ClipComposi
         style: composition.style,
         note: composition.note,
         musicNote: composition.musicNote,
+        soundscape: composition.soundscape,
         language: composition.language,
         form: composition.form,
         shortEdge: composition.shortEdge,
@@ -720,7 +858,6 @@ export function restoreComposition(db: ProjectDatabase, composition: ClipComposi
           speed: shot.speed,
           transition: shot.transition,
           lighting: shot.lighting,
-          soundNote: shot.soundNote,
         })
         .run()
 

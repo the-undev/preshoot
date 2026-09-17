@@ -18,7 +18,6 @@ export interface ShotFields {
   speed: string | null
   transition: string | null
   lighting: string | null
-  soundNote: string
   lines: LineInput[]
 }
 
@@ -32,6 +31,7 @@ export interface ClipFields {
   style: string
   note: string
   musicNote: string
+  soundscape: string
   form: ClipComposition["form"]
   shortEdge: number
   aspectRatio: string
@@ -60,6 +60,8 @@ export interface ClipPanel {
   saveShot(shotId: number, name: string): void
   updateShot(shotId: number, fields: ShotFields): void
   moveShot(shotId: number, toPosition: number): void
+  /** Puts a line somewhere else, in its own shot or in another shot of the clip. */
+  moveLine(input: { shotId: number; at: number; toShotId: number; toPosition: number }): void
   removeShot(shotId: number): void
   addSubject(fields: SubjectFields): void
   updateSubject(subjectId: number, fields: SubjectEdit): void
@@ -103,6 +105,7 @@ export function useClip(clipId: number): ClipPanel {
   )
   const updateShot = useMutation(trpc.clips.updateShot.mutationOptions(composed))
   const moveShot = useMutation(trpc.clips.moveShot.mutationOptions(composed))
+  const moveLine = useMutation(trpc.clips.moveLine.mutationOptions(composed))
   const removeShot = useMutation(trpc.clips.removeShot.mutationOptions(composed))
   const addSubject = useMutation(trpc.clips.addSubject.mutationOptions(composed))
   const updateSubject = useMutation(trpc.clips.updateSubject.mutationOptions(composed))
@@ -135,6 +138,7 @@ export function useClip(clipId: number): ClipPanel {
     saveShot,
     updateShot,
     moveShot,
+    moveLine,
     removeShot,
     addSubject,
     updateSubject,
@@ -173,6 +177,7 @@ export function useClip(clipId: number): ClipPanel {
     saveShot: (shotId, name) => saveShot.mutate({ shotId, name }),
     updateShot: (shotId, fields) => updateShot.mutate({ shotId, ...fields }),
     moveShot: (shotId, toPosition) => moveShot.mutate({ shotId, toPosition }),
+    moveLine: (input) => moveLine.mutate(input),
     removeShot: (shotId) => removeShot.mutate({ shotId }),
     addSubject: (fields) => addSubject.mutate({ clipId, ...fields }),
     updateSubject: (subjectId, fields) => updateSubject.mutate({ subjectId, ...fields }),

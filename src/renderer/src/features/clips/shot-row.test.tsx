@@ -57,7 +57,6 @@ const shot: ShotComposition = {
   transition: null,
   lighting: null,
   lines: [action(21, "climbs the last steps")],
-  soundNote: "",
 }
 
 function renderRow(
@@ -66,7 +65,7 @@ function renderRow(
   const onChange = vi.fn()
   render(
     <DndContext>
-      <SortableContext items={[11]}>
+      <SortableContext items={["shot:11"]}>
         <ShotRow
           shot={shot}
           index={0}

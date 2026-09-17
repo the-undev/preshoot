@@ -23,7 +23,6 @@ function shot(id: number, durationMs: number): ShotComposition {
         cutOff: false,
       },
     ],
-    soundNote: "",
   }
 }
 
@@ -37,6 +36,7 @@ const composition: ClipComposition = {
   style: "Live-action, cinematic",
   note: "",
   musicNote: "",
+  soundscape: "",
   language: "English",
   cast: [],
   shots: [shot(11, 5000), shot(12, 3500)],

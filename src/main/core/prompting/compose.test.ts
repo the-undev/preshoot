@@ -13,6 +13,7 @@ const composition: ClipComposition = {
   style: "Live-action, cinematic",
   note: "A keeper lights the lamp during a storm.",
   musicNote: "",
+  soundscape: "",
   language: "English",
   cast: [],
   shots: [
@@ -36,7 +37,6 @@ const composition: ClipComposition = {
           cutOff: false,
         },
       ],
-      soundNote: "",
     },
   ],
 }

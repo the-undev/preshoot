@@ -1,20 +1,6 @@
 import { useEffect, useRef, useState } from "react"
-import {
-  closestCenter,
-  DndContext,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  type DragEndEvent,
-} from "@dnd-kit/core"
-import { restrictToParentElement, restrictToVerticalAxis } from "@dnd-kit/modifiers"
-import {
-  SortableContext,
-  sortableKeyboardCoordinates,
-  useSortable,
-  verticalListSortingStrategy,
-} from "@dnd-kit/sortable"
+import { useDroppable } from "@dnd-kit/core"
+import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
 import { ChevronDown, GripVertical, Plus, Trash2 } from "lucide-react"
 import {
@@ -37,6 +23,7 @@ import { CommandMenu, type Command } from "./command-menu"
 import { LineHeader } from "./line-header"
 import { lineCommands, wordAt, type LineMenuContext } from "./line-commands"
 import { asLineInput, withChosenKind } from "./line-input"
+import { lineId, linesOfShotId } from "./line-drag"
 
 /** The chord that opens the menu, read from the one list so rebinding it moves this too. */
 const MENU_SHORTCUT = shortcutNamed("commandMenu")
@@ -103,13 +90,10 @@ export function ShotLines({
   // state, so landing the cursor does not ask for another render of its own.
   const focusAt = useRef<number | null>(null)
   const boxes = useRef(new Map<number, HTMLTextAreaElement>())
+  // A shot with nothing in it is still somewhere a line can be dropped.
+  const { setNodeRef: setDroppableRef } = useDroppable({ id: linesOfShotId(shotId) })
   const written = JSON.stringify(lines)
   const shown = draft?.from === written ? draft.lines : lines.map(asLineInput)
-
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
-  )
 
   useEffect(() => {
     if (focusAt.current === null) return
@@ -165,65 +149,49 @@ export function ShotLines({
     ])
   }
 
-  function dropped(event: DragEndEvent): void {
-    const { active, over } = event
-    if (!over || active.id === over.id) return
-    const from = Number(active.id)
-    const to = Number(over.id)
-    const ordered = [...shown]
-    const [moved] = ordered.splice(from, 1)
-    ordered.splice(to, 0, moved)
-    onChange(ordered)
-  }
-
   return (
     <div className="flex flex-col gap-2">
-      <DndContext
-        sensors={sensors}
-        collisionDetection={closestCenter}
-        modifiers={[restrictToVerticalAxis, restrictToParentElement]}
-        onDragEnd={dropped}
+      {/* Every shot's lines drag in one context, held by the shot list, so a line can be taken
+          from one shot and dropped into another. */}
+      <SortableContext
+        items={shown.map((_, index) => lineId(shotId, index))}
+        strategy={verticalListSortingStrategy}
       >
-        <SortableContext
-          items={shown.map((_, index) => index)}
-          strategy={verticalListSortingStrategy}
-        >
-          <div className="flex flex-col">
-            {shown.map((line, index) => (
-              <LineRow
-                key={index}
-                shotId={shotId}
-                line={line}
-                index={index}
-                subjects={subjects}
-                speakers={speakers}
-                boxRef={(box) => {
-                  if (box) boxes.current.set(index, box)
-                  else boxes.current.delete(index)
-                }}
-                onType={(next) => type(index, next)}
-                onCommit={commit}
-                onWrite={(next) => write(index, next)}
-                onEnter={() => insertAfter(index, line.kind)}
-                onRemove={() => remove(index)}
-                onInsertAfter={() => insertAfter(index, "action")}
-                menuOpen={menuOn?.at === index}
-                onOpenMenu={(word) => setMenuOn({ at: index, word })}
-                onCloseMenu={() => setMenuOn(null)}
-                commands={lineCommands({
-                  line,
-                  word: menuOn?.at === index ? menuOn.word : "",
-                  subjects,
-                  speakers,
-                  menu,
-                  onSetKind: (kind) => switchKind(index, kind),
-                  onShowSubject: (subjectId) => showSubject(index, subjectId),
-                })}
-              />
-            ))}
-          </div>
-        </SortableContext>
-      </DndContext>
+        <div ref={setDroppableRef} className="flex flex-col">
+          {shown.map((line, index) => (
+            <LineRow
+              key={index}
+              shotId={shotId}
+              line={line}
+              index={index}
+              subjects={subjects}
+              speakers={speakers}
+              boxRef={(box) => {
+                if (box) boxes.current.set(index, box)
+                else boxes.current.delete(index)
+              }}
+              onType={(next) => type(index, next)}
+              onCommit={commit}
+              onWrite={(next) => write(index, next)}
+              onEnter={() => insertAfter(index, line.kind)}
+              onRemove={() => remove(index)}
+              onInsertAfter={() => insertAfter(index, "action")}
+              menuOpen={menuOn?.at === index}
+              onOpenMenu={(word) => setMenuOn({ at: index, word })}
+              onCloseMenu={() => setMenuOn(null)}
+              commands={lineCommands({
+                line,
+                word: menuOn?.at === index ? menuOn.word : "",
+                subjects,
+                speakers,
+                menu,
+                onSetKind: (kind) => switchKind(index, kind),
+                onShowSubject: (subjectId) => showSubject(index, subjectId),
+              })}
+            />
+          ))}
+        </div>
+      </SortableContext>
 
       {/* Nothing to add a line with when every one of them has been taken away. */}
       {shown.length === 0 && (
@@ -317,7 +285,7 @@ function LineRow({
   const box = useRef<HTMLTextAreaElement | null>(null)
   const wasOpen = useRef(false)
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
-    id: index,
+    id: lineId(shotId, index),
   })
 
   /*
@@ -336,7 +304,8 @@ function LineRow({
     <div
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition }}
-      className={`group flex flex-col rounded ${isDragging ? "z-10 bg-accent" : ""}`}
+      // The line being dragged is drawn under the pointer instead, so its own place is left empty.
+      className={`group flex flex-col rounded ${isDragging ? "opacity-30" : ""}`}
     >
       {/* What the line is, above it rather than beside it, so the box below runs the full width. */}
       <div className="flex min-w-0 items-center gap-1">

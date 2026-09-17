@@ -10,6 +10,7 @@ import {
   type ShotComposition,
 } from "../../composition/clip"
 import type { BodyLength, PromptTarget, TargetFields, Vocabularies } from "../target"
+import { parseH3Prompt } from "./minimax-h3-parse"
 
 /** The three fields of a MiniMax H3 text-to-video prompt, in the order they are written. */
 const H3_FIELDS = [
@@ -82,9 +83,6 @@ export const H3_VOCABULARIES: Vocabularies = {
     "low-key",
   ],
 }
-
-/** Used when a shot after the first has no transition of its own. */
-const DEFAULT_TRANSITION = "the camera cuts to"
 
 /** How long the main field should run, which the guide sets for a generation body. */
 export const H3_BODY: BodyLength = {
@@ -213,9 +211,14 @@ function writtenLines(shot: ShotComposition): LineComposition[] {
   )
 }
 
-/** Lowers an opening article so the prose reads on from the phrase written before it. */
-function lowerOpeningArticle(text: string): string {
-  return text.replace(/^(The|A|An|His|Her|Its|Their)\b/, (word) => word.toLowerCase())
+/**
+ * Lowers the first word so the prose reads on from the phrase written before it, unless that word
+ * is one of the cast, whose name is a name wherever in a sentence it lands.
+ */
+function lowerOpening(composition: ClipComposition, text: string): string {
+  const first = /^[^\s,.]+/.exec(text)?.[0] ?? ""
+  if (composition.cast.some((subject) => subject.name === first)) return text
+  return text.length > 0 ? `${text[0].toLowerCase()}${text.slice(1)}` : text
 }
 
 /**
@@ -398,13 +401,10 @@ function describeShot(
   return { text: sentences.filter(Boolean).join(" "), opensOnWhatItShows }
 }
 
-/** Everything heard in the clip that is not spoken, gathered from the shots that name it. */
+/** Everything heard in the clip that is not spoken, which the clip holds as one field does. */
 function soundscape(composition: ClipComposition): string {
-  const notes = composition.shots
-    .map((shot) => shot.soundNote.trim())
-    .filter((note) => note.length > 0)
-    .map((note) => capitalise(sentence(note)))
-  return notes.length > 0 ? notes.join(" ") : NOTHING
+  const heard = composition.soundscape.trim()
+  return heard.length > 0 ? capitalise(sentence(heard)) : NOTHING
 }
 
 /** The three fields, with the markers, the cut times and the transitions written in. */
@@ -419,9 +419,13 @@ function assemble(composition: ClipComposition): TargetFields {
       return ["[Shot 1]", sentence(composition.style), prose.text].filter(Boolean).join(" ")
     }
     const start = formatCutTime(shotStartMs(composition, shot.id))
-    const transition = shot.transition ?? DEFAULT_TRANSITION
+    const transition = shot.transition?.trim() ?? ""
+    // A shot cut into with nothing runs straight on from the time it starts at.
+    if (transition.length === 0) {
+      return `[Shot ${index + 1}] At ${start}, ${lowerOpening(composition, prose.text)}`
+    }
     if (prose.opensOnWhatItShows) {
-      return `[Shot ${index + 1}] At ${start}, ${transition} ${lowerOpeningArticle(prose.text)}`
+      return `[Shot ${index + 1}] At ${start}, ${transition} ${lowerOpening(composition, prose.text)}`
     }
     // Nothing follows the cut for it to land on, so the cut is written as a sentence of its own.
     const alone = TRANSITION_SENTENCES[transition] ?? transition.replace(/\s+to$/, "")
@@ -430,7 +434,8 @@ function assemble(composition: ClipComposition): TargetFields {
   })
 
   return {
-    integrated_multimodal_description: body.join(" "),
+    // A shot to a line. The markers are what divide them, so this is for whoever reads it.
+    integrated_multimodal_description: body.join("\n"),
     overall_soundscape: soundscape(composition),
     non_diegetic_music:
       composition.musicNote.trim().length > 0 ? sentence(composition.musicNote) : NOTHING,
@@ -477,7 +482,9 @@ export const minimaxH3: PromptTarget = {
   name: "MiniMax H3",
   vocabularies: H3_VOCABULARIES,
   body: H3_BODY,
+  defaultTransition: "the camera cuts to",
   assemble,
   render: renderH3Prompt,
+  parse: parseH3Prompt,
   instructionLine,
 }

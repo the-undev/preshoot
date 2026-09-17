@@ -21,8 +21,10 @@ import {
   deleteClip,
   deleteShot,
   insertClip,
+  insertParsedClip,
   insertShot,
   listClips,
+  moveLine,
   moveShot,
   readClip,
   readComposition,
@@ -60,7 +62,6 @@ const shotInput = z.object({
   speed: z.string().nullable(),
   transition: z.string().nullable(),
   lighting: z.string().nullable(),
-  soundNote: z.string(),
   lines: z.array(
     z.object({
       kind: z.enum(LINE_KINDS as [LineKind, ...LineKind[]]),
@@ -103,8 +104,18 @@ export const clipsRouter = router({
     const db = requireProject(ctx)
     // Every clip needs a shot, so it starts with one rather than with a button to add one.
     const clip = insertClip(db, { name: null, target: DEFAULT_TARGET_ID, style: DEFAULT_STYLE })
-    insertShot(db, clip.id)
+    insertShot(db, clip.id, targetById(DEFAULT_TARGET_ID).defaultTransition)
     return readClip(db, clip.id)
+  }),
+
+  /**
+   * Reads a pasted prompt into a scratch clip. Whatever the parse cannot place stays as a line, so
+   * a prompt written anywhere else opens as shots of plain text rather than being refused.
+   */
+  paste: publicProcedure.input(z.object({ text: z.string().min(1) })).mutation(({ ctx, input }) => {
+    const db = requireProject(ctx)
+    const target = targetById(DEFAULT_TARGET_ID)
+    return insertParsedClip(db, target.parse(input.text), DEFAULT_TARGET_ID)
   }),
 
   /** Copies a clip into a new scratch one, leaving the clip it came from alone. */
@@ -135,6 +146,7 @@ export const clipsRouter = router({
         style: z.string(),
         note: z.string(),
         musicNote: z.string(),
+        soundscape: z.string(),
         form: z.enum(CLIP_FORMS as [ClipForm, ...ClipForm[]]),
         shortEdge: z.number().int().min(128).max(4096),
         aspectRatio: z.enum(ASPECT_RATIOS.map((entry) => entry.value) as [string, ...string[]]),
@@ -226,7 +238,7 @@ export const clipsRouter = router({
     const db = requireProject(ctx)
     try {
       ctx.history.remember(input.clipId, readComposition(db, input.clipId))
-      insertShot(db, input.clipId)
+      insertShot(db, input.clipId, targetOfClip(db, input.clipId).defaultTransition)
       return readComposition(db, input.clipId)
     } catch (error) {
       asClientError(error)
@@ -252,7 +264,6 @@ export const clipsRouter = router({
         speed: fromVocabulary(vocabularies.speeds, input.speed, "camera speed"),
         transition: fromVocabulary(vocabularies.transitions, input.transition, "transition"),
         lighting: input.lighting,
-        soundNote: input.soundNote,
       })
       setShotLines(db, input.shotId, input.lines)
       return readComposition(db, id)
@@ -260,6 +271,28 @@ export const clipsRouter = router({
       asClientError(error)
     }
   }),
+
+  /** Puts a line somewhere else, in its own shot or in another shot of the same clip. */
+  moveLine: publicProcedure
+    .input(
+      z.object({
+        shotId,
+        at: z.number().int().min(0),
+        toShotId: shotId,
+        toPosition: z.number().int().min(0),
+      })
+    )
+    .mutation(({ ctx, input }) => {
+      const db = requireProject(ctx)
+      try {
+        const id = clipIdOfShot(db, input.shotId)
+        ctx.history.remember(id, readComposition(db, id))
+        moveLine(db, input)
+        return readComposition(db, id)
+      } catch (error) {
+        asClientError(error)
+      }
+    }),
 
   /** Puts a shot at `toPosition`, sliding the others around it. */
   moveShot: publicProcedure

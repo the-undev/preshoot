@@ -35,7 +35,6 @@ function shot(id: number, durationMs: number): ShotComposition {
     transition: null,
     lighting: null,
     lines: [action(id, `Shot ${id} happens.`)],
-    soundNote: "",
   }
 }
 
@@ -49,6 +48,7 @@ const composition: ClipComposition = {
   style: "Live-action, cinematic",
   note: "A keeper lights the lamp.",
   musicNote: "",
+  soundscape: "",
   language: "English",
   cast: [
     { id: 7, kind: "person", name: "Keeper", description: "an elderly man", voice: "weathered" },

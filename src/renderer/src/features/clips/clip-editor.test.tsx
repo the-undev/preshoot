@@ -42,7 +42,6 @@ function shot(id: number, durationMs: number): ShotComposition {
     transition: null,
     lighting: null,
     lines: [action(id, `Shot ${id}`)],
-    soundNote: "",
   }
 }
 
@@ -56,6 +55,7 @@ const composition: ClipComposition = {
   style: "Live-action, cinematic",
   note: "A keeper lights the lamp.",
   musicNote: "",
+  soundscape: "",
   language: "English",
   cast: [],
   shots: [shot(11, 4500), shot(12, 3000)],
@@ -74,6 +74,7 @@ function renderEditor(over: Partial<React.ComponentProps<typeof ClipEditor>> = {
       onAddShot={onAddShot}
       onShotChange={vi.fn()}
       onMoveShot={vi.fn()}
+      onMoveLine={vi.fn()}
       onRemoveShot={vi.fn()}
       onSaveShot={vi.fn()}
       savedShots={[]}
