@@ -86,7 +86,7 @@ describe("workflows router", () => {
 
   it("lists the folder, imports a file and marks it as imported", async () => {
     await openProject()
-    settings.setWorkflowsFolder(folder)
+    settings.update({ workflowsFolder: folder })
 
     const { workflow: imported } = await caller.workflows.import({ path: sourcePath })
     const files = await caller.workflows.files()
@@ -110,7 +110,7 @@ describe("workflows router", () => {
 
   it("suggests a base on import only when another workflow shares enough slots", async () => {
     await openProject()
-    settings.setWorkflowsFolder(folder)
+    settings.update({ workflowsFolder: folder })
     writeFileSync(join(folder, "h3-fl2v-base.json"), fixtureText("h3-fl2v-base"))
     writeFileSync(
       join(folder, "qwen-edit-2511-edit-base.json"),
@@ -134,7 +134,7 @@ describe("workflows router", () => {
 
   it("copies a base workflow's tiers, names and notes onto the matching slots", async () => {
     await openProject()
-    settings.setWorkflowsFolder(folder)
+    settings.update({ workflowsFolder: folder })
     writeFileSync(join(folder, "h3-fl2v-base.json"), fixtureText("h3-fl2v-base"))
     const { workflow: base } = await caller.workflows.import({ path: sourcePath })
     const seed = base.slots.find((slot) => slot.name === "Seed")
@@ -157,7 +157,7 @@ describe("workflows router", () => {
 
   it("reports a copy from a workflow that is not there as not found", async () => {
     await openProject()
-    settings.setWorkflowsFolder(folder)
+    settings.update({ workflowsFolder: folder })
     const { workflow } = await caller.workflows.import({ path: sourcePath })
 
     await expect(
@@ -167,7 +167,7 @@ describe("workflows router", () => {
 
   it("removes a workflow and lists its source as importable again", async () => {
     await openProject()
-    settings.setWorkflowsFolder(folder)
+    settings.update({ workflowsFolder: folder })
     const { workflow: imported } = await caller.workflows.import({ path: sourcePath })
 
     await caller.workflows.remove({ workflowId: imported.id })
@@ -188,7 +188,7 @@ describe("workflows router", () => {
 
   it("refuses the same file twice as a conflict", async () => {
     await openProject()
-    settings.setWorkflowsFolder(folder)
+    settings.update({ workflowsFolder: folder })
     await caller.workflows.import({ path: sourcePath })
 
     await expect(caller.workflows.import({ path: sourcePath })).rejects.toThrow(
@@ -198,7 +198,7 @@ describe("workflows router", () => {
 
   it("refuses a file outside the folder", async () => {
     await openProject()
-    settings.setWorkflowsFolder(folder)
+    settings.update({ workflowsFolder: folder })
     const outside = join(dir, "elsewhere.json")
     writeFileSync(outside, fixtureText("h3-r2v-base"))
 
@@ -209,7 +209,7 @@ describe("workflows router", () => {
 
   it("reads a workflow back with its slots and guide, and moves a slot to another tier", async () => {
     await openProject()
-    settings.setWorkflowsFolder(folder)
+    settings.update({ workflowsFolder: folder })
     const { workflow: imported } = await caller.workflows.import({ path: sourcePath })
     const seed = imported.slots.find((slot) => slot.name === "Seed")
     if (!seed) throw new Error("no seed slot")
@@ -223,7 +223,7 @@ describe("workflows router", () => {
 
   it("gives a slot a display name and note, and clears them again", async () => {
     await openProject()
-    settings.setWorkflowsFolder(folder)
+    settings.update({ workflowsFolder: folder })
     const { workflow: imported } = await caller.workflows.import({ path: sourcePath })
     const seed = imported.slots.find((slot) => slot.name === "Seed")
     if (!seed) throw new Error("no seed slot")
@@ -270,7 +270,7 @@ describe("workflows router", () => {
 
   it("shows a changed source and applies it when asked", async () => {
     await openProject()
-    settings.setWorkflowsFolder(folder)
+    settings.update({ workflowsFolder: folder })
     const { workflow: imported } = await caller.workflows.import({ path: sourcePath })
     expect(await caller.workflows.checkSource({ workflowId: imported.id })).toEqual({
       state: "in-sync",
@@ -295,7 +295,7 @@ describe("workflows router", () => {
 
   it("applies a source change that touches no slot during the check", async () => {
     await openProject()
-    settings.setWorkflowsFolder(folder)
+    settings.update({ workflowsFolder: folder })
     const { workflow: imported } = await caller.workflows.import({ path: sourcePath })
     const graph = JSON.parse(fixtureText("h3-r2v-base"))
     graph.nodes.push({ id: 90, type: "SaveImage", title: "Output", mode: 0 })
@@ -314,7 +314,7 @@ describe("workflows router", () => {
 
   it("lists each workflow's shown text slots without reading its graph", async () => {
     await openProject()
-    settings.setWorkflowsFolder(folder)
+    settings.update({ workflowsFolder: folder })
     const { workflow: imported } = await caller.workflows.import({ path: sourcePath })
     const prompt = imported.slots.find((slot) => slot.name === "Prompt")
     if (!prompt) throw new Error("no Prompt slot")
@@ -341,7 +341,7 @@ describe("workflows router", () => {
 
   it("refuses changes that are no longer the ones shown as a conflict", async () => {
     await openProject()
-    settings.setWorkflowsFolder(folder)
+    settings.update({ workflowsFolder: folder })
     const { workflow: imported } = await caller.workflows.import({ path: sourcePath })
     writeFileSync(sourcePath, fixtureText("h3-r2v-base").replace('"Seed"', '"Noise seed"'))
 

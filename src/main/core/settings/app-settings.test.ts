@@ -70,14 +70,14 @@ describe("AppSettingsStore", () => {
   })
 
   it("reads back the model it was given", () => {
-    store.setLlamaModel("unsloth/Qwen3.5-9B-GGUF:Q4_K_M")
+    store.update({ llamaModel: "unsloth/Qwen3.5-9B-GGUF:Q4_K_M" })
 
     expect(store.llamaModel()).toBe("unsloth/Qwen3.5-9B-GGUF:Q4_K_M")
     expect(store.llamaServerUrl()).toBe(DEFAULT_LLAMA_SERVER_URL)
   })
 
   it("reads back the server URL it was given", () => {
-    store.setLlamaServerUrl("http://192.168.1.20:9000")
+    store.update({ llamaServerUrl: "http://192.168.1.20:9000" })
 
     expect(store.llamaServerUrl()).toBe("http://192.168.1.20:9000")
   })
@@ -86,13 +86,13 @@ describe("AppSettingsStore", () => {
     const directory = makeProjectFolder("kept")
     store.recordRecentProject({ directory, name: "Kept", createdAt: "" })
 
-    store.setLlamaServerUrl("http://192.168.1.20:9000")
+    store.update({ llamaServerUrl: "http://192.168.1.20:9000" })
 
     expect(store.listRecentProjects().map((entry) => entry.directory)).toEqual([directory])
   })
 
   it("keeps the server URL when a project is recorded", () => {
-    store.setLlamaServerUrl("http://192.168.1.20:9000")
+    store.update({ llamaServerUrl: "http://192.168.1.20:9000" })
 
     const directory = makeProjectFolder("kept")
     store.recordRecentProject({ directory, name: "Kept", createdAt: "" })
@@ -111,7 +111,7 @@ describe("AppSettingsStore", () => {
   })
 
   it("reads back the ComfyUI URL it was given and leaves llama-server alone", () => {
-    store.setComfyUiUrl("http://127.0.0.1:8190")
+    store.update({ comfyUiUrl: "http://127.0.0.1:8190" })
 
     expect(store.comfyUiUrl()).toBe("http://127.0.0.1:8190")
     expect(store.llamaServerUrl()).toBe(DEFAULT_LLAMA_SERVER_URL)
@@ -121,13 +121,13 @@ describe("AppSettingsStore", () => {
     const directory = makeProjectFolder("kept")
     store.recordRecentProject({ directory, name: "Kept", createdAt: "" })
 
-    store.setComfyUiUrl("http://127.0.0.1:8190")
+    store.update({ comfyUiUrl: "http://127.0.0.1:8190" })
 
     expect(store.listRecentProjects().map((entry) => entry.directory)).toEqual([directory])
   })
 
   it("keeps the ComfyUI URL when a project is recorded", () => {
-    store.setComfyUiUrl("http://127.0.0.1:8190")
+    store.update({ comfyUiUrl: "http://127.0.0.1:8190" })
 
     const directory = makeProjectFolder("kept")
     store.recordRecentProject({ directory, name: "Kept", createdAt: "" })
@@ -142,15 +142,15 @@ describe("AppSettingsStore", () => {
   })
 
   it("reads back the workflows folder it was given and leaves the URLs alone", () => {
-    store.setWorkflowsFolder("/home/someone/workflows")
+    store.update({ workflowsFolder: "/home/someone/workflows" })
 
     expect(store.workflowsFolder()).toBe("/home/someone/workflows")
     expect(store.comfyUiUrl()).toBe(DEFAULT_COMFYUI_URL)
   })
 
   it("forgets the workflows folder when given none", () => {
-    store.setWorkflowsFolder("/home/someone/workflows")
-    store.setWorkflowsFolder(null)
+    store.update({ workflowsFolder: "/home/someone/workflows" })
+    store.update({ workflowsFolder: null })
 
     expect(store.workflowsFolder()).toBeNull()
   })
@@ -162,16 +162,16 @@ describe("AppSettingsStore", () => {
   })
 
   it("reads back the library folder it was given and leaves the workflows folder alone", () => {
-    store.setWorkflowsFolder("/home/someone/workflows")
-    store.setLibraryFolder("/home/someone/library")
+    store.update({ workflowsFolder: "/home/someone/workflows" })
+    store.update({ libraryFolder: "/home/someone/library" })
 
     expect(store.libraryFolder()).toBe("/home/someone/library")
     expect(store.workflowsFolder()).toBe("/home/someone/workflows")
   })
 
   it("forgets the library folder when given none", () => {
-    store.setLibraryFolder("/home/someone/library")
-    store.setLibraryFolder(null)
+    store.update({ libraryFolder: "/home/someone/library" })
+    store.update({ libraryFolder: null })
 
     expect(store.libraryFolder()).toBeNull()
   })

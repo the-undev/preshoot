@@ -67,7 +67,7 @@ export class AppSettingsStore {
     }
   }
 
-  /** Changes the fields in `patch` and leaves the rest of the file as it was. */
+  /** Changes the fields in `patch` in one read and one write, leaving the rest as it was. */
   update(patch: Partial<AppSettings>): void {
     this.write({ ...this.read(), ...patch })
   }
@@ -77,19 +77,9 @@ export class AppSettingsStore {
     return this.read().llamaServerUrl
   }
 
-  /** Points the app at a different llama-server. */
-  setLlamaServerUrl(url: string): void {
-    this.update({ llamaServerUrl: url })
-  }
-
   /** The model the server is asked for, which is empty until one is chosen. */
   llamaModel(): string {
     return this.read().llamaModel
-  }
-
-  /** Asks the server for a different model from now on. */
-  setLlamaModel(id: string): void {
-    this.update({ llamaModel: id })
   }
 
   /** The base URL of the ComfyUI instance the app generates through. */
@@ -97,29 +87,14 @@ export class AppSettingsStore {
     return this.read().comfyUiUrl
   }
 
-  /** Points the app at a different ComfyUI instance. */
-  setComfyUiUrl(url: string): void {
-    this.update({ comfyUiUrl: url })
-  }
-
   /** The folder workflows are imported from, which the app reads and never writes. */
   workflowsFolder(): string | null {
     return this.read().workflowsFolder
   }
 
-  /** Imports workflows from a different folder, or from none. */
-  setWorkflowsFolder(folder: string | null): void {
-    this.update({ workflowsFolder: folder })
-  }
-
   /** The folder the library is read from, which the app writes to only on an explicit copy. */
   libraryFolder(): string | null {
     return this.read().libraryFolder
-  }
-
-  /** Reads the library from a different folder, or from none. */
-  setLibraryFolder(folder: string | null): void {
-    this.update({ libraryFolder: folder })
   }
 
   /** Replaces the settings file, writing beside it first so a failed write leaves the old file intact. */

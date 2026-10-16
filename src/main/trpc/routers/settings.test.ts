@@ -28,6 +28,7 @@ describe("settings router", () => {
   let checkedComfyUiUrl: string
   let pickedFolder: string | null
   let pickTitles: string[]
+  let settings: AppSettingsStore
   let caller: ReturnType<typeof appRouter.createCaller>
 
   beforeEach(() => {
@@ -44,11 +45,12 @@ describe("settings router", () => {
     checkedComfyUiUrl = ""
     pickedFolder = null
     pickTitles = []
+    settings = new AppSettingsStore(join(dir, "settings.json"))
     const ctx: Context = {
       versions: { app: "0.0.0", electron: "0", chrome: "0", node: "0" },
       projects: session,
       history: new ClipHistory(),
-      settings: new AppSettingsStore(join(dir, "settings.json")),
+      settings,
       migrationsFolder,
       dialogs: {
         pickDirectory: async ({ title }) => {
@@ -107,6 +109,28 @@ describe("settings router", () => {
       comfyUiUrl: "http://127.0.0.1:8190",
       workflowsFolder: "/home/someone/workflows",
       libraryFolder: "/home/someone/library",
+    })
+  })
+
+  it("writes the settings file once for a save", async () => {
+    // The store's one write path, which TypeScript keeps private.
+    const writes = vi.spyOn(settings as unknown as { write: (value: unknown) => void }, "write")
+
+    await caller.settings.update({
+      llamaServerUrl: "http://192.168.1.20:9000",
+      llamaModel: "qwen",
+      comfyUiUrl: "http://127.0.0.1:8190",
+      workflowsFolder: "/home/someone/workflows",
+      libraryFolder: null,
+    })
+
+    expect(writes).toHaveBeenCalledTimes(1)
+    expect(settings.read()).toMatchObject({
+      llamaServerUrl: "http://192.168.1.20:9000",
+      llamaModel: "qwen",
+      comfyUiUrl: "http://127.0.0.1:8190",
+      workflowsFolder: "/home/someone/workflows",
+      libraryFolder: null,
     })
   })
 

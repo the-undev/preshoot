@@ -28,7 +28,7 @@ describe("configurations router", () => {
     writeFileSync(picture, Buffer.from([1, 2, 3]))
     session = new ProjectSession()
     const settings = new AppSettingsStore(join(dir, "settings.json"))
-    settings.setWorkflowsFolder(folder)
+    settings.update({ workflowsFolder: folder })
     const ctx: Context = {
       versions: { app: "0.0.0", electron: "0", chrome: "0", node: "0" },
       projects: session,

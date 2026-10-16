@@ -38,7 +38,7 @@ describe("library router", () => {
     put("prompts/one-liner.txt", "A man sits at a cafe window table.")
     session = new ProjectSession()
     settings = new AppSettingsStore(join(dir, "settings.json"))
-    settings.setLibraryFolder(library)
+    settings.update({ libraryFolder: library })
     picked = []
     opened = []
     const ctx: Context = {
@@ -103,7 +103,7 @@ describe("library router", () => {
   })
 
   it("says when no library folder is set", async () => {
-    settings.setLibraryFolder(null)
+    settings.update({ libraryFolder: null })
 
     expect(await caller.library.entries()).toEqual({ state: "unset" })
   })
@@ -271,7 +271,7 @@ describe("library router", () => {
 
   it("asks for a library folder before copying a subject out", async () => {
     await openProject()
-    settings.setLibraryFolder(null)
+    settings.update({ libraryFolder: null })
     const anna = await caller.assets.create({ kind: "person", name: "Anna", description: "x" })
 
     await expect(

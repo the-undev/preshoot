@@ -54,7 +54,7 @@ describe("runs router", () => {
     writeFileSync(join(folder, "h3-r2v-base.json"), fixtureText("h3-r2v-base"))
     session = new ProjectSession()
     settings = new AppSettingsStore(join(dir, "settings.json"))
-    settings.setWorkflowsFolder(folder)
+    settings.update({ workflowsFolder: folder })
     routes = { ...finishingRoutes }
     comfyUiUrls = []
     opened = []
@@ -126,7 +126,7 @@ describe("runs router", () => {
 
   it("queues a run on the saved ComfyUI, follows it, and opens its output", async () => {
     const workflow = await openProjectWithWorkflow()
-    settings.setComfyUiUrl("http://127.0.0.1:8190")
+    settings.update({ comfyUiUrl: "http://127.0.0.1:8190" })
     const prompt = workflow.slots.find((slot) => slot.name === "Prompt")
     if (!prompt) throw new Error("no prompt slot")
 
@@ -187,7 +187,7 @@ describe("runs router", () => {
 
   it("cancels a waiting run on the saved ComfyUI and records it failed", async () => {
     const workflow = await openProjectWithWorkflow()
-    settings.setComfyUiUrl("http://127.0.0.1:8190")
+    settings.update({ comfyUiUrl: "http://127.0.0.1:8190" })
     const [run] = await caller.runs.queue({ workflowId: workflow.id, bindings: [] })
     const deleted: unknown[] = []
     routes["/queue"] = (_url, init) => {

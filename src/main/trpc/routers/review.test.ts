@@ -27,7 +27,7 @@ describe("review router", () => {
     writeFileSync(join(folder, "h3-r2v-base.json"), fixtureText("h3-r2v-base"))
     session = new ProjectSession()
     const settings = new AppSettingsStore(join(dir, "settings.json"))
-    settings.setWorkflowsFolder(folder)
+    settings.update({ workflowsFolder: folder })
     pickDirectory = vi.fn(async () => join(dir, "picked"))
     opened = []
     const ctx: Context = {

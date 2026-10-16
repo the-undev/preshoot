@@ -36,11 +36,7 @@ export const settingsRouter = router({
       })
     )
     .mutation(({ ctx, input }) => {
-      ctx.settings.setLlamaServerUrl(input.llamaServerUrl)
-      ctx.settings.setLlamaModel(input.llamaModel)
-      ctx.settings.setComfyUiUrl(input.comfyUiUrl)
-      ctx.settings.setWorkflowsFolder(input.workflowsFolder)
-      ctx.settings.setLibraryFolder(input.libraryFolder)
+      ctx.settings.update(input)
       return {
         llamaServerUrl: ctx.settings.llamaServerUrl(),
         llamaModel: ctx.settings.llamaModel(),
