@@ -1,3 +1,4 @@
+import { useQuery } from "@tanstack/react-query"
 import { useEffect, useState } from "react"
 import {
   Button,
@@ -10,6 +11,7 @@ import {
 import { cutAtWord } from "@renderer/lib/cut-at-word"
 import {
   libraryFileUrl,
+  useTRPC,
   type LibraryEntry,
   type LibraryFile,
   type LibraryFolder,
@@ -47,19 +49,23 @@ const PICKER_WORDS: Record<PickableMedia, { title: string; description: string; 
 type MediaProps =
   { media: "image" | "audio" } | { media: "text"; readText: (file: LibraryFile) => Promise<string> }
 
-type FilesProps = MediaProps & {
-  folder: LibraryFolder | undefined
-  onPick: (file: LibraryFile) => void
-}
+type PickProps = MediaProps & { onPick: (file: LibraryFile) => void }
 
-type LibraryFilePickerProps = FilesProps & { onCancel: () => void }
+type FilesProps = PickProps & { folder: LibraryFolder | undefined }
 
-/** The library's files of one media by kind and entry, to pick one from as a file picker would. */
+type LibraryFilePickerProps = PickProps & { onCancel: () => void }
+
+/**
+ * The library's files of one media by kind and entry, to pick one from as a file picker would. The
+ * library folder is read when the picker opens.
+ */
 export function LibraryFilePicker({
   onCancel,
-  ...filesProps
+  ...pickProps
 }: LibraryFilePickerProps): React.JSX.Element {
-  const words = PICKER_WORDS[filesProps.media]
+  const trpc = useTRPC()
+  const folder = useQuery(trpc.library.entries.queryOptions()).data
+  const words = PICKER_WORDS[pickProps.media]
   return (
     <Dialog
       open
@@ -72,7 +78,7 @@ export function LibraryFilePicker({
           <DialogTitle>{words.title}</DialogTitle>
           <DialogDescription>{words.description}</DialogDescription>
         </DialogHeader>
-        <Files {...filesProps} />
+        <Files {...pickProps} folder={folder} />
       </DialogContent>
     </Dialog>
   )

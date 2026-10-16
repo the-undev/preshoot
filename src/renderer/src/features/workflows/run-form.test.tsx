@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen, within } from "@testing-library/react"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import type { LibraryFolder, RunBinding, SavedSlotValue, WorkflowSlot } from "@renderer/lib/trpc"
 import { listedLibrary } from "@renderer/features/library/fixtures"
+import { StubTrpcProvider } from "@renderer/lib/stub-trpc"
 import { RunForm } from "./run-form"
 
 function slot(over: Partial<WorkflowSlot>): WorkflowSlot {
@@ -65,7 +66,10 @@ const savedValues: SavedSlotValue[] = [
   { slotId: 8, value: 5 },
 ]
 
-function renderForm(over: Partial<Parameters<typeof RunForm>[0]> = {}): {
+/** What the form is given, and the library folder its pickers read when one opens. */
+type FormOptions = Partial<Parameters<typeof RunForm>[0]> & { library?: () => LibraryFolder }
+
+function renderForm({ library = () => listedLibrary, ...over }: FormOptions = {}): {
   onQueue: ReturnType<typeof vi.fn>
   onSaveNew: ReturnType<typeof vi.fn>
   onUpdate: ReturnType<typeof vi.fn>
@@ -74,23 +78,24 @@ function renderForm(over: Partial<Parameters<typeof RunForm>[0]> = {}): {
   const onSaveNew = vi.fn(async () => {})
   const onUpdate = vi.fn(async () => {})
   render(
-    <RunForm
-      slots={slots}
-      savedValues={savedValues}
-      initialBindings={[]}
-      keptFields={null}
-      onFieldsChange={() => {}}
-      configurationName={null}
-      blockedReason={null}
-      isQueueing={false}
-      onQueue={onQueue}
-      onSaveNew={onSaveNew}
-      onUpdate={onUpdate}
-      onPickFile={async () => null}
-      library={listedLibrary}
-      onReadText={async () => ""}
-      {...over}
-    />
+    <StubTrpcProvider answers={{ "library.entries": library }}>
+      <RunForm
+        slots={slots}
+        savedValues={savedValues}
+        initialBindings={[]}
+        keptFields={null}
+        onFieldsChange={() => {}}
+        configurationName={null}
+        blockedReason={null}
+        isQueueing={false}
+        onQueue={onQueue}
+        onSaveNew={onSaveNew}
+        onUpdate={onUpdate}
+        onPickFile={async () => null}
+        onReadText={async () => ""}
+        {...over}
+      />
+    </StubTrpcProvider>
   )
   return { onQueue, onSaveNew, onUpdate }
 }
@@ -345,11 +350,13 @@ describe("RunForm", () => {
     ).toBeInTheDocument()
   })
 
-  it("binds a picture picked from the library the way a file picked from disk is bound", () => {
+  it("binds a picture picked from the library the way a file picked from disk is bound", async () => {
     const { onQueue } = renderForm()
 
     fireEvent.click(screen.getByRole("button", { name: "Choose Picture 1 from the library" }))
-    fireEvent.click(screen.getByRole("button", { name: "Rainy Street: rainy-street-dusk.png" }))
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Rainy Street: rainy-street-dusk.png" })
+    )
     fireEvent.click(screen.getByRole("button", { name: "Queue" }))
 
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
@@ -361,11 +368,13 @@ describe("RunForm", () => {
     })
   })
 
-  it("shows a thumbnail beside a picture picked from the library", () => {
+  it("shows a thumbnail beside a picture picked from the library", async () => {
     renderForm()
 
     fireEvent.click(screen.getByRole("button", { name: "Choose Picture 1 from the library" }))
-    fireEvent.click(screen.getByRole("button", { name: "Rainy Street: rainy-street-dusk.png" }))
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Rainy Street: rainy-street-dusk.png" })
+    )
 
     const slotRow = screen.getByText("Picture 1").closest("li")
     const thumbnails = slotRow?.querySelectorAll("img") ?? []
@@ -382,7 +391,9 @@ describe("RunForm", () => {
     expect(slotRow?.querySelector("img")).toBeNull()
 
     fireEvent.click(screen.getByRole("button", { name: "Choose Picture 1 from the library" }))
-    fireEvent.click(screen.getByRole("button", { name: "Rainy Street: rainy-street-dusk.png" }))
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Rainy Street: rainy-street-dusk.png" })
+    )
     await act(async () =>
       fireEvent.click(screen.getByRole("button", { name: "Choose file for Picture 1" }))
     )
@@ -391,28 +402,38 @@ describe("RunForm", () => {
     expect(slotRow?.querySelector("img")).toBeNull()
   })
 
-  it("offers the library's pictures by entry, and only pictures", () => {
+  it("offers the library's pictures by entry, and only pictures", async () => {
     renderForm()
 
     fireEvent.click(screen.getByRole("button", { name: "Choose Picture 1 from the library" }))
 
     const dialog = screen.getByRole("dialog")
-    expect(within(dialog).getByRole("heading", { name: /Daniel/ })).toBeInTheDocument()
+    expect(await within(dialog).findByRole("heading", { name: /Daniel/ })).toBeInTheDocument()
     expect(within(dialog).getByRole("heading", { name: /Rainy Street/ })).toBeInTheDocument()
     expect(within(dialog).queryByRole("heading", { name: /one-liner/ })).not.toBeInTheDocument()
     expect(within(dialog).queryByRole("button", { name: /voice\.wav/ })).not.toBeInTheDocument()
   })
 
-  it("says so in the picker when no library folder is set", () => {
-    const unset: LibraryFolder = { state: "unset" }
-    renderForm({ library: unset })
+  it("says so in the picker when no library folder is set", async () => {
+    renderForm({ library: () => ({ state: "unset" }) })
 
     fireEvent.click(screen.getByRole("button", { name: "Choose Picture 1 from the library" }))
 
-    expect(screen.getByText(/No library folder is set/)).toBeInTheDocument()
+    expect(await screen.findByText(/No library folder is set/)).toBeInTheDocument()
   })
 
-  it("offers the library's sounds to an audio slot and binds the one picked", () => {
+  it("reads the library folder only once a picker opens", async () => {
+    const library = vi.fn(() => listedLibrary)
+    renderForm({ library })
+    await act(async () => {})
+
+    expect(library).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole("button", { name: "Choose Picture 1 from the library" }))
+    await screen.findByRole("button", { name: "Rainy Street: rainy-street-dusk.png" })
+    expect(library).toHaveBeenCalledTimes(1)
+  })
+
+  it("offers the library's sounds to an audio slot and binds the one picked", async () => {
     const { onQueue } = renderForm({
       slots: [slot({ id: 9, nodeId: 30, nodeType: "LoadAudio", name: "Voice", kind: "audio" })],
       savedValues: [{ slotId: 9, value: "take-1.wav" }],
@@ -420,6 +441,7 @@ describe("RunForm", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Choose Voice from the library" }))
     const dialog = screen.getByRole("dialog")
+    await within(dialog).findByRole("button", { name: "Daniel: voice.wav" })
     expect(within(dialog).queryByRole("button", { name: /daniel-cafe\.png/ })).toBeNull()
     expect(within(dialog).getByLabelText("Play voice.wav")).toHaveAttribute(
       "src",
@@ -445,7 +467,7 @@ describe("RunForm", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Fill Prompt from the library" }))
     const dialog = screen.getByRole("dialog")
-    const file = within(dialog).getByRole("button", { name: "one-liner: one-liner.txt" })
+    const file = await within(dialog).findByRole("button", { name: "one-liner: one-liner.txt" })
 
     expect(
       await within(file).findByText(/^She turns from the window\. Rain runs down\./)
@@ -472,9 +494,8 @@ describe("RunForm", () => {
     const { onQueue } = renderForm({ onReadText: async () => "She turns from the window." })
 
     fireEvent.click(screen.getByRole("button", { name: "Fill Prompt from the library" }))
-    await act(async () =>
-      fireEvent.click(screen.getByRole("button", { name: "one-liner: one-liner.txt" }))
-    )
+    const file = await screen.findByRole("button", { name: "one-liner: one-liner.txt" })
+    await act(async () => fireEvent.click(file))
     fireEvent.click(screen.getByRole("button", { name: "Queue" }))
 
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument()

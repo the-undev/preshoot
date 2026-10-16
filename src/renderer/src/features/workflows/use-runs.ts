@@ -4,7 +4,6 @@ import {
   useTRPC,
   useTRPCClient,
   type LibraryFile,
-  type LibraryFolder,
   type OutputExport,
   type RunBinding,
   type RunRecord,
@@ -28,14 +27,12 @@ export interface RunFormPanel {
   isQueueing: boolean
   queue(bindings: RunBinding[], count: number, configurationId: number | null): void
   pickFile(kind: FileKind): Promise<string | null>
-  library: LibraryFolder | undefined
   readLibraryText(file: LibraryFile): Promise<string>
   errorMessage: string | null
 }
 
 /**
- * Reads a workflow's saved values, whether ComfyUI answers and what the library holds, and queues
- * runs of it.
+ * Reads a workflow's saved values and whether ComfyUI answers, and queues runs of it.
  */
 export function useRunForm(workflowId: number): RunFormPanel {
   const trpc = useTRPC()
@@ -55,7 +52,6 @@ export function useRunForm(workflowId: number): RunFormPanel {
     })
   )
   const pickFile = useMutation(trpc.runs.pickFile.mutationOptions())
-  const library = useQuery(trpc.library.entries.queryOptions())
   // Kept the same between renders, so the picker's previews are not read again on each poll.
   const readLibraryText = useCallback(
     async (file: LibraryFile) =>
@@ -70,7 +66,6 @@ export function useRunForm(workflowId: number): RunFormPanel {
     queue: (bindings, count, configurationId) =>
       queue.mutate({ workflowId, bindings, count, configurationId }),
     pickFile: (kind) => pickFile.mutateAsync({ kind }),
-    library: library.data,
     readLibraryText,
     errorMessage: queue.error?.message ?? pickFile.error?.message ?? values.error?.message ?? null,
   }

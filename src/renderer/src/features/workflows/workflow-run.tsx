@@ -170,7 +170,6 @@ export function WorkflowRunView({
               saved(await configurations.update(loadedConfiguration.id, bindings), bindings)
             }}
             onPickFile={form.pickFile}
-            library={form.library}
             onReadText={form.readLibraryText}
           />
         ) : (

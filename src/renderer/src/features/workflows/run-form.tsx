@@ -15,7 +15,6 @@ import { fileName } from "@renderer/lib/file-name"
 import {
   libraryFileUrl,
   type LibraryFile,
-  type LibraryFolder,
   type RunBinding,
   type SavedSlotValue,
   type WorkflowSlot,
@@ -81,8 +80,6 @@ interface RunFormProps {
   onSaveNew: (name: string, bindings: RunBinding[]) => Promise<void>
   onUpdate: (bindings: RunBinding[]) => Promise<void>
   onPickFile: (kind: FileKind) => Promise<string | null>
-  /** The library folder, whose files a file or text slot can be filled from. */
-  library: LibraryFolder | undefined
   /** Reads a library text file, which fills a text slot picked from the library. */
   onReadText: (file: LibraryFile) => Promise<string>
 }
@@ -104,7 +101,6 @@ export function RunForm({
   onSaveNew,
   onUpdate,
   onPickFile,
-  library,
   onReadText,
 }: RunFormProps): React.JSX.Element {
   const [states, setStates] = useState<Record<number, SlotState>>(() =>
@@ -138,7 +134,6 @@ export function RunForm({
           state={states[slot.id]}
           onChange={(state) => setState(slot.id, state)}
           onPickFile={onPickFile}
-          library={library}
           onReadText={onReadText}
         />
       ))}
@@ -237,7 +232,6 @@ interface SlotFieldProps {
   state: SlotState
   onChange: (state: SlotState) => void
   onPickFile: (kind: FileKind) => Promise<string | null>
-  library: LibraryFolder | undefined
   onReadText: (file: LibraryFile) => Promise<string>
 }
 
@@ -247,7 +241,6 @@ function SlotField({
   state,
   onChange,
   onPickFile,
-  library,
   onReadText,
 }: SlotFieldProps): React.JSX.Element {
   const id = `slot-${slot.id}`
@@ -324,7 +317,6 @@ function SlotField({
         disabled={!state.on}
         onChange={setField}
         onPickFile={onPickFile}
-        library={library}
         onReadText={onReadText}
       />
       {dropProblem && <p className="text-sm text-destructive">{dropProblem}</p>}
@@ -339,7 +331,6 @@ interface FieldControlProps {
   disabled: boolean
   onChange: (field: Field) => void
   onPickFile: (kind: FileKind) => Promise<string | null>
-  library: LibraryFolder | undefined
   onReadText: (file: LibraryFile) => Promise<string>
 }
 
@@ -351,7 +342,6 @@ function FieldControl({
   disabled,
   onChange,
   onPickFile,
-  library,
   onReadText,
 }: FieldControlProps): React.JSX.Element | null {
   const [pickingFromLibrary, setPickingFromLibrary] = useState(false)
@@ -413,7 +403,6 @@ function FieldControl({
         {pickingFromLibrary && (
           <LibraryFilePicker
             media={kind}
-            folder={library}
             onPick={(file) => {
               onChange({ ...field, path: file.path, libraryPath: file.relativePath })
               setPickingFromLibrary(false)
@@ -466,7 +455,6 @@ function FieldControl({
         {pickingFromLibrary && (
           <LibraryFilePicker
             media="text"
-            folder={library}
             readText={onReadText}
             onPick={(file) => void fillFrom(file)}
             onCancel={() => setPickingFromLibrary(false)}
