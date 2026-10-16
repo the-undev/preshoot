@@ -334,7 +334,9 @@ describes reference pictures. Nothing else in the app calls a model.
 11. The library: a folder of files the user owns, named in settings, read
     as kinds, entries, files and notes, served read-only over `library://`,
     with copy-on-use into subjects, image slots and clips, and one explicit
-    write back, copying a saved subject out as a new entry.
+    write back, copying a saved subject out as a new entry. A library
+    entry with a picture joins a clip's cast in one flow from the cast
+    strip or the command menu.
 12. Configurations: named bindings saved per workflow with their picked
     files copied into the project, loaded back with anything stale named,
     renamed, duplicated and deleted, and queued as a batch with fresh seeds.
