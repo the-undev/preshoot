@@ -28,6 +28,7 @@ export function WorkflowRun({ workflow }: { workflow: WorkflowDetail }): React.J
             isQueueing={form.isQueueing}
             onQueue={form.queue}
             onPickFile={form.pickFile}
+            library={form.library}
           />
         ) : (
           <p className="text-sm text-muted-foreground">Reading the values saved in the workflow…</p>

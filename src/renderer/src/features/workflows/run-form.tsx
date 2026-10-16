@@ -10,7 +10,8 @@ import {
   Switch,
   Textarea,
 } from "@renderer/design-system"
-import type { RunBinding, SavedSlotValue, WorkflowSlot } from "@renderer/lib/trpc"
+import { LibraryImagePicker } from "@renderer/features/library/library-image-picker"
+import type { LibraryFolder, RunBinding, SavedSlotValue, WorkflowSlot } from "@renderer/lib/trpc"
 import { KIND_LABELS } from "./slot-labels"
 
 /** The kinds of slot filled from a file on disk. */
@@ -39,6 +40,8 @@ interface RunFormProps {
   isQueueing: boolean
   onQueue: (bindings: RunBinding[]) => void
   onPickFile: (kind: FileKind) => Promise<string | null>
+  /** The library folder, whose pictures an image slot can be filled from. */
+  library: LibraryFolder | undefined
 }
 
 /**
@@ -52,6 +55,7 @@ export function RunForm({
   isQueueing,
   onQueue,
   onPickFile,
+  library,
 }: RunFormProps): React.JSX.Element {
   const [states, setStates] = useState<Record<number, SlotState>>(() =>
     Object.fromEntries(slots.map((slot) => [slot.id, initialState(slot, savedValues)]))
@@ -75,6 +79,7 @@ export function RunForm({
           state={states[slot.id]}
           onChange={(state) => setState(slot.id, state)}
           onPickFile={onPickFile}
+          library={library}
         />
       ))}
     </ul>
@@ -122,10 +127,17 @@ interface SlotFieldProps {
   state: SlotState
   onChange: (state: SlotState) => void
   onPickFile: (kind: FileKind) => Promise<string | null>
+  library: LibraryFolder | undefined
 }
 
 /** One slot: its name, a switch when it is off in the workflow, and the control for its value. */
-function SlotField({ slot, state, onChange, onPickFile }: SlotFieldProps): React.JSX.Element {
+function SlotField({
+  slot,
+  state,
+  onChange,
+  onPickFile,
+  library,
+}: SlotFieldProps): React.JSX.Element {
   const id = `slot-${slot.id}`
   // A slot bypassed in the workflow, or one that only switches a node, can be turned on and off.
   const switchable = slot.bypassed || slot.kind === "toggle"
@@ -155,6 +167,7 @@ function SlotField({ slot, state, onChange, onPickFile }: SlotFieldProps): React
         disabled={!state.on}
         onChange={setField}
         onPickFile={onPickFile}
+        library={library}
       />
     </li>
   )
@@ -167,6 +180,7 @@ interface FieldControlProps {
   disabled: boolean
   onChange: (field: Field) => void
   onPickFile: (kind: FileKind) => Promise<string | null>
+  library: LibraryFolder | undefined
 }
 
 /** The control a slot's value is set with, by what the slot takes. */
@@ -177,7 +191,10 @@ function FieldControl({
   disabled,
   onChange,
   onPickFile,
+  library,
 }: FieldControlProps): React.JSX.Element | null {
+  const [pickingFromLibrary, setPickingFromLibrary] = useState(false)
+
   if (field.type === "as-saved") {
     return slot.kind === "lora" ? (
       <p className="text-sm text-muted-foreground">As saved in the workflow.</p>
@@ -209,11 +226,32 @@ function FieldControl({
         >
           Choose file
         </Button>
+        {kind === "image" && (
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={disabled}
+            aria-label={`Choose ${slot.name} from the library`}
+            onClick={() => setPickingFromLibrary(true)}
+          >
+            From library
+          </Button>
+        )}
         <span className="truncate text-sm">
           {field.path ? fileName(field.path) : (field.saved ?? "Nothing chosen")}
         </span>
         {field.path === null && field.saved !== null && (
           <span className="shrink-0 text-xs text-muted-foreground">as saved</span>
+        )}
+        {pickingFromLibrary && (
+          <LibraryImagePicker
+            folder={library}
+            onPick={(file) => {
+              onChange({ ...field, path: file.path })
+              setPickingFromLibrary(false)
+            }}
+            onCancel={() => setPickingFromLibrary(false)}
+          />
         )}
       </div>
     )

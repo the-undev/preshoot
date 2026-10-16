@@ -1,6 +1,7 @@
-import { act, fireEvent, render, screen } from "@testing-library/react"
+import { act, fireEvent, render, screen, within } from "@testing-library/react"
 import { describe, expect, it, vi } from "vitest"
-import type { SavedSlotValue, WorkflowSlot } from "@renderer/lib/trpc"
+import type { LibraryFolder, SavedSlotValue, WorkflowSlot } from "@renderer/lib/trpc"
+import { listedLibrary } from "@renderer/features/library/fixtures"
 import { RunForm } from "./run-form"
 
 function slot(over: Partial<WorkflowSlot>): WorkflowSlot {
@@ -73,6 +74,7 @@ function renderForm(over: Partial<Parameters<typeof RunForm>[0]> = {}): {
       isQueueing={false}
       onQueue={onQueue}
       onPickFile={async () => null}
+      library={listedLibrary}
       {...over}
     />
   )
@@ -178,5 +180,54 @@ describe("RunForm", () => {
     expect(
       screen.getByText("ComfyUI does not answer at http://127.0.0.1:8188.")
     ).toBeInTheDocument()
+  })
+
+  it("binds a picture picked from the library the way a file picked from disk is bound", () => {
+    const { onQueue } = renderForm()
+
+    fireEvent.click(screen.getByRole("button", { name: "Choose Picture 1 from the library" }))
+    fireEvent.click(screen.getByRole("button", { name: "Rainy Street: rainy-street-dusk.png" }))
+    fireEvent.click(screen.getByRole("button", { name: "Queue" }))
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+    expect(screen.getByText("rainy-street-dusk.png")).toBeInTheDocument()
+    expect(onQueue.mock.calls[0][0][3]).toEqual({
+      slotId: 4,
+      on: true,
+      value: { type: "file", path: "/l/scenes/Rainy Street/rainy-street-dusk.png" },
+    })
+  })
+
+  it("offers the library's pictures by entry, and only pictures", () => {
+    renderForm()
+
+    fireEvent.click(screen.getByRole("button", { name: "Choose Picture 1 from the library" }))
+
+    const dialog = screen.getByRole("dialog")
+    expect(within(dialog).getByRole("heading", { name: /Daniel/ })).toBeInTheDocument()
+    expect(within(dialog).getByRole("heading", { name: /Rainy Street/ })).toBeInTheDocument()
+    expect(within(dialog).queryByRole("heading", { name: /one-liner/ })).not.toBeInTheDocument()
+    expect(within(dialog).queryByRole("button", { name: /voice\.wav/ })).not.toBeInTheDocument()
+  })
+
+  it("says so in the picker when no library folder is set", () => {
+    const unset: LibraryFolder = { state: "unset" }
+    renderForm({ library: unset })
+
+    fireEvent.click(screen.getByRole("button", { name: "Choose Picture 1 from the library" }))
+
+    expect(screen.getByText(/No library folder is set/)).toBeInTheDocument()
+  })
+
+  it("offers the library only for picture slots", () => {
+    renderForm({
+      slots: [slot({ id: 9, nodeId: 30, nodeType: "LoadAudio", name: "Voice", kind: "audio" })],
+      savedValues: [],
+    })
+
+    expect(screen.getByRole("button", { name: "Choose file for Voice" })).toBeInTheDocument()
+    expect(
+      screen.queryByRole("button", { name: "Choose Voice from the library" })
+    ).not.toBeInTheDocument()
   })
 })

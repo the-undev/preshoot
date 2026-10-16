@@ -3,6 +3,7 @@ import { useEffect, useState } from "react"
 import {
   useTRPC,
   useTRPCClient,
+  type LibraryFolder,
   type RunBinding,
   type RunRecord,
   type SavedSlotValue,
@@ -22,10 +23,14 @@ export interface RunFormPanel {
   isQueueing: boolean
   queue(bindings: RunBinding[]): void
   pickFile(kind: FileKind): Promise<string | null>
+  library: LibraryFolder | undefined
   errorMessage: string | null
 }
 
-/** Reads a workflow's saved values and whether ComfyUI answers, and queues runs of it. */
+/**
+ * Reads a workflow's saved values, whether ComfyUI answers and what the library holds, and queues
+ * runs of it.
+ */
 export function useRunForm(workflowId: number): RunFormPanel {
   const trpc = useTRPC()
   const queryClient = useQueryClient()
@@ -43,6 +48,7 @@ export function useRunForm(workflowId: number): RunFormPanel {
     })
   )
   const pickFile = useMutation(trpc.runs.pickFile.mutationOptions())
+  const library = useQuery(trpc.library.entries.queryOptions())
 
   return {
     savedValues: values.data,
@@ -50,6 +56,7 @@ export function useRunForm(workflowId: number): RunFormPanel {
     isQueueing: queue.isPending,
     queue: (bindings) => queue.mutate({ workflowId, bindings }),
     pickFile: (kind) => pickFile.mutateAsync({ kind }),
+    library: library.data,
     errorMessage: queue.error?.message ?? pickFile.error?.message ?? values.error?.message ?? null,
   }
 }
