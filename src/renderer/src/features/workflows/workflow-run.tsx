@@ -201,6 +201,7 @@ export function WorkflowRunView({
           isExporting={review.isExporting}
           lastExport={review.lastExport}
           onExport={review.exportGood}
+          onOpenExportFolder={review.openExportFolder}
         />
         <RunList
           runs={runs.runs}
@@ -212,6 +213,7 @@ export function WorkflowRunView({
           cancellingRunIds={runs.cancellingRunIds}
           filter={filter}
           onOpenOutput={runs.openOutput}
+          onShowFolder={runs.showRunFolder}
           onSetVerdict={review.setVerdict}
           onSetNote={review.setNote}
           onCancel={runs.cancel}

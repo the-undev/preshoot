@@ -7,8 +7,12 @@ const counts: VerdictCounts = { all: 6, good: 3, bad: 2, unmarked: 1 }
 
 function renderBar(
   over: { counts?: VerdictCounts; lastExport?: OutputExport | null; isExporting?: boolean } = {}
-): { onFilter: ReturnType<typeof vi.fn>; onExport: ReturnType<typeof vi.fn> } {
-  const handlers = { onFilter: vi.fn(), onExport: vi.fn() }
+): {
+  onFilter: ReturnType<typeof vi.fn>
+  onExport: ReturnType<typeof vi.fn>
+  onOpenExportFolder: ReturnType<typeof vi.fn>
+} {
+  const handlers = { onFilter: vi.fn(), onExport: vi.fn(), onOpenExportFolder: vi.fn() }
   render(
     <ReviewBar
       counts={over.counts ?? counts}
@@ -70,6 +74,21 @@ describe("ReviewBar", () => {
     })
 
     expect(screen.getByText("Wrote 2 files to /picked.")).toBeInTheDocument()
+  })
+
+  it("opens the folder an export wrote to", () => {
+    const { onOpenExportFolder } = renderBar({
+      lastExport: { state: "written", folder: "/picked", paths: ["/picked/a.png"] },
+    })
+
+    fireEvent.click(screen.getByRole("button", { name: "Open folder" }))
+
+    expect(onOpenExportFolder).toHaveBeenCalledWith("/picked")
+  })
+
+  it("offers no folder when nothing was written", () => {
+    renderBar({ lastExport: { state: "nothing" } })
+    expect(screen.queryByRole("button", { name: "Open folder" })).not.toBeInTheDocument()
   })
 
   it("says one file in the singular", () => {

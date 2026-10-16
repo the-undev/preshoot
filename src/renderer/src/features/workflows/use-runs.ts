@@ -87,6 +87,8 @@ export interface RunsPanel {
   positions: Record<number, number | null>
   pollError: string | null
   openOutput(outputId: number): void
+  /** Opens the folder a run's outputs sit in. */
+  showRunFolder(runId: number): void
   cancel(runId: number): void
   /** The runs a cancel has been asked for and not yet answered. */
   cancellingRunIds: ReadonlySet<number>
@@ -103,6 +105,7 @@ export function useRuns(workflowId: number): RunsPanel {
   const queryClient = useQueryClient()
   const runs = useQuery(trpc.runs.list.queryOptions({ workflowId }))
   const openOutput = useMutation(trpc.runs.openOutput.mutationOptions())
+  const openRunFolder = useMutation(trpc.runs.openRunFolder.mutationOptions())
   const cancel = useMutation(
     trpc.runs.cancel.mutationOptions({
       onSettled: () =>
@@ -160,8 +163,14 @@ export function useRuns(workflowId: number): RunsPanel {
   return {
     runs: runs.data ?? [],
     positions,
-    pollError: pollError ?? openOutput.error?.message ?? runs.error?.message ?? null,
+    pollError:
+      pollError ??
+      openOutput.error?.message ??
+      openRunFolder.error?.message ??
+      runs.error?.message ??
+      null,
     openOutput: (outputId) => openOutput.mutate({ outputId }),
+    showRunFolder: (runId) => openRunFolder.mutate({ runId }),
     cancel: (runId) => {
       setCancellingRunIds((current) => new Set(current).add(runId))
       // The error stays on the mutation, so the promise is settled here only to free the button.
@@ -201,6 +210,8 @@ export interface ReviewPanel {
   /** What the last export did, or nothing before the first. */
   lastExport: OutputExport | null
   exportGood(): void
+  /** Opens the folder an export wrote to. */
+  openExportFolder(folder: string): void
   errorMessage: string | null
 }
 
@@ -218,6 +229,7 @@ export function useReview(workflowId: number): ReviewPanel {
   const setVerdict = useMutation(trpc.review.setVerdict.mutationOptions({ onSuccess: refresh }))
   const setNote = useMutation(trpc.review.setNote.mutationOptions({ onSuccess: refresh }))
   const exportGood = useMutation(trpc.review.exportGood.mutationOptions())
+  const openExportFolder = useMutation(trpc.review.openExportFolder.mutationOptions())
 
   return {
     counts: counts.data ?? NO_COUNTS,
@@ -226,10 +238,12 @@ export function useReview(workflowId: number): ReviewPanel {
     isExporting: exportGood.isPending,
     lastExport: exportGood.data ?? null,
     exportGood: () => exportGood.mutate({ workflowId }),
+    openExportFolder: (folder) => openExportFolder.mutate({ folder }),
     errorMessage:
       setVerdict.error?.message ??
       setNote.error?.message ??
       exportGood.error?.message ??
+      openExportFolder.error?.message ??
       counts.error?.message ??
       null,
   }

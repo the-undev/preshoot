@@ -1,3 +1,6 @@
+import { statSync } from "node:fs"
+import { isAbsolute } from "node:path"
+import { TRPCError } from "@trpc/server"
 import { z } from "zod"
 import {
   countVerdicts,
@@ -70,4 +73,24 @@ export const reviewRouter = router({
       asClientError(error)
     }
   }),
+
+  /** Opens the folder an export wrote to. Anything but a folder is refused, so no file is run. */
+  openExportFolder: publicProcedure
+    .input(z.object({ folder: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      if (!isFolder(input.folder)) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: `${input.folder} is not a folder.` })
+      }
+      await ctx.openPath(input.folder)
+    }),
 })
+
+/** Whether `path` is a full path to a folder that is there. */
+function isFolder(path: string): boolean {
+  if (!isAbsolute(path)) return false
+  try {
+    return statSync(path).isDirectory()
+  } catch {
+    return false
+  }
+}

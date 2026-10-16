@@ -147,6 +147,18 @@ describe("runs router", () => {
     ])
     await caller.runs.openOutput({ outputId: output.id })
     expect(opened).toEqual([join(dir, "film", output.path)])
+
+    await caller.runs.openRunFolder({ runId: run.id })
+    expect(opened.at(-1)).toBe(join(dir, "film", "outputs", `run-${run.id}`))
+  })
+
+  it("refuses to open the folder of a run that is not there", async () => {
+    await openProjectWithWorkflow()
+
+    await expect(caller.runs.openRunFolder({ runId: 99 })).rejects.toThrow(
+      expect.objectContaining({ code: "NOT_FOUND" })
+    )
+    expect(opened).toEqual([])
   })
 
   it("queues a batch with a fresh seed in each run after the first, from a configuration", async () => {

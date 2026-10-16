@@ -76,6 +76,7 @@ const runsPanel: RunsPanel = {
   positions: {},
   pollError: null,
   openOutput: vi.fn(),
+  showRunFolder: vi.fn(),
   cancel: vi.fn(),
   remove: vi.fn(),
   deleteError: null,
@@ -91,6 +92,7 @@ function reviewPanel(over: Partial<ReviewPanel> = {}): ReviewPanel {
     isExporting: false,
     lastExport: null,
     exportGood: vi.fn(),
+    openExportFolder: vi.fn(),
     errorMessage: null,
     ...over,
   }

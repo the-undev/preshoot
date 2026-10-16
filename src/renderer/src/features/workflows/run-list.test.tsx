@@ -80,6 +80,7 @@ const reviewProps = {
   cancellingRunIds: new Set<number>(),
   onCancel: vi.fn(),
   onDelete: vi.fn(),
+  onShowFolder: vi.fn(),
 }
 
 function row(runId: number): ReturnType<typeof within> {
@@ -122,6 +123,26 @@ describe("RunList", () => {
     fireEvent.click(screen.getByRole("menuitem", { name: "Delete" }))
     fireEvent.click(row(4).getByRole("button", { name: "Delete" }))
     expect(onDelete).toHaveBeenCalledWith(4)
+  })
+
+  it("shows the folder of a finished run that wrote files", () => {
+    const onShowFolder = vi.fn()
+    render(
+      <RunList
+        runs={runs}
+        positions={{}}
+        pollError={null}
+        onOpenOutput={vi.fn()}
+        {...reviewProps}
+        onShowFolder={onShowFolder}
+      />
+    )
+
+    fireEvent.click(row(4).getByRole("button", { name: "Show run 4 in its folder" }))
+
+    expect(onShowFolder).toHaveBeenCalledWith(4)
+    expect(row(3).queryByRole("button", { name: /in its folder/ })).not.toBeInTheDocument()
+    expect(row(1).queryByRole("button", { name: /in its folder/ })).not.toBeInTheDocument()
   })
 
   it("shows what each slot was sent behind a fold", () => {

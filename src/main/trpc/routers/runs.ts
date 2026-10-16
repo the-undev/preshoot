@@ -3,7 +3,13 @@ import { z } from "zod"
 import { IMAGE_MEDIA_TYPES } from "../../core/composition/image-store"
 import { BATCH_LIMIT, randomSeed } from "../../core/dispatch/batch"
 import { cancelRun, pollRuns, queueBatch, savedSlotValues } from "../../core/dispatch/dispatch"
-import { deleteRun, listRuns, readRunOutput } from "../../core/dispatch/run-store"
+import {
+  deleteRun,
+  listRuns,
+  readRun,
+  readRunOutput,
+  runFolder,
+} from "../../core/dispatch/run-store"
 import { asClientError } from "../client-errors"
 import { requireOpenProject, requireProject } from "../project"
 import { publicProcedure, router } from "../trpc"
@@ -154,6 +160,19 @@ export const runsRouter = router({
       try {
         const output = readRunOutput(project.db, input.outputId)
         await ctx.openPath(join(project.directory, output.path))
+      } catch (error) {
+        asClientError(error)
+      }
+    }),
+
+  /** Opens the folder a run's outputs sit in. */
+  openRunFolder: publicProcedure
+    .input(z.object({ runId: z.number().int() }))
+    .mutation(async ({ ctx, input }) => {
+      const project = requireOpenProject(ctx)
+      try {
+        const run = readRun(project.db, input.runId)
+        await ctx.openPath(join(project.directory, runFolder(run.id)))
       } catch (error) {
         asClientError(error)
       }

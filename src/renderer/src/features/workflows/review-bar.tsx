@@ -17,6 +17,7 @@ interface ReviewBarProps {
   /** What the last export did, or nothing before the first. */
   lastExport: OutputExport | null
   onExport: () => void
+  onOpenExportFolder: (folder: string) => void
 }
 
 /** Chips that pick which outputs the run list shows, and the export of the good ones. */
@@ -27,6 +28,7 @@ export function ReviewBar({
   isExporting,
   lastExport,
   onExport,
+  onOpenExportFolder,
 }: ReviewBarProps): React.JSX.Element {
   const message = lastExport === null ? null : exportMessage(lastExport)
   return (
@@ -59,7 +61,20 @@ export function ReviewBar({
           <span className="text-xs text-muted-foreground">{counts.good}</span>
         </Button>
       </div>
-      {message && <p className="text-sm text-muted-foreground">{message}</p>}
+      {message && (
+        <p className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+          <span className="break-all">{message}</span>
+          {lastExport?.state === "written" && (
+            <Button
+              size="xs"
+              variant="outline"
+              onClick={() => onOpenExportFolder(lastExport.folder)}
+            >
+              Open folder
+            </Button>
+          )}
+        </p>
+      )}
     </div>
   )
 }

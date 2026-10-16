@@ -52,6 +52,8 @@ interface RunListProps {
    */
   filter: VerdictFilter
   onOpenOutput: (outputId: number) => void
+  /** Opens the folder a run's outputs sit in. */
+  onShowFolder: (runId: number) => void
   onSetVerdict: (outputId: number, verdict: Verdict | null) => void
   onSetNote: (outputId: number, note: string) => void
   onCancel: (runId: number) => void
@@ -69,6 +71,7 @@ export function RunList({
   cancellingRunIds,
   filter,
   onOpenOutput,
+  onShowFolder,
   onSetVerdict,
   onSetNote,
   onCancel,
@@ -101,6 +104,7 @@ export function RunList({
               position={positions[run.id] ?? null}
               isCancelling={cancellingRunIds.has(run.id)}
               onOpenOutput={onOpenOutput}
+              onShowFolder={() => onShowFolder(run.id)}
               onSetVerdict={onSetVerdict}
               onSetNote={onSetNote}
               onCancel={() => onCancel(run.id)}
@@ -121,6 +125,7 @@ interface RunRowProps {
   position: number | null
   isCancelling: boolean
   onOpenOutput: (outputId: number) => void
+  onShowFolder: () => void
   onSetVerdict: (outputId: number, verdict: Verdict | null) => void
   onSetNote: (outputId: number, note: string) => void
   onCancel: () => void
@@ -139,6 +144,7 @@ function RunRow({
   position,
   isCancelling,
   onOpenOutput,
+  onShowFolder,
   onSetVerdict,
   onSetNote,
   onCancel,
@@ -187,23 +193,33 @@ function RunRow({
               </Button>
             </span>
           ) : (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
+            <span className="ml-auto flex items-center gap-1">
+              {fileCount > 0 && (
                 <Button
                   size="xs"
                   variant="ghost"
-                  className="ml-auto"
-                  aria-label={`More for run ${run.id}`}
+                  aria-label={`Show run ${run.id} in its folder`}
+                  onClick={onShowFolder}
                 >
-                  <Ellipsis className="size-4" />
+                  Show in folder
                 </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem variant="destructive" onSelect={() => setConfirmingDelete(true)}>
-                  Delete
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+              )}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button size="xs" variant="ghost" aria-label={`More for run ${run.id}`}>
+                    <Ellipsis className="size-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem
+                    variant="destructive"
+                    onSelect={() => setConfirmingDelete(true)}
+                  >
+                    Delete
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </span>
           ))}
       </div>
       <RunDetails bindings={run.bindings} slots={slots} />

@@ -17,6 +17,7 @@ describe("review router", () => {
   let folder: string
   let session: ProjectSession
   let pickDirectory: Dialogs["pickDirectory"]
+  let opened: string[]
   let caller: ReturnType<typeof appRouter.createCaller>
 
   beforeEach(() => {
@@ -28,6 +29,7 @@ describe("review router", () => {
     const settings = new AppSettingsStore(join(dir, "settings.json"))
     settings.setWorkflowsFolder(folder)
     pickDirectory = vi.fn(async () => join(dir, "picked"))
+    opened = []
     const ctx: Context = {
       versions: { app: "0.0.0", electron: "0", chrome: "0", node: "0" },
       projects: session,
@@ -39,7 +41,9 @@ describe("review router", () => {
         pickFiles: async () => [],
         saveFile: async () => null,
       },
-      openPath: async () => {},
+      openPath: async (path) => {
+        opened.push(path)
+      },
       promptClient: () => {
         throw new Error("the review router does not generate prompts")
       },
@@ -205,5 +209,22 @@ describe("review router", () => {
     await expect(caller.review.exportGood({ workflowId })).rejects.toThrow(
       expect.objectContaining({ code: "BAD_REQUEST" })
     )
+  })
+
+  it("opens the folder an export wrote to, and refuses anything but a folder", async () => {
+    const workflowId = await openProjectWithWorkflow()
+    const [output] = finishedRun(workflowId, 7, ["a.png"]).outputs
+    await caller.review.setVerdict({ outputId: output.id, verdict: "good" })
+    const result = await caller.review.exportGood({ workflowId })
+    if (result.state !== "written") throw new Error("the export wrote nothing")
+
+    await caller.review.openExportFolder({ folder: result.folder })
+    for (const folder of [result.paths[0], join(dir, "gone"), "picked"]) {
+      await expect(caller.review.openExportFolder({ folder })).rejects.toThrow(
+        expect.objectContaining({ code: "BAD_REQUEST" })
+      )
+    }
+
+    expect(opened).toEqual([join(dir, "picked")])
   })
 })
