@@ -230,6 +230,13 @@ describes reference pictures. Nothing else in the app calls a model.
   transport for reading saved workflows, since there is no shared folder.
   The earlier plan of rsync over SSH went: ComfyUI already serves outputs
   and user files over HTTP.
+- App settings are machine settings: the backend, the folders and the model
+  server are about where the app runs, so they are global and a project
+  carries no configuration. The library is one folder for the user, never
+  one per project, because collections outlive any project and copy-on-use
+  already gives a project its own copies. The one fact that is neither
+  global nor the project's is which stack runs a workflow, and that belongs
+  on the workflow itself.
 - The library is a folder of files the user owns, pointed at in app settings
   and read again each time its screen is shown. Top-level folders give the
   kind (characters, scenes, prompts), a folder per entry, a file directly
@@ -360,6 +367,13 @@ describes reference pictures. Nothing else in the app calls a model.
 
 In rough order, none started and none assuming the others:
 
+- snug integration: discover the machine's stacks with their names, ports,
+  running state and workflows folders instead of a typed URL and folder,
+  list workflows grouped by stack, tag an imported workflow with the stack
+  it came from, and queue it against that stack's port with its state
+  shown. The typed URL and folder stay as the fallback for machines
+  without snug and for remote backends. How to read the stacks (the snug
+  CLI or its own files) is pinned at build time.
 - A route or node on the ComfyUI side that sends things back: "export into
   preshoot" for a prompt or an output worth keeping.
 - LoRA Manager: its loader node is already in the base workflows; read its
@@ -390,3 +404,6 @@ improvements live in `docs/issues.md`.
   typed text; binding a composed clip is milestone 15's decision.
 - The exact shapes of the userdata routes, pinned against a live instance
   when the Runpod work starts.
+- Whether preshoot may ask snug to start a stopped stack when a run needs
+  it. The app starts and stops nothing today; asking snug is delegation
+  rather than ownership, but it is still a change to that decision.
