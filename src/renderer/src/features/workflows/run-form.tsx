@@ -27,6 +27,18 @@ import { KIND_LABELS, shownName } from "./slot-labels"
 /** The kinds of slot filled from a file on disk. */
 export type FileKind = "image" | "audio"
 
+/** The extensions each kind of file slot takes, as the library's media table reads them. */
+const EXTENSIONS_BY_KIND: Record<FileKind, ReadonlySet<string>> = {
+  image: new Set(["png", "jpg", "jpeg", "webp", "gif"]),
+  audio: new Set(["wav", "mp3", "flac", "ogg"]),
+}
+
+/** What a slot says when a file of another kind is dropped on it. */
+const WRONG_KIND_MESSAGES: Record<FileKind, string> = {
+  image: "That is not an image file.",
+  audio: "That is not an audio file.",
+}
+
 /**
  * What the form holds for one slot, by what the slot takes. A file picked from the library also
  * holds its path in the library, which its thumbnail is read by.
@@ -134,7 +146,12 @@ export function RunForm({
   )
 
   return (
-    <div className="flex flex-col gap-4">
+    // A file dropped anywhere a slot does not take it would otherwise open in the window.
+    <div
+      className="flex flex-col gap-4"
+      onDragOver={(event) => event.preventDefault()}
+      onDrop={(event) => event.preventDefault()}
+    >
       {basic.length > 0 ? (
         rows(basic)
       ) : (
@@ -200,6 +217,13 @@ export function RunForm({
   )
 }
 
+/** A path's extension in lower case without its dot, or nothing when it has none. */
+function extensionOf(path: string): string {
+  const name = fileName(path).toLowerCase()
+  const dot = name.lastIndexOf(".")
+  return dot === -1 ? "" : name.slice(dot + 1)
+}
+
 /** The number of runs typed beside Queue, or nothing when it is not one a batch takes. */
 function readCount(text: string): number | null {
   const trimmed = text.trim()
@@ -229,10 +253,54 @@ function SlotField({
   const id = `slot-${slot.id}`
   // A slot bypassed in the workflow, or one that only switches a node, can be turned on and off.
   const switchable = slot.bypassed || slot.kind === "toggle"
-  const setField = (field: Field): void => onChange({ ...state, field })
+  const [dropProblem, setDropProblem] = useState<string | null>(null)
+  const [isDraggingFile, setIsDraggingFile] = useState(false)
+  const setField = (field: Field): void => {
+    setDropProblem(null)
+    onChange({ ...state, field })
+  }
+  const field = state.field
+
+  function dropFile(event: React.DragEvent<HTMLLIElement>): void {
+    event.preventDefault()
+    setIsDraggingFile(false)
+    const dropped = event.dataTransfer.files[0]
+    if (!dropped || field.type !== "file") return
+    const path = window.preshoot.getPathForFile(dropped)
+    const kind = slot.kind as FileKind
+    if (!EXTENSIONS_BY_KIND[kind].has(extensionOf(path))) {
+      setDropProblem(WRONG_KIND_MESSAGES[kind])
+      return
+    }
+    setField({ ...field, path, libraryPath: null })
+  }
+
+  const dropHandlers =
+    field.type === "file" && state.on
+      ? {
+          onDragOver: (event: React.DragEvent<HTMLLIElement>) => {
+            if (!event.dataTransfer.types.includes("Files")) return
+            event.preventDefault()
+            setIsDraggingFile(true)
+          },
+          onDragLeave: (event: React.DragEvent<HTMLLIElement>) => {
+            if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+              setIsDraggingFile(false)
+            }
+          },
+          onDrop: dropFile,
+        }
+      : {}
 
   return (
-    <li className="flex flex-col gap-1.5 border-b py-2 last:border-b-0">
+    <li
+      className={
+        isDraggingFile
+          ? "flex flex-col gap-1.5 rounded-md border-b bg-accent/50 py-2 ring-2 ring-ring last:border-b-0"
+          : "flex flex-col gap-1.5 border-b py-2 last:border-b-0"
+      }
+      {...dropHandlers}
+    >
       <div className="flex items-center gap-3">
         {/* A file slot's button names itself, so the label points at nothing then. */}
         <Label htmlFor={LABELLED_FIELDS.has(state.field.type) ? id : undefined} className="min-w-0">
@@ -259,6 +327,7 @@ function SlotField({
         library={library}
         onReadText={onReadText}
       />
+      {dropProblem && <p className="text-sm text-destructive">{dropProblem}</p>}
     </li>
   )
 }

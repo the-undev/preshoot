@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen, within } from "@testing-library/react"
-import { describe, expect, it, vi } from "vitest"
+import { afterEach, describe, expect, it, vi } from "vitest"
 import type { LibraryFolder, RunBinding, SavedSlotValue, WorkflowSlot } from "@renderer/lib/trpc"
 import { listedLibrary } from "@renderer/features/library/fixtures"
 import { RunForm } from "./run-form"
@@ -503,5 +503,73 @@ describe("RunForm", () => {
 
     expect(screen.getByLabelText("Prompt")).toHaveValue("A man at a window.")
     expect(screen.getByText("prompts/one-liner.txt is not in the library.")).toBeInTheDocument()
+  })
+
+  describe("dropping a file on a slot", () => {
+    afterEach(() => vi.unstubAllGlobals())
+
+    /** Makes the bridge resolve every dropped file to the given path. */
+    function droppedFilesResolveTo(path: string): ReturnType<typeof vi.fn> {
+      const getPathForFile = vi.fn(() => path)
+      vi.stubGlobal("preshoot", { getPathForFile })
+      return getPathForFile
+    }
+
+    function dropOn(slotName: string): void {
+      const row = screen.getByText(slotName).closest("li")
+      if (!row) throw new Error(`${slotName} has no row.`)
+      const file = new File([""], "dropped")
+      fireEvent.drop(row, { dataTransfer: { files: [file], types: ["Files"] } })
+    }
+
+    it("binds a dropped image as a chosen file", () => {
+      droppedFilesResolveTo("/home/me/pictures/anna.PNG")
+      const { onQueue } = renderForm()
+
+      dropOn("Picture 1")
+      fireEvent.click(screen.getByRole("button", { name: "Queue" }))
+
+      expect(screen.getByText("anna.PNG")).toBeInTheDocument()
+      expect(onQueue.mock.calls[0][0][3]).toEqual({
+        slotId: 4,
+        on: true,
+        value: { type: "file", path: "/home/me/pictures/anna.PNG" },
+      })
+    })
+
+    it("says so and binds nothing when the file is of another kind", () => {
+      droppedFilesResolveTo("/home/me/notes.txt")
+      const { onQueue } = renderForm()
+
+      dropOn("Picture 1")
+      fireEvent.click(screen.getByRole("button", { name: "Queue" }))
+
+      expect(screen.getByText("That is not an image file.")).toBeInTheDocument()
+      expect(onQueue).toHaveBeenCalledWith(unchangedBindings, 1)
+    })
+
+    it("clears what it said on the next file it takes", () => {
+      const getPathForFile = droppedFilesResolveTo("/home/me/notes.txt")
+      renderForm()
+
+      dropOn("Picture 1")
+      getPathForFile.mockReturnValue("/home/me/pictures/anna.png")
+      dropOn("Picture 1")
+
+      expect(screen.queryByText("That is not an image file.")).not.toBeInTheDocument()
+      expect(screen.getByText("anna.png")).toBeInTheDocument()
+    })
+
+    it("ignores a file dropped on a slot that is switched off", () => {
+      const getPathForFile = droppedFilesResolveTo("/home/me/pictures/anna.png")
+      const { onQueue } = renderForm()
+
+      fireEvent.click(screen.getByRole("button", { name: "Advanced (1)" }))
+      dropOn("Picture 3")
+      fireEvent.click(screen.getByRole("button", { name: "Queue" }))
+
+      expect(getPathForFile).not.toHaveBeenCalled()
+      expect(onQueue).toHaveBeenCalledWith(unchangedBindings, 1)
+    })
   })
 })
