@@ -57,6 +57,8 @@ function headline(status: SourceStatus | undefined): string {
   switch (status.state) {
     case "in-sync":
       return "In step with the source file."
+    case "updated":
+      return "Updated from the source file."
     case "missing":
       return "The source file is not there any more. The copy in this project still works."
     case "unreadable":
@@ -68,12 +70,8 @@ function headline(status: SourceStatus | undefined): string {
 
 /** What the changes do to the slots, kind by kind, as they are rather than as a guess. */
 function DiffLists({ diff }: { diff: SlotDiff }): React.JSX.Element {
-  const changesSlots = diff.renamed.length + diff.added.length + diff.removed.length > 0
   return (
     <div className="flex flex-col gap-3 text-sm">
-      {!changesSlots && (
-        <p className="text-muted-foreground">The slots stay as they are; only the graph changes.</p>
-      )}
       {diff.renamed.length > 0 && (
         <DiffSection title="Renamed">
           {diff.renamed.map((slot) => (

@@ -1,3 +1,4 @@
+import { useEffect } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import {
   useTRPC,
@@ -65,6 +66,16 @@ export function useWorkflow(workflowId: number): WorkflowPanel {
     // The run form starts from the graph's values, which an applied update changes.
     await queryClient.invalidateQueries({ queryKey: trpc.runs.values.pathKey() })
   }
+  // A check that applied the source on its own changed the stored copy behind the queries. The
+  // check itself is left alone so its note stays until the next check.
+  const sourceState = source.data?.state
+  const sourceCheckedAt = source.dataUpdatedAt
+  useEffect(() => {
+    if (sourceState !== "updated") return
+    void queryClient.invalidateQueries({ queryKey: trpc.workflows.get.queryKey({ workflowId }) })
+    void queryClient.invalidateQueries({ queryKey: trpc.workflows.list.queryKey() })
+    void queryClient.invalidateQueries({ queryKey: trpc.runs.values.pathKey() })
+  }, [sourceState, sourceCheckedAt, queryClient, trpc, workflowId])
   const setTier = useMutation(trpc.workflows.setTier.mutationOptions({ onSuccess: refresh }))
   const apply = useMutation(trpc.workflows.applyUpdate.mutationOptions({ onSuccess: refresh }))
 

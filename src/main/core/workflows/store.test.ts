@@ -165,6 +165,35 @@ describe("workflow store", () => {
     ])
   })
 
+  it("applies a change that touches no slot during the check, with no diff to decide on", () => {
+    const workflow = imported()
+    setSlotTier(handle.db, slotNamed(workflow, "Seed").id, "hidden")
+    editSource((graph) => {
+      graph.nodes.push({ id: 90, type: "SaveImage", title: "Output", mode: 0 })
+    })
+
+    expect(checkSource(handle.db, workflow.id)).toEqual({ state: "updated" })
+
+    const updated = readWorkflow(handle.db, workflow.id)
+    expect(updated.contentHash).not.toBe(workflow.contentHash)
+    expect(updated.slots.map((slot) => slot.id)).toEqual(workflow.slots.map((slot) => slot.id))
+    expect(slotNamed(updated, "Seed").tier).toBe("hidden")
+    expect(checkSource(handle.db, workflow.id)).toEqual({ state: "in-sync" })
+  })
+
+  it("leaves a change that renames, adds or removes a slot waiting for Apply", () => {
+    const workflow = imported()
+    editSource((graph) => {
+      graph.nodes = graph.nodes.filter((node) => node.id !== 21)
+    })
+
+    const status = checkSource(handle.db, workflow.id)
+
+    expect(status.state).toBe("changed")
+    expect(readWorkflow(handle.db, workflow.id).contentHash).toBe(workflow.contentHash)
+    expect(readWorkflow(handle.db, workflow.id).slots).toHaveLength(workflow.slots.length)
+  })
+
   it("keeps a tier the user chose across an applied update, and takes the rest of the change", () => {
     const workflow = imported()
     setSlotTier(handle.db, slotNamed(workflow, "Duration (s)").id, "hidden")

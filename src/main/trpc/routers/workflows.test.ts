@@ -183,6 +183,25 @@ describe("workflows router", () => {
     })
   })
 
+  it("applies a source change that touches no slot during the check", async () => {
+    await openProject()
+    settings.setWorkflowsFolder(folder)
+    const imported = await caller.workflows.import({ path: sourcePath })
+    const graph = JSON.parse(fixtureText("h3-r2v-base"))
+    graph.nodes.push({ id: 90, type: "SaveImage", title: "Output", mode: 0 })
+    writeFileSync(sourcePath, JSON.stringify(graph))
+
+    expect(await caller.workflows.checkSource({ workflowId: imported.id })).toEqual({
+      state: "updated",
+    })
+    expect((await caller.workflows.get({ workflowId: imported.id })).contentHash).not.toBe(
+      imported.contentHash
+    )
+    expect(await caller.workflows.checkSource({ workflowId: imported.id })).toEqual({
+      state: "in-sync",
+    })
+  })
+
   it("refuses changes that are no longer the ones shown as a conflict", async () => {
     await openProject()
     settings.setWorkflowsFolder(folder)

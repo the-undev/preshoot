@@ -79,15 +79,11 @@ describe("WorkflowSource", () => {
     expect(onApply).toHaveBeenCalledWith("b".repeat(64))
   })
 
-  it("says when a change leaves the slots as they are", () => {
-    renderSource({
-      state: "changed",
-      contentHash: "c".repeat(64),
-      diff: { kept: diff.kept, renamed: [], added: [], removed: [] },
-    })
+  it("says quietly that the source was taken in on its own", () => {
+    renderSource({ state: "updated" })
 
-    expect(screen.getByText(/The slots stay as they are/)).toBeInTheDocument()
-    expect(screen.queryByRole("region", { name: "Renamed" })).not.toBeInTheDocument()
+    expect(screen.getByText("Updated from the source file.")).toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: "Apply the changes" })).not.toBeInTheDocument()
   })
 
   it("checks the source again when asked", () => {

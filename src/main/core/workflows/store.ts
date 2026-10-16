@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs"
 import { basename, extname, resolve } from "node:path"
 import { asc, eq } from "drizzle-orm"
 import { schema, type ProjectDatabase, type ProjectDb } from "../db"
-import { diffSlots, slotKey, type SlotDiff } from "./diff"
+import { changesNoSlots, diffSlots, slotKey, type SlotDiff } from "./diff"
 import { WorkflowError } from "./errors"
 import { isInsideFolder } from "./folder"
 import {
@@ -47,6 +47,7 @@ export interface WorkflowDetail extends WorkflowSummary {
 /** How the source file stands against the project's copy. */
 export type SourceStatus =
   | { state: "in-sync" }
+  | { state: "updated" }
   | { state: "missing" }
   | { state: "unreadable"; message: string }
   | { state: "changed"; contentHash: string; diff: SlotDiff }
@@ -129,7 +130,11 @@ export function setSlotTier(db: ProjectDatabase, slotId: number, tier: SlotTier)
   return toSlotRecord(row)
 }
 
-/** Reads the source file again and says whether, and how, it differs from the project's copy. */
+/**
+ * Reads the source file again and says whether, and how, it differs from the project's copy. A
+ * change that renames, adds and removes no slot is applied here and reported as `updated`, since
+ * there is nothing for the user to decide.
+ */
 export function checkSource(db: ProjectDatabase, workflowId: number): SourceStatus {
   const workflow = readWorkflow(db, workflowId)
   let source: SourceFile | null
@@ -143,7 +148,10 @@ export function checkSource(db: ProjectDatabase, workflowId: number): SourceStat
 
   try {
     const { slots } = scanGraph(readGraph(workflow.sourcePath, source.text))
-    return { state: "changed", contentHash: source.hash, diff: diffSlots(workflow.slots, slots) }
+    const diff = diffSlots(workflow.slots, slots)
+    if (!changesNoSlots(diff)) return { state: "changed", contentHash: source.hash, diff }
+    applyScan(db, workflowId, source, slots)
+    return { state: "updated" }
   } catch (error) {
     if (error instanceof WorkflowError) return { state: "unreadable", message: error.message }
     throw error
@@ -166,6 +174,16 @@ export function applySourceUpdate(
   if (!source) throw WorkflowError.unreadable(workflow.sourcePath, "it is not there any more.")
   if (source.hash !== contentHash) throw WorkflowError.stale()
   const { slots } = scanGraph(readGraph(workflow.sourcePath, source.text))
+  return applyScan(db, workflowId, source, slots)
+}
+
+/** Writes a scanned source into the project's copy of a workflow, all at once or not at all. */
+function applyScan(
+  db: ProjectDatabase,
+  workflowId: number,
+  source: SourceFile,
+  slots: ScannedSlot[]
+): WorkflowDetail {
   const freshByKey = new Map(slots.map((slot) => [slotKey(slot), slot]))
 
   return db.transaction((tx) => {
