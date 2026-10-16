@@ -1,5 +1,8 @@
+import { rmSync } from "node:fs"
+import { join } from "node:path"
 import { asc, desc, eq, inArray } from "drizzle-orm"
-import { schema, type ProjectDb } from "../db"
+import { inputsNamedByRun, removeUnnamedFiles } from "../configurations/store"
+import { schema, type ProjectDatabase, type ProjectDb } from "../db"
 import { mediaOf, type LibraryMedia } from "../library-folder/media"
 import { DispatchError } from "./errors"
 import type { SlotValue } from "./resolve"
@@ -157,6 +160,27 @@ export function completeRun(
     })
     return readRun(tx, runId)
   })
+}
+
+/**
+ * Deletes a finished run with its outputs and their folder, and the input files nothing else
+ * names. A run still queued or running is refused, since ComfyUI may yet write its files.
+ */
+export function deleteRun(input: { db: ProjectDatabase; directory: string; runId: number }): void {
+  const { db, directory, runId } = input
+  const run = readRun(db, runId)
+  if (!isFinished(run.state)) throw DispatchError.unfinished(runId)
+  db.transaction((tx) => {
+    tx.delete(schema.runOutputs).where(eq(schema.runOutputs.runId, runId)).run()
+    tx.delete(schema.runs).where(eq(schema.runs.id, runId)).run()
+  })
+  rmSync(join(directory, runFolder(runId)), { recursive: true, force: true })
+  removeUnnamedFiles(db, directory, inputsNamedByRun(directory, run.bindings))
+}
+
+/** The folder under the project that holds a run's files. */
+export function runFolder(runId: number): string {
+  return `outputs/run-${runId}`
 }
 
 /** One output of a run, for opening it. */

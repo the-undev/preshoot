@@ -1,8 +1,8 @@
-/** Why a run could not be built, sent or followed. */
+/** Why a run could not be built, sent, followed or deleted. */
 export type DispatchErrorCode =
-  "not-found" | "unresolvable" | "refused" | "unreadable-file" | "nothing-to-cancel"
+  "not-found" | "unresolvable" | "refused" | "unreadable-file" | "nothing-to-cancel" | "unfinished"
 
-/** A refusal the renderer can show, raised while a run is built, queued or polled. */
+/** A refusal the renderer can show, raised while a run is built, queued, polled or deleted. */
 export class DispatchError extends Error {
   readonly code: DispatchErrorCode
 
@@ -32,6 +32,14 @@ export class DispatchError extends Error {
     return new DispatchError(
       "nothing-to-cancel",
       `Run ${runId} is neither waiting nor running in ComfyUI, so there was nothing to cancel.`
+    )
+  }
+
+  /** A run asked to be deleted may still write files, so it is cancelled first. */
+  static unfinished(runId: number): DispatchError {
+    return new DispatchError(
+      "unfinished",
+      `Run ${runId} is still queued or running. Cancel it before deleting it.`
     )
   }
 

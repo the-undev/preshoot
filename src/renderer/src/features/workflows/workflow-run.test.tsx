@@ -73,6 +73,8 @@ const runsPanel: RunsPanel = {
   pollError: null,
   openOutput: vi.fn(),
   cancel: vi.fn(),
+  remove: vi.fn(),
+  deleteError: null,
   cancellingRunIds: new Set(),
   cancelError: null,
 }

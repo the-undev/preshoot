@@ -46,6 +46,7 @@ const DISPATCH_CODES = {
   refused: "BAD_REQUEST",
   "unreadable-file": "BAD_REQUEST",
   "nothing-to-cancel": "CONFLICT",
+  unfinished: "CONFLICT",
 } as const
 
 /** How a refusal from the configuration store reaches the renderer. */

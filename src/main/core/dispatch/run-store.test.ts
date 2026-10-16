@@ -1,12 +1,14 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { eq } from "drizzle-orm"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
 import { openProjectDatabase, schema, type ProjectDatabaseHandle } from "../db"
 import { fixtureText } from "../workflows/fixtures"
 import { importWorkflow } from "../workflows/store"
 import {
   completeRun,
+  deleteRun,
   listRuns,
   markFailed,
   markUnfinished,
@@ -154,6 +156,98 @@ describe("run store", () => {
 
     expect(markFailed(handle.db, run.id, "late", new Date()).state).toBe("done")
     expect(markUnfinished(handle.db, run.id, "running").state).toBe("done")
+  })
+
+  /** Records a run and finishes it with one file written to its folder. */
+  function finished(promptId: string, bindings: RecordedBinding[] = [binding]): number {
+    const run = recordRun(handle.db, {
+      workflowId,
+      configurationId: null,
+      promptId,
+      apiPrompt: "{}",
+      bindings,
+      seed: 42,
+      createdAt: new Date(),
+    })
+    const path = `outputs/run-${run.id}/clip.mp4`
+    mkdirSync(join(dir, `outputs/run-${run.id}`), { recursive: true })
+    writeFileSync(join(dir, path), "video")
+    completeRun(handle.db, run.id, [{ path, sourceFilename: "clip.mp4" }], new Date())
+    return run.id
+  }
+
+  it("deletes a finished run with its outputs and their folder, and nothing of another run", () => {
+    const deleted = finished("first")
+    const kept = finished("second")
+
+    deleteRun({ db: handle.db, directory: dir, runId: deleted })
+
+    expect(() => readRun(handle.db, deleted)).toThrow(
+      expect.objectContaining({ code: "not-found" })
+    )
+    expect(
+      handle.db.select().from(schema.runOutputs).where(eq(schema.runOutputs.runId, deleted)).all()
+    ).toEqual([])
+    expect(existsSync(join(dir, `outputs/run-${deleted}`))).toBe(false)
+    expect(listRuns(handle.db, workflowId).map((run) => run.id)).toEqual([kept])
+    expect(existsSync(join(dir, `outputs/run-${kept}/clip.mp4`))).toBe(true)
+  })
+
+  it("refuses to delete a run still queued or running", () => {
+    const queued = record("a1b2", new Date())
+    const running = markUnfinished(handle.db, record("c3d4", new Date()).id, "running")
+
+    for (const runId of [queued.id, running.id]) {
+      expect(() => deleteRun({ db: handle.db, directory: dir, runId })).toThrow(
+        expect.objectContaining({ code: "unfinished" })
+      )
+    }
+    expect(listRuns(handle.db, workflowId)).toHaveLength(2)
+  })
+
+  it("removes the input files only the deleted run named, and never one outside the inputs folder", () => {
+    mkdirSync(join(dir, "inputs"))
+    mkdirSync(join(dir, "pictures"))
+    for (const path of ["inputs/anna.png", "inputs/shared.png", "pictures/own.png"]) {
+      writeFileSync(join(dir, path), "picture")
+    }
+    const at = new Date()
+    handle.db
+      .insert(schema.configurations)
+      .values({
+        workflowId,
+        name: "Anna",
+        bindings: [
+          {
+            nodeId: 1,
+            nodeType: "LoadImage",
+            slotName: "Picture",
+            on: true,
+            value: { type: "file", path: "inputs/shared.png" },
+          },
+        ],
+        createdAt: at,
+        updatedAt: at,
+      })
+      .run()
+    const picture = (slotId: number, path: string): RecordedBinding => ({
+      slotId,
+      slotName: "Picture",
+      on: true,
+      value: "preshoot/picture.png",
+      file: join(dir, path),
+    })
+    const runId = finished("a1b2", [
+      picture(1, "inputs/anna.png"),
+      picture(2, "inputs/shared.png"),
+      picture(3, "pictures/own.png"),
+    ])
+
+    deleteRun({ db: handle.db, directory: dir, runId })
+
+    expect(existsSync(join(dir, "inputs/anna.png"))).toBe(false)
+    expect(existsSync(join(dir, "inputs/shared.png"))).toBe(true)
+    expect(existsSync(join(dir, "pictures/own.png"))).toBe(true)
   })
 
   it("reports a run that is not there as not found", () => {

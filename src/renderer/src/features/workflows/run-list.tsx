@@ -1,10 +1,14 @@
-import { ChevronRight } from "lucide-react"
+import { ChevronRight, Ellipsis } from "lucide-react"
 import { useState } from "react"
 import {
   Button,
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
 } from "@renderer/design-system"
 import { fileName } from "@renderer/lib/file-name"
 import type {
@@ -38,6 +42,7 @@ interface RunListProps {
   positions: Record<number, number | null>
   pollError: string | null
   cancelError: string | null
+  deleteError: string | null
   /** The runs a cancel has been asked for and not yet answered, whose button waits. */
   cancellingRunIds: ReadonlySet<number>
   /**
@@ -48,6 +53,7 @@ interface RunListProps {
   onSetVerdict: (outputId: number, verdict: Verdict | null) => void
   onSetNote: (outputId: number, note: string) => void
   onCancel: (runId: number) => void
+  onDelete: (runId: number) => void
 }
 
 /** A workflow's runs, newest first, each as one slim row with its outputs. */
@@ -57,14 +63,18 @@ export function RunList({
   positions,
   pollError,
   cancelError,
+  deleteError,
   cancellingRunIds,
   filter,
   onOpenOutput,
   onSetVerdict,
   onSetNote,
   onCancel,
+  onDelete,
 }: RunListProps): React.JSX.Element {
   const shown = filter === "all" ? runs : runs.flatMap((run) => withOutputsKept(run, filter))
+  // Counted before the filter, since a delete takes every file whatever shows.
+  const fileCounts = new Map(runs.map((run) => [run.id, run.outputs.length]))
   return (
     <div className="flex flex-col gap-2">
       {pollError && (
@@ -73,6 +83,7 @@ export function RunList({
         </p>
       )}
       {cancelError && <p className="text-sm break-words text-destructive">{cancelError}</p>}
+      {deleteError && <p className="text-sm break-words text-destructive">{deleteError}</p>}
       {runs.length === 0 && <p className="text-sm text-muted-foreground">Nothing queued yet.</p>}
       {runs.length > 0 && shown.length === 0 && (
         <p className="text-sm text-muted-foreground">No outputs match.</p>
@@ -84,12 +95,14 @@ export function RunList({
               key={run.id}
               run={run}
               slots={slots}
+              fileCount={fileCounts.get(run.id) ?? 0}
               position={positions[run.id] ?? null}
               isCancelling={cancellingRunIds.has(run.id)}
               onOpenOutput={onOpenOutput}
               onSetVerdict={onSetVerdict}
               onSetNote={onSetNote}
               onCancel={() => onCancel(run.id)}
+              onDelete={() => onDelete(run.id)}
             />
           ))}
         </ul>
@@ -101,28 +114,35 @@ export function RunList({
 interface RunRowProps {
   run: RunRecord
   slots: WorkflowSlot[]
+  /** How many files the run wrote, whichever of them the filter shows. */
+  fileCount: number
   position: number | null
   isCancelling: boolean
   onOpenOutput: (outputId: number) => void
   onSetVerdict: (outputId: number, verdict: Verdict | null) => void
   onSetNote: (outputId: number, note: string) => void
   onCancel: () => void
+  onDelete: () => void
 }
 
 /**
  * One run: its state, its seed, when it was queued, the configuration it came from, a way to
- * cancel it while unfinished, what it sent behind a fold, and its error or its files.
+ * cancel it while unfinished or delete it once finished, what it sent behind a fold, and its
+ * error or its files.
  */
 function RunRow({
   run,
   slots,
+  fileCount,
   position,
   isCancelling,
   onOpenOutput,
   onSetVerdict,
   onSetNote,
   onCancel,
+  onDelete,
 }: RunRowProps): React.JSX.Element {
+  const [confirmingDelete, setConfirmingDelete] = useState(false)
   const chip = STATE_CHIPS[run.state]
   const label =
     run.state === "queued" && position !== null ? `${chip.label}, position ${position}` : chip.label
@@ -153,6 +173,36 @@ function RunRow({
             {isCancelling ? "Cancelling…" : "Cancel"}
           </Button>
         )}
+        {!UNFINISHED_STATES.has(run.state) &&
+          (confirmingDelete ? (
+            <span className="ml-auto flex items-center gap-2">
+              <span>{deleteQuestion(fileCount)}</span>
+              <Button size="xs" variant="destructive" onClick={onDelete}>
+                Delete
+              </Button>
+              <Button size="xs" variant="outline" onClick={() => setConfirmingDelete(false)}>
+                Keep
+              </Button>
+            </span>
+          ) : (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  size="xs"
+                  variant="ghost"
+                  className="ml-auto"
+                  aria-label={`More for run ${run.id}`}
+                >
+                  <Ellipsis className="size-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem variant="destructive" onSelect={() => setConfirmingDelete(true)}>
+                  Delete
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ))}
       </div>
       <RunDetails bindings={run.bindings} slots={slots} />
       {run.state === "failed" && run.error && (
@@ -230,6 +280,14 @@ function SentValue({ binding }: { binding: RunBindingRecord }): React.JSX.Elemen
       {text}
     </dd>
   )
+}
+
+/** What deleting a run asks, naming the files that go with it. */
+function deleteQuestion(fileCount: number): string {
+  if (fileCount === 0) return "Delete run?"
+  return fileCount === 1
+    ? "Delete run? Its file goes too."
+    : `Delete run? Its ${fileCount} files go too.`
 }
 
 /** When a run was queued, as a day and a time. */

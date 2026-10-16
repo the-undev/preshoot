@@ -264,7 +264,7 @@ function copyIn(directory: string, sourcePath: string): string {
 }
 
 /** Removes each of `paths` that no configuration and no run names any more. */
-function removeUnnamedFiles(db: ProjectDb, directory: string, paths: string[]): void {
+export function removeUnnamedFiles(db: ProjectDb, directory: string, paths: string[]): void {
   if (paths.length === 0) return
   const named = new Set<string>()
   for (const row of db.select().from(schema.configurations).all()) {
@@ -281,6 +281,18 @@ function removeUnnamedFiles(db: ProjectDb, directory: string, paths: string[]): 
   for (const path of paths) {
     if (!named.has(path)) rmSync(join(directory, path), { force: true })
   }
+}
+
+/**
+ * The files in the project's inputs folder that a run's bindings name, as project paths. A file
+ * picked from anywhere else is the user's, so it is never among them.
+ */
+export function inputsNamedByRun(directory: string, bindings: RecordedBinding[]): string[] {
+  return bindings.flatMap((binding) =>
+    binding.file && isInsideFolder(join(directory, INPUTS_FOLDER), binding.file)
+      ? [projectPath(directory, binding.file)]
+      : []
+  )
 }
 
 /** Where a file under the project folder sits, with forward slashes. */

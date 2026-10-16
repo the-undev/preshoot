@@ -86,6 +86,9 @@ export interface RunsPanel {
   /** The runs a cancel has been asked for and not yet answered. */
   cancellingRunIds: ReadonlySet<number>
   cancelError: string | null
+  /** Deletes a finished run with its files. */
+  remove(runId: number): void
+  deleteError: string | null
 }
 
 /** Lists a workflow's runs and asks ComfyUI about the unfinished ones until none are left. */
@@ -99,6 +102,15 @@ export function useRuns(workflowId: number): RunsPanel {
     trpc.runs.cancel.mutationOptions({
       onSettled: () =>
         queryClient.invalidateQueries({ queryKey: trpc.runs.list.queryKey({ workflowId }) }),
+    })
+  )
+  const remove = useMutation(
+    trpc.runs.delete.mutationOptions({
+      onSuccess: () =>
+        Promise.all([
+          queryClient.invalidateQueries({ queryKey: trpc.runs.list.queryKey({ workflowId }) }),
+          queryClient.invalidateQueries({ queryKey: trpc.review.counts.queryKey({ workflowId }) }),
+        ]),
     })
   )
   const [cancellingRunIds, setCancellingRunIds] = useState<ReadonlySet<number>>(new Set())
@@ -161,6 +173,8 @@ export function useRuns(workflowId: number): RunsPanel {
     },
     cancellingRunIds,
     cancelError: cancel.error?.message ?? null,
+    remove: (runId) => remove.mutate({ runId }),
+    deleteError: remove.error?.message ?? null,
   }
 }
 

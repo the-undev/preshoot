@@ -21,6 +21,7 @@ import {
   markUnfinished,
   readRun,
   recordRun,
+  runFolder,
   type RecordedBinding,
   type RunRecord,
   type RunState,
@@ -322,7 +323,7 @@ async function pollRun(
     return { run: markFailed(db, runId, history.message, now), position: null }
   }
 
-  const folder = `outputs/run-${runId}`
+  const folder = runFolder(runId)
   mkdirSync(join(input.directory, folder), { recursive: true })
   const taken = new Set<string>()
   const saved: { path: string; sourceFilename: string }[] = []

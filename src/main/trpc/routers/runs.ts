@@ -3,7 +3,7 @@ import { z } from "zod"
 import { IMAGE_MEDIA_TYPES } from "../../core/composition/image-store"
 import { BATCH_LIMIT, randomSeed } from "../../core/dispatch/batch"
 import { cancelRun, pollRuns, queueBatch, savedSlotValues } from "../../core/dispatch/dispatch"
-import { listRuns, readRunOutput } from "../../core/dispatch/run-store"
+import { deleteRun, listRuns, readRunOutput } from "../../core/dispatch/run-store"
 import { asClientError } from "../client-errors"
 import { requireOpenProject, requireProject } from "../project"
 import { publicProcedure, router } from "../trpc"
@@ -120,6 +120,18 @@ export const runsRouter = router({
           runId: input.runId,
           now: new Date(),
         })
+      } catch (error) {
+        asClientError(error)
+      }
+    }),
+
+  /** Deletes a finished run with its files. A run still queued or running is refused. */
+  delete: publicProcedure
+    .input(z.object({ runId: z.number().int() }))
+    .mutation(({ ctx, input }) => {
+      const project = requireOpenProject(ctx)
+      try {
+        deleteRun({ db: project.db, directory: project.directory, runId: input.runId })
       } catch (error) {
         asClientError(error)
       }

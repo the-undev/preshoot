@@ -73,8 +73,10 @@ const reviewProps = {
   onSetVerdict: vi.fn(),
   onSetNote: vi.fn(),
   cancelError: null,
+  deleteError: null,
   cancellingRunIds: new Set<number>(),
   onCancel: vi.fn(),
+  onDelete: vi.fn(),
 }
 
 function row(runId: number): ReturnType<typeof within> {
@@ -82,6 +84,43 @@ function row(runId: number): ReturnType<typeof within> {
 }
 
 describe("RunList", () => {
+  it("deletes a finished run once asked, naming every file it wrote whatever the filter", () => {
+    const onDelete = vi.fn()
+    const oneMarked = runs.map((entry) =>
+      entry.id === 4
+        ? {
+            ...entry,
+            outputs: [entry.outputs[0], { ...entry.outputs[1], verdict: "good" as const }],
+          }
+        : entry
+    )
+    render(
+      <RunList
+        runs={oneMarked}
+        positions={{}}
+        pollError={null}
+        onOpenOutput={vi.fn()}
+        {...reviewProps}
+        filter="unmarked"
+        onDelete={onDelete}
+      />
+    )
+
+    expect(row(4).queryByText("log.json")).not.toBeInTheDocument()
+    expect(row(1).queryByRole("button", { name: "More for run 1" })).not.toBeInTheDocument()
+    fireEvent.keyDown(row(4).getByRole("button", { name: "More for run 4" }), { key: "Enter" })
+    fireEvent.click(screen.getByRole("menuitem", { name: "Delete" }))
+    expect(row(4).getByText("Delete run? Its 2 files go too.")).toBeInTheDocument()
+
+    fireEvent.click(row(4).getByRole("button", { name: "Keep" }))
+    expect(row(4).queryByText("Delete run? Its 2 files go too.")).not.toBeInTheDocument()
+
+    fireEvent.keyDown(row(4).getByRole("button", { name: "More for run 4" }), { key: "Enter" })
+    fireEvent.click(screen.getByRole("menuitem", { name: "Delete" }))
+    fireEvent.click(row(4).getByRole("button", { name: "Delete" }))
+    expect(onDelete).toHaveBeenCalledWith(4)
+  })
+
   it("shows what each slot was sent behind a fold", () => {
     const prompt = "A man walks in.\nHe sits down.\nHe looks up.\nHe speaks."
     render(

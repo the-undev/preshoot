@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs"
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
@@ -201,6 +201,29 @@ describe("runs router", () => {
       expect.objectContaining({
         code: "CONFLICT",
         message: `Run ${run.id} is neither waiting nor running in ComfyUI, so there was nothing to cancel.`,
+      })
+    )
+  })
+
+  it("deletes a finished run with its files", async () => {
+    const workflow = await openProjectWithWorkflow()
+    const [run] = await caller.runs.queue({ workflowId: workflow.id, bindings: [] })
+    const [status] = await caller.runs.poll({ workflowId: workflow.id })
+
+    await caller.runs.delete({ runId: run.id })
+
+    expect(await caller.runs.list({ workflowId: workflow.id })).toEqual([])
+    expect(existsSync(join(dir, "film", status.run.outputs[0].path))).toBe(false)
+  })
+
+  it("refuses to delete a run still queued, as a conflict", async () => {
+    const workflow = await openProjectWithWorkflow()
+    const [run] = await caller.runs.queue({ workflowId: workflow.id, bindings: [] })
+
+    await expect(caller.runs.delete({ runId: run.id })).rejects.toThrow(
+      expect.objectContaining({
+        code: "CONFLICT",
+        message: `Run ${run.id} is still queued or running. Cancel it before deleting it.`,
       })
     )
   })
