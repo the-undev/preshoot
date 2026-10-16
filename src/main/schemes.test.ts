@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest"
-import { ASSET_SCHEME, LIBRARY_SCHEME, PRIVILEGED_SCHEMES, TRPC_SCHEME } from "./schemes"
+import {
+  ASSET_SCHEME,
+  LIBRARY_SCHEME,
+  OUTPUT_SCHEME,
+  PRIVILEGED_SCHEMES,
+  TRPC_SCHEME,
+} from "./schemes"
 
 describe("the schemes the app serves", () => {
   it("registers every one of them together", () => {
@@ -7,6 +13,7 @@ describe("the schemes the app serves", () => {
       TRPC_SCHEME,
       ASSET_SCHEME,
       LIBRARY_SCHEME,
+      OUTPUT_SCHEME,
     ])
   })
 
@@ -37,6 +44,14 @@ describe("the schemes the app serves", () => {
 
     expect(library?.privileges).toEqual(
       expect.objectContaining({ supportFetchAPI: true, secure: true })
+    )
+  })
+
+  it("lets the renderer read and stream run outputs", () => {
+    const output = PRIVILEGED_SCHEMES.find((entry) => entry.scheme === OUTPUT_SCHEME)
+
+    expect(output?.privileges).toEqual(
+      expect.objectContaining({ supportFetchAPI: true, secure: true, stream: true })
     )
   })
 })

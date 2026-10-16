@@ -1,6 +1,9 @@
 import { realpathSync, statSync } from "node:fs"
-import { resolve } from "node:path"
+import { join, relative, resolve } from "node:path"
 import { isInsideFolder } from "../workflows/folder"
+
+/** The folder of a project that runs write their files into. */
+const OUTPUTS_FOLDER = "outputs"
 
 /**
  * Where the file at `relativePath` under the library folder really is, or nothing when no folder
@@ -9,6 +12,24 @@ import { isInsideFolder } from "../workflows/folder"
  */
 export function resolveLibraryFile(folder: string | null, relativePath: string): string | null {
   if (folder === null) return null
+  return resolveFileInside(folder, relativePath)
+}
+
+/**
+ * Where the file at `relativePath` under the open project really is, or nothing when no project
+ * is open or the path leads anywhere but a file inside the project's outputs folder. The same
+ * checks as the library's keep `..` and symbolic links from reaching the rest of the project.
+ */
+export function resolveOutputFile(
+  projectDirectory: string | null,
+  relativePath: string
+): string | null {
+  if (projectDirectory === null) return null
+  const outputs = join(projectDirectory, OUTPUTS_FOLDER)
+  return resolveFileInside(outputs, relative(outputs, resolve(projectDirectory, relativePath)))
+}
+
+function resolveFileInside(folder: string, relativePath: string): string | null {
   const root = realPath(folder)
   if (root === null) return null
 

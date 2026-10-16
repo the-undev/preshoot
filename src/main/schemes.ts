@@ -10,6 +10,12 @@ export const ASSET_SCHEME = "asset"
 export const LIBRARY_SCHEME = "library"
 
 /**
+ * Scheme the renderer reads run outputs through; a file's URL is `output://file/<path>`, the path
+ * being where the file sits in the open project.
+ */
+export const OUTPUT_SCHEME = "output"
+
+/**
  * Every scheme the app serves, as one list.
  *
  * Registering schemes replaces whatever was registered before rather than adding to it, so a
@@ -35,6 +41,10 @@ export const PRIVILEGED_SCHEMES: CustomScheme[] = [
   },
   {
     scheme: LIBRARY_SCHEME,
+    privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true },
+  },
+  {
+    scheme: OUTPUT_SCHEME,
     privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true },
   },
 ]

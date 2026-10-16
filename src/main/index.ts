@@ -9,7 +9,7 @@ import { ProjectSession } from "./core/projects/session"
 import { AppSettingsStore } from "./core/settings/app-settings"
 import { createDialogs } from "./dialogs"
 import { APP_MENU } from "./menu"
-import { handleAssetRequests, handleLibraryRequests } from "./images/protocol"
+import { handleAssetRequests, handleLibraryRequests, handleOutputRequests } from "./images/protocol"
 import { PRIVILEGED_SCHEMES } from "./schemes"
 import { handleTrpcRequests } from "./trpc/protocol"
 import type { Context } from "./trpc/context"
@@ -109,6 +109,7 @@ app.whenReady().then(() => {
   handleTrpcRequests(createContext(mainWindow, settings))
   handleAssetRequests(projects)
   handleLibraryRequests(settings)
+  handleOutputRequests(projects)
   loadRenderer(mainWindow)
 
   app.on("activate", function () {

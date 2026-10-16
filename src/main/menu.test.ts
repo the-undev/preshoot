@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest"
 import { APP_MENU } from "./menu"
-import { PRIVILEGED_SCHEMES, ASSET_SCHEME, LIBRARY_SCHEME, TRPC_SCHEME } from "./schemes"
+import {
+  PRIVILEGED_SCHEMES,
+  ASSET_SCHEME,
+  LIBRARY_SCHEME,
+  OUTPUT_SCHEME,
+  TRPC_SCHEME,
+} from "./schemes"
 
 describe("the app's menu", () => {
   it("leaves out the window menu, which would take Ctrl and W from the renderer", () => {
@@ -18,6 +24,7 @@ describe("the schemes the app serves", () => {
       TRPC_SCHEME,
       ASSET_SCHEME,
       LIBRARY_SCHEME,
+      OUTPUT_SCHEME,
     ])
   })
 
