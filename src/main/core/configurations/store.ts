@@ -4,7 +4,7 @@ import { asc, eq } from "drizzle-orm"
 import { schema, type ProjectDatabase, type ProjectDb } from "../db"
 import type { BoundValue, SlotBinding } from "../dispatch/dispatch"
 import type { RecordedBinding } from "../dispatch/run-store"
-import { slotKey } from "../workflows/diff"
+import { slotKey, type StoredSlotKey } from "../workflows/diff"
 import { isInsideFolder } from "../workflows/folder"
 import { readWorkflow, type SlotRecord } from "../workflows/store"
 import { ConfigurationError } from "./errors"
@@ -53,6 +53,23 @@ export function listConfigurations(db: ProjectDb, workflowId: number): Configura
     .orderBy(asc(schema.configurations.name), asc(schema.configurations.id))
     .all()
     .map((row) => toSummary(row, slots))
+}
+
+/** The names of a workflow's configurations that bind any of `slots`, in name order. */
+export function configurationNamesBinding(
+  db: ProjectDb,
+  workflowId: number,
+  slots: StoredSlotKey[]
+): string[] {
+  const keys = new Set(slots.map(slotKey))
+  return db
+    .select()
+    .from(schema.configurations)
+    .where(eq(schema.configurations.workflowId, workflowId))
+    .orderBy(asc(schema.configurations.name), asc(schema.configurations.id))
+    .all()
+    .filter((row) => bindingsOf(row).some((binding) => keys.has(slotKey(binding))))
+    .map((row) => row.name)
 }
 
 /** Saves the form's bindings as a new configuration, copying each bound file into the project. */

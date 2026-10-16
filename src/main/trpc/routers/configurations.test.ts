@@ -182,6 +182,47 @@ describe("configurations router", () => {
     ).toEqual(["Turbo steps"])
   })
 
+  it("names the configurations that bind a slot the source would remove", async () => {
+    const { workflow } = await saved()
+    await caller.configurations.save({
+      workflowId: workflow.id,
+      name: "Prompt only",
+      bindings: [
+        { slotId: slotIdOf(workflow, "Prompt"), on: true, value: { type: "value", value: "Hi." } },
+      ],
+    })
+    const sourcePath = join(folder, "h3-r2v-base.json")
+    const graph = readGraph(sourcePath, readFileSync(sourcePath, "utf8"))
+    graph.nodes = graph.nodes.filter((node) => node.id !== 21)
+    writeFileSync(sourcePath, JSON.stringify(graph))
+
+    const status = await caller.workflows.checkSource({ workflowId: workflow.id })
+
+    if (status.state !== "changed") throw new Error("the source did not change")
+    expect(status.diff.removed.map((slot) => slot.name)).toEqual(["Turbo steps"])
+    expect(status.boundConfigurationNames).toEqual(["Anna"])
+  })
+
+  it("names no configuration when the slot a source would remove is bound by none", async () => {
+    const workflow = await openProjectWithWorkflow()
+    await caller.configurations.save({
+      workflowId: workflow.id,
+      name: "Prompt only",
+      bindings: [
+        { slotId: slotIdOf(workflow, "Prompt"), on: true, value: { type: "value", value: "Hi." } },
+      ],
+    })
+    const sourcePath = join(folder, "h3-r2v-base.json")
+    const graph = readGraph(sourcePath, readFileSync(sourcePath, "utf8"))
+    graph.nodes = graph.nodes.filter((node) => node.id !== 21)
+    writeFileSync(sourcePath, JSON.stringify(graph))
+
+    const status = await caller.workflows.checkSource({ workflowId: workflow.id })
+
+    if (status.state !== "changed") throw new Error("the source did not change")
+    expect(status.boundConfigurationNames).toEqual([])
+  })
+
   it("updates a configuration's values", async () => {
     const { workflow, configuration } = await saved()
     const prompt = slotIdOf(workflow, "Prompt")

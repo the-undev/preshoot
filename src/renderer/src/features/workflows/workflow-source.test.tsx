@@ -54,7 +54,12 @@ describe("WorkflowSource", () => {
   })
 
   it("lists what a changed source renames, adds and removes", () => {
-    renderSource({ state: "changed", contentHash: "b".repeat(64), diff })
+    renderSource({
+      state: "changed",
+      contentHash: "b".repeat(64),
+      diff,
+      boundConfigurationNames: [],
+    })
 
     expect(
       within(screen.getByRole("region", { name: "Renamed" })).getByText("Duration (s) → Length (s)")
@@ -71,8 +76,37 @@ describe("WorkflowSource", () => {
     expect(screen.getByText(/1 slot is kept as they are/)).toBeInTheDocument()
   })
 
+  it("names the configurations that bind a removed slot", () => {
+    renderSource({
+      state: "changed",
+      contentHash: "b".repeat(64),
+      diff,
+      boundConfigurationNames: ["Anna at the window", "Night walk"],
+    })
+
+    expect(
+      screen.getByText("Configurations that bind a removed slot: Anna at the window, Night walk.")
+    ).toBeInTheDocument()
+  })
+
+  it("names no configurations when none binds a removed slot", () => {
+    renderSource({
+      state: "changed",
+      contentHash: "b".repeat(64),
+      diff,
+      boundConfigurationNames: [],
+    })
+
+    expect(screen.queryByText(/Configurations that bind a removed slot/)).not.toBeInTheDocument()
+  })
+
   it("applies the changes it showed, by their hash", () => {
-    const { onApply } = renderSource({ state: "changed", contentHash: "b".repeat(64), diff })
+    const { onApply } = renderSource({
+      state: "changed",
+      contentHash: "b".repeat(64),
+      diff,
+      boundConfigurationNames: [],
+    })
 
     fireEvent.click(screen.getByRole("button", { name: "Apply the changes" }))
 

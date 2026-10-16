@@ -40,6 +40,11 @@ export function WorkflowSource({
       {status?.state === "changed" && (
         <>
           <DiffLists diff={status.diff} />
+          {status.boundConfigurationNames.length > 0 && (
+            <p className="text-xs text-muted-foreground">
+              Configurations that bind a removed slot: {status.boundConfigurationNames.join(", ")}.
+            </p>
+          )}
           <div>
             <Button size="sm" disabled={isApplying} onClick={() => onApply(status.contentHash)}>
               Apply the changes

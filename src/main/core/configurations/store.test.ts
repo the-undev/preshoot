@@ -23,6 +23,7 @@ import {
 } from "../workflows/store"
 import { ConfigurationError } from "./errors"
 import {
+  configurationNamesBinding,
   deleteConfiguration,
   duplicateConfiguration,
   listConfigurations,
@@ -108,6 +109,19 @@ describe("configuration store", () => {
     if (status.state !== "changed") throw new Error("the source did not change")
     applySourceUpdate(handle.db, workflow.id, status.contentHash)
   }
+
+  it("names the configurations that bind a slot, and not those that bind others", () => {
+    save("Anna at the window")
+    save("Prompt only", [
+      { slotId: slotId("Prompt"), on: true, value: { type: "value", value: "He sits." } },
+    ])
+    const turboSteps = workflow.slots.filter((slot) => slot.name === "Turbo steps")
+
+    expect(configurationNamesBinding(handle.db, workflow.id, turboSteps)).toEqual([
+      "Anna at the window",
+    ])
+    expect(configurationNamesBinding(handle.db, workflow.id, [])).toEqual([])
+  })
 
   it("copies a bound file into the project's inputs and keeps its project path", () => {
     const saved = save("Anna at the window")

@@ -1,5 +1,6 @@
 import { TRPCError } from "@trpc/server"
 import { z } from "zod"
+import { configurationNamesBinding } from "../../core/configurations/store"
 import { listWorkflowFolder } from "../../core/workflows/folder"
 import { SLOT_TIERS } from "../../core/workflows/scan"
 import {
@@ -64,10 +65,23 @@ export const workflowsRouter = router({
       }
     }),
 
-  /** Reads the source file again and says how it stands against the project's copy. */
+  /**
+   * Reads the source file again and says how it stands against the project's copy. A change
+   * names the configurations that bind a slot it would remove.
+   */
   checkSource: publicProcedure.input(z.object({ workflowId })).query(({ ctx, input }) => {
     try {
-      return checkSource(requireProject(ctx), input.workflowId)
+      const db = requireProject(ctx)
+      const status = checkSource(db, input.workflowId)
+      if (status.state !== "changed") return status
+      return {
+        ...status,
+        boundConfigurationNames: configurationNamesBinding(
+          db,
+          input.workflowId,
+          status.diff.removed
+        ),
+      }
     } catch (error) {
       asClientError(error)
     }
