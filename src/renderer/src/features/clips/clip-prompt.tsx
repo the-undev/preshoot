@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react"
 import { Check, Copy } from "lucide-react"
 import { Alert, AlertDescription, Button } from "@renderer/design-system"
+import { SendPromptDialog } from "@renderer/features/workflows/send-prompt-dialog"
 import type { ClipPrompt, GenerationRequest } from "@renderer/lib/trpc"
 
 /** How long a copy button says it has copied. */
@@ -41,28 +42,36 @@ function asBlock(fields: Field[], prompt: string): string {
 
 interface ClipPromptPanelProps {
   prompt: ClipPrompt
+  /** The clip's name, or nothing while it is a scratch clip. */
+  clipName: string | null
   isExporting: boolean
   exportedTo: string | null
   errorMessage: string | null
   onExport: () => void
   onSave: () => void
   onOpenExports: () => void
+  onOpenWorkflow: (workflowId: number) => void
+  onOpenWorkflows: () => void
 }
 
 /**
- * The prompt this clip makes, rewritten on every change. Nothing here submits: there is nowhere
- * yet to submit it to, so every field copies on its own.
+ * The prompt this clip makes, rewritten on every change, with each field to copy, the whole to
+ * write into the project, and the prompt to send to a workflow's text slot.
  */
 export function ClipPromptPanel({
   prompt,
+  clipName,
   isExporting,
   exportedTo,
   errorMessage,
   onExport,
   onSave,
   onOpenExports,
+  onOpenWorkflow,
+  onOpenWorkflows,
 }: ClipPromptPanelProps): React.JSX.Element {
   const [copied, setCopied] = useState<string | null>(null)
+  const [sending, setSending] = useState(false)
 
   useEffect(() => {
     const timer = copied ? setTimeout(() => setCopied(null), COPIED_MS) : undefined
@@ -154,6 +163,9 @@ export function ClipPromptPanel({
       </section>
 
       <section className="flex flex-wrap items-center gap-2">
+        <Button variant="outline" size="sm" onClick={() => setSending(true)}>
+          Send to workflow
+        </Button>
         <Button variant="outline" size="sm" disabled={isExporting} onClick={onExport}>
           Write into the project
         </Button>
@@ -171,6 +183,16 @@ export function ClipPromptPanel({
         <Alert variant="destructive">
           <AlertDescription>{errorMessage}</AlertDescription>
         </Alert>
+      )}
+
+      {sending && (
+        <SendPromptDialog
+          text={prompt.rendered}
+          clipName={clipName}
+          onOpenWorkflow={onOpenWorkflow}
+          onOpenWorkflows={onOpenWorkflows}
+          onCancel={() => setSending(false)}
+        />
       )}
     </div>
   )

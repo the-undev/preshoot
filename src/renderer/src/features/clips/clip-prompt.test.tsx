@@ -1,6 +1,8 @@
-import { fireEvent, render, screen } from "@testing-library/react"
+import { fireEvent, render, screen, within } from "@testing-library/react"
 import { describe, expect, it, vi } from "vitest"
-import type { ClipPrompt } from "@renderer/lib/trpc"
+import { takePromptTransfer } from "@renderer/features/workflows/prompt-transfer"
+import { StubTrpcProvider, type StubAnswers } from "@renderer/lib/stub-trpc"
+import type { ClipPrompt, WorkflowDetail, WorkflowSlot } from "@renderer/lib/trpc"
 import { ClipPromptPanel } from "./clip-prompt"
 
 const ready: ClipPrompt = {
@@ -21,8 +23,70 @@ const ready: ClipPrompt = {
   body: { words: 92, min: 350, max: 500 },
 }
 
-function renderPanel(prompt: ClipPrompt = ready): { copied: string[] } {
+function slot(over: Partial<WorkflowSlot>): WorkflowSlot {
+  return {
+    id: 1,
+    workflowId: 3,
+    nodeId: 14,
+    nodeType: "PrimitiveStringMultiline",
+    name: "Prompt",
+    kind: "text",
+    tier: "basic",
+    bypassed: false,
+    multiline: true,
+    position: 0,
+    ...over,
+  }
+}
+
+function workflow(id: number, name: string, slots: WorkflowSlot[]): WorkflowDetail {
+  return {
+    id,
+    name,
+    sourcePath: `/workflows/${name}.json`,
+    contentHash: "abc",
+    importedAt: "2026-10-16T09:00:00.000Z",
+    updatedAt: "2026-10-16T09:00:00.000Z",
+    guide: [],
+    slots,
+  }
+}
+
+const workflows: WorkflowDetail[] = [
+  workflow(3, "h3-r2v-base", [
+    slot({ id: 10, name: "Negative", multiline: false, nodeType: "PrimitiveString", position: 0 }),
+    slot({ id: 11, name: "Seed", kind: "seed", nodeType: "RandomNoise", position: 1 }),
+    slot({ id: 12, name: "Style", tier: "advanced", position: 2 }),
+    slot({ id: 13, name: "Prompt", position: 3 }),
+    slot({ id: 14, name: "Notes", tier: "hidden", position: 4 }),
+  ]),
+  workflow(4, "qwen-image-seed", [slot({ id: 20, name: "Seed", kind: "seed" })]),
+  workflow(5, "qwen-image-hidden", [slot({ id: 30, name: "Prompt", tier: "hidden" })]),
+  workflow(6, "qwen-image-edit", [slot({ id: 40, name: "Instruction" })]),
+]
+
+/** Answers the workflow calls the send dialog makes from the workflows given. */
+function workflowAnswers(shown: WorkflowDetail[]): StubAnswers {
+  return {
+    "workflows.list": shown,
+    "workflows.get": (input: { workflowId: number }) =>
+      shown.find((entry) => entry.id === input.workflowId),
+  }
+}
+
+interface Rendered {
+  copied: string[]
+  onOpenWorkflow: ReturnType<typeof vi.fn>
+  onOpenWorkflows: ReturnType<typeof vi.fn>
+}
+
+function renderPanel(
+  prompt: ClipPrompt = ready,
+  answers: StubAnswers = workflowAnswers(workflows)
+): Rendered {
   const copied: string[] = []
+  const onOpenWorkflow = vi.fn()
+  const onOpenWorkflows = vi.fn()
   Object.assign(navigator, {
     clipboard: {
       writeText: vi.fn(async (text: string) => {
@@ -31,17 +95,29 @@ function renderPanel(prompt: ClipPrompt = ready): { copied: string[] } {
     },
   })
   render(
-    <ClipPromptPanel
-      prompt={prompt}
-      isExporting={false}
-      exportedTo={null}
-      errorMessage={null}
-      onExport={vi.fn()}
-      onSave={vi.fn()}
-      onOpenExports={vi.fn()}
-    />
+    <StubTrpcProvider answers={answers}>
+      <ClipPromptPanel
+        prompt={prompt}
+        clipName="Anna at the window"
+        isExporting={false}
+        exportedTo={null}
+        errorMessage={null}
+        onExport={vi.fn()}
+        onSave={vi.fn()}
+        onOpenExports={vi.fn()}
+        onOpenWorkflow={onOpenWorkflow}
+        onOpenWorkflows={onOpenWorkflows}
+      />
+    </StubTrpcProvider>
   )
-  return { copied }
+  return { copied, onOpenWorkflow, onOpenWorkflows }
+}
+
+/** The buttons in one workflow's row of the send dialog, by name. */
+function choicesIn(workflowName: string): string[] {
+  return within(screen.getByRole("listitem", { name: workflowName }))
+    .getAllByRole("button")
+    .map((button) => button.textContent ?? "")
 }
 
 describe("ClipPromptPanel", () => {
@@ -79,5 +155,69 @@ describe("ClipPromptPanel", () => {
 
     expect(screen.getByText(/This clip has no shots/)).toBeInTheDocument()
     expect(screen.queryByRole("button", { name: "Copy Width" })).not.toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: "Send to workflow" })).not.toBeInTheDocument()
+  })
+
+  it("lists the workflows with a text slot in their form, prompt-sized basic slots first", async () => {
+    renderPanel()
+
+    fireEvent.click(screen.getByRole("button", { name: "Send to workflow" }))
+
+    const dialog = await screen.findByRole("dialog")
+    await within(dialog).findByRole("listitem", { name: "h3-r2v-base" })
+    expect(
+      within(dialog)
+        .getAllByRole("listitem")
+        .map((item) => item.getAttribute("aria-label"))
+        .filter((name) => name !== null)
+    ).toEqual(["h3-r2v-base", "qwen-image-edit"])
+    expect(choicesIn("h3-r2v-base")).toEqual(["Prompt", "Negative", "Style"])
+    expect(choicesIn("qwen-image-edit")).toHaveLength(1)
+  })
+
+  it("opens the workflow picked with the prompt waiting for the slot picked", async () => {
+    const { onOpenWorkflow } = renderPanel()
+    fireEvent.click(screen.getByRole("button", { name: "Send to workflow" }))
+    const row = await screen.findByRole("listitem", { name: "h3-r2v-base" })
+
+    fireEvent.click(within(row).getByRole("button", { name: "Style" }))
+
+    expect(onOpenWorkflow).toHaveBeenCalledWith(3)
+    expect(takePromptTransfer(3)).toEqual({
+      workflowId: 3,
+      slotId: 12,
+      text: "integrated_multimodal_description: [Shot 1] Live-action.",
+      clipName: "Anna at the window",
+    })
+  })
+
+  it("sends to a workflow's only text slot from the workflow's row", async () => {
+    const { onOpenWorkflow } = renderPanel()
+    fireEvent.click(screen.getByRole("button", { name: "Send to workflow" }))
+    const row = await screen.findByRole("listitem", { name: "qwen-image-edit" })
+
+    fireEvent.click(within(row).getByRole("button"))
+
+    expect(onOpenWorkflow).toHaveBeenCalledWith(6)
+    expect(takePromptTransfer(6)).toMatchObject({ workflowId: 6, slotId: 40 })
+  })
+
+  it("points to the Workflows page when the project has no workflows", async () => {
+    const { onOpenWorkflows } = renderPanel(ready, workflowAnswers([]))
+    fireEvent.click(screen.getByRole("button", { name: "Send to workflow" }))
+
+    expect(await screen.findByText(/This project has no workflows yet/)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole("button", { name: "Open Workflows" }))
+    expect(onOpenWorkflows).toHaveBeenCalled()
+  })
+
+  it("says why none is offered when no workflow has a text slot in its form", async () => {
+    renderPanel(ready, workflowAnswers(workflows.slice(1, 3)))
+    fireEvent.click(screen.getByRole("button", { name: "Send to workflow" }))
+
+    expect(
+      await screen.findByText(/None of this project's workflows has a text slot in its form/)
+    ).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Open Workflows" })).toBeInTheDocument()
   })
 })
