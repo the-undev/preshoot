@@ -130,7 +130,7 @@ describe("runs router", () => {
     const prompt = workflow.slots.find((slot) => slot.name === "Prompt")
     if (!prompt) throw new Error("no prompt slot")
 
-    const run = await caller.runs.queue({
+    const [run] = await caller.runs.queue({
       workflowId: workflow.id,
       bindings: [{ slotId: prompt.id, on: true, value: { type: "value", value: "Hello." } }],
     })
@@ -147,6 +147,38 @@ describe("runs router", () => {
     ])
     await caller.runs.openOutput({ outputId: output.id })
     expect(opened).toEqual([join(dir, "film", output.path)])
+  })
+
+  it("queues a batch with a fresh seed in each run after the first, from a configuration", async () => {
+    const workflow = await openProjectWithWorkflow()
+    const seed = workflow.slots.find((slot) => slot.name === "Seed")
+    if (!seed) throw new Error("no seed slot")
+    const configuration = await caller.configurations.save({
+      workflowId: workflow.id,
+      name: "Anna",
+      bindings: [],
+    })
+
+    const runs = await caller.runs.queue({
+      workflowId: workflow.id,
+      bindings: [{ slotId: seed.id, on: true, value: { type: "value", value: 42 } }],
+      configurationId: configuration.id,
+      count: 3,
+    })
+
+    expect(runs).toHaveLength(3)
+    expect(runs[0].seed).toBe(42)
+    expect(new Set(runs.map((run) => run.seed)).size).toBe(3)
+    expect(runs.map((run) => run.configurationName)).toEqual(["Anna", "Anna", "Anna"])
+    expect(await caller.runs.list({ workflowId: workflow.id })).toHaveLength(3)
+  })
+
+  it("refuses a batch larger than twenty", async () => {
+    const workflow = await openProjectWithWorkflow()
+
+    await expect(
+      caller.runs.queue({ workflowId: workflow.id, bindings: [], count: 21 })
+    ).rejects.toThrow(expect.objectContaining({ code: "BAD_REQUEST" }))
   })
 
   it("passes ComfyUI's refusal on as a bad request", async () => {

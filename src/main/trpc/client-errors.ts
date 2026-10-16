@@ -1,6 +1,7 @@
 import { TRPCError } from "@trpc/server"
 import { BackendError } from "../core/backend/errors"
 import { CompositionError } from "../core/composition/errors"
+import { ConfigurationError } from "../core/configurations/errors"
 import { DispatchError } from "../core/dispatch/errors"
 import { LibraryError } from "../core/library-folder/errors"
 import { PromptServiceError } from "../core/prompting/errors"
@@ -46,6 +47,12 @@ const DISPATCH_CODES = {
   "unreadable-file": "BAD_REQUEST",
 } as const
 
+/** How a refusal from the configuration store reaches the renderer. */
+const CONFIGURATION_CODES = {
+  "not-found": "NOT_FOUND",
+  "unreadable-file": "BAD_REQUEST",
+} as const
+
 /** How a refusal to read from or write to the library folder reaches the renderer. */
 const LIBRARY_CODES = {
   unset: "PRECONDITION_FAILED",
@@ -79,6 +86,13 @@ export function asClientError(error: unknown): never {
   }
   if (error instanceof DispatchError) {
     throw new TRPCError({ code: DISPATCH_CODES[error.code], message: error.message, cause: error })
+  }
+  if (error instanceof ConfigurationError) {
+    throw new TRPCError({
+      code: CONFIGURATION_CODES[error.code],
+      message: error.message,
+      cause: error,
+    })
   }
   if (error instanceof LibraryError) {
     throw new TRPCError({ code: LIBRARY_CODES[error.code], message: error.message, cause: error })

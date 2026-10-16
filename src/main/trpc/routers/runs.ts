@@ -1,7 +1,13 @@
 import { join } from "node:path"
 import { z } from "zod"
 import { IMAGE_MEDIA_TYPES } from "../../core/composition/image-store"
-import { pollRun, queueRun, savedSlotValues } from "../../core/dispatch/dispatch"
+import {
+  BATCH_LIMIT,
+  pollRun,
+  queueBatch,
+  randomSeed,
+  savedSlotValues,
+} from "../../core/dispatch/dispatch"
 import { listRuns, readRunOutput } from "../../core/dispatch/run-store"
 import { asClientError } from "../client-errors"
 import { requireOpenProject, requireProject } from "../project"
@@ -15,7 +21,8 @@ const boundValueSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("file"), path: z.string().min(1) }),
 ])
 
-const bindingSchema = z.object({
+/** One slot as the run form sends it, which a configuration saves as well. */
+export const bindingSchema = z.object({
   slotId: z.number().int(),
   on: z.boolean(),
   value: boundValueSchema.nullable(),
@@ -56,18 +63,30 @@ export const runsRouter = router({
     .input(z.object({ workflowId }))
     .query(({ ctx, input }) => listRuns(requireProject(ctx), input.workflowId)),
 
-  /** Resolves a workflow with its slots filled, queues it on the saved ComfyUI, and records it. */
+  /**
+   * Resolves a workflow with its slots filled and queues it on the saved ComfyUI `count` times,
+   * every run after the first with fresh seeds, and records each one.
+   */
   queue: publicProcedure
-    .input(z.object({ workflowId, bindings: z.array(bindingSchema) }))
+    .input(
+      z.object({
+        workflowId,
+        bindings: z.array(bindingSchema),
+        configurationId: z.number().int().nullable().default(null),
+        count: z.number().int().min(1).max(BATCH_LIMIT).default(1),
+      })
+    )
     .mutation(async ({ ctx, input }) => {
       const db = requireProject(ctx)
       try {
-        return await queueRun({
+        return await queueBatch({
           db,
           client: ctx.comfyUiClient(ctx.settings.comfyUiUrl()),
           workflowId: input.workflowId,
-          configurationId: null,
+          configurationId: input.configurationId,
           bindings: input.bindings,
+          count: input.count,
+          randomSeed,
           now: new Date(),
         })
       } catch (error) {
