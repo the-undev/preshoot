@@ -2,6 +2,7 @@ import { useState } from "react"
 import { Alert, AlertDescription } from "@renderer/design-system"
 import type { Configuration, RunBinding, VerdictFilter, WorkflowDetail } from "@renderer/lib/trpc"
 import { ConfigurationStrip } from "./configuration-strip"
+import { takePromptTransfer } from "./prompt-transfer"
 import { ReviewBar } from "./review-bar"
 import { RunForm, type FormFields } from "./run-form"
 import { RunList } from "./run-list"
@@ -31,11 +32,32 @@ export function WorkflowRun({ workflow }: { workflow: WorkflowDetail }): React.J
   )
 }
 
-/** The configuration last loaded into the form or saved from it, and the values it gave. */
-interface LoadedState {
-  configurationId: number
-  bindings: RunBinding[]
-  staleSlotNames: string[]
+/**
+ * What the form was last started from, and the values it gave: a configuration loaded into it or
+ * saved from it, or a prompt sent from a clip, which holds while the workflow's snapshot is the
+ * one it was sent to.
+ */
+type FormStart =
+  | {
+      from: "configuration"
+      configurationId: number
+      bindings: RunBinding[]
+      staleSlotNames: string[]
+    }
+  | { from: "clip"; clipName: string | null; contentHash: string; bindings: RunBinding[] }
+
+/** The prompt sent from a clip to this workflow, as the form's start, when one is waiting. */
+function sentStart(workflow: WorkflowDetail): FormStart | null {
+  const transfer = takePromptTransfer(workflow.id)
+  if (!transfer) return null
+  return {
+    from: "clip",
+    clipName: transfer.clipName,
+    contentHash: workflow.contentHash,
+    bindings: [
+      { slotId: transfer.slotId, on: true, value: { type: "value", value: transfer.text } },
+    ],
+  }
 }
 
 interface WorkflowRunViewProps {
@@ -54,13 +76,17 @@ export function WorkflowRunView({
   runs,
   review,
 }: WorkflowRunViewProps): React.JSX.Element {
-  const [loaded, setLoaded] = useState<LoadedState | null>(null)
+  // Taken once, so a second visit to the workflow starts from its saved values again.
+  const [start, setStart] = useState<FormStart | null>(() => sentStart(workflow))
   const [filter, setFilter] = useState<VerdictFilter>("all")
   // Counts loads, so loading the same configuration again starts the form again from it.
   const [loadCount, setLoadCount] = useState(0)
   const [loadError, setLoadError] = useState<string | null>(null)
   // The form's fields as they last stood, which a form started again after a source change keeps.
   const [keptFields, setKeptFields] = useState<FormFields | null>(null)
+  const loaded = start?.from === "configuration" ? start : null
+  // A source change starts the form again from what it held, so the prompt is then typed text.
+  const sent = start?.from === "clip" && start.contentHash === workflow.contentHash ? start : null
   // Looked up in the list, so a rename shows and a deleted one is no longer loaded.
   const loadedConfiguration: Configuration | null =
     configurations.configurations.find((entry) => entry.id === loaded?.configurationId) ?? null
@@ -71,7 +97,8 @@ export function WorkflowRunView({
       const result = await configurations.load(configurationId)
       // A load starts the form from the configuration, so nothing typed before it is kept.
       setKeptFields(null)
-      setLoaded({
+      setStart({
+        from: "configuration",
         configurationId,
         bindings: result.bindings,
         staleSlotNames: result.configuration.staleSlotNames,
@@ -82,7 +109,12 @@ export function WorkflowRunView({
     }
   }
   const saved = (configuration: Configuration, bindings: RunBinding[]): void =>
-    setLoaded({ configurationId: configuration.id, bindings, staleSlotNames: [] })
+    setStart({
+      from: "configuration",
+      configurationId: configuration.id,
+      bindings,
+      staleSlotNames: [],
+    })
 
   const errorMessage = form.errorMessage ?? configurations.errorMessage ?? loadError
   const staleSlotNames = loadedConfiguration ? (loaded?.staleSlotNames ?? []) : []
@@ -99,6 +131,13 @@ export function WorkflowRunView({
         {loadedConfiguration && (
           <p className="text-sm text-muted-foreground">Filled from {loadedConfiguration.name}.</p>
         )}
+        {sent && (
+          <p className="text-sm text-muted-foreground">
+            {sent.clipName === null
+              ? "Prompt sent from the clip."
+              : `Prompt sent from the clip ${sent.clipName}.`}
+          </p>
+        )}
         {staleSlotNames.length > 0 && (
           <Alert>
             <AlertDescription>
@@ -114,7 +153,7 @@ export function WorkflowRunView({
             key={`${workflow.contentHash}:${JSON.stringify(form.savedValues)}:${loadCount}`}
             slots={workflow.slots}
             savedValues={form.savedValues}
-            initialBindings={loaded?.bindings ?? []}
+            initialBindings={loaded?.bindings ?? sent?.bindings ?? []}
             keptFields={keptFields}
             onFieldsChange={setKeptFields}
             configurationName={loadedConfiguration?.name ?? null}

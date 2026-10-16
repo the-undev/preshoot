@@ -7,6 +7,7 @@ import type {
   WorkflowDetail,
   WorkflowSlot,
 } from "@renderer/lib/trpc"
+import { setPromptTransfer } from "./prompt-transfer"
 import type { ConfigurationsPanel } from "./use-configurations"
 import type { ReviewPanel, RunFormPanel, RunsPanel } from "./use-runs"
 import { WorkflowRunView } from "./workflow-run"
@@ -328,6 +329,103 @@ describe("WorkflowRunView", () => {
     expect(
       within(screen.getByRole("dialog")).getByRole("button", { name: "Update Anna" })
     ).toBeInTheDocument()
+  })
+
+  it("fills the slot a clip's prompt was sent to, and says where it came from", () => {
+    setPromptTransfer({ workflowId: 3, slotId: 1, text: "She turns.", clipName: "Anna" })
+    render(
+      <WorkflowRunView
+        workflow={workflow}
+        form={formPanel()}
+        configurations={configurationsPanel()}
+        runs={runsPanel}
+        review={reviewPanel()}
+      />
+    )
+
+    expect(screen.getByLabelText("Prompt")).toHaveValue("She turns.")
+    expect(screen.getByLabelText("Seed")).toHaveValue("42")
+    expect(screen.getByText("Prompt sent from the clip Anna.")).toBeInTheDocument()
+  })
+
+  it("names no clip when the prompt came from one never saved", () => {
+    setPromptTransfer({ workflowId: 3, slotId: 1, text: "She turns.", clipName: null })
+    render(
+      <WorkflowRunView
+        workflow={workflow}
+        form={formPanel()}
+        configurations={configurationsPanel()}
+        runs={runsPanel}
+        review={reviewPanel()}
+      />
+    )
+
+    expect(screen.getByText("Prompt sent from the clip.")).toBeInTheDocument()
+  })
+
+  it("fills the slot only on the first visit after a send", () => {
+    setPromptTransfer({ workflowId: 3, slotId: 1, text: "She turns.", clipName: "Anna" })
+    const view = (): React.JSX.Element => (
+      <WorkflowRunView
+        workflow={workflow}
+        form={formPanel()}
+        configurations={configurationsPanel()}
+        runs={runsPanel}
+        review={reviewPanel()}
+      />
+    )
+    render(view()).unmount()
+
+    render(view())
+
+    expect(screen.getByLabelText("Prompt")).toHaveValue("A man at a window.")
+    expect(screen.queryByText("Prompt sent from the clip Anna.")).not.toBeInTheDocument()
+  })
+
+  it("queues the prompt sent from a clip with no configuration", () => {
+    setPromptTransfer({ workflowId: 3, slotId: 1, text: "She turns.", clipName: "Anna" })
+    const form = formPanel()
+    render(
+      <WorkflowRunView
+        workflow={workflow}
+        form={form}
+        configurations={configurationsPanel()}
+        runs={runsPanel}
+        review={reviewPanel()}
+      />
+    )
+
+    fireEvent.click(screen.getByRole("button", { name: "Queue" }))
+
+    expect(form.queue).toHaveBeenCalledWith(
+      [
+        { slotId: 1, on: true, value: { type: "value", value: "She turns." } },
+        { slotId: 7, on: true, value: { type: "value", value: 42 } },
+      ],
+      1,
+      null
+    )
+  })
+
+  it("keeps a sent prompt as typed text over a source change, without the note", () => {
+    setPromptTransfer({ workflowId: 3, slotId: 1, text: "She turns.", clipName: "Anna" })
+    const form = formPanel()
+    const view = (shown: WorkflowDetail): React.JSX.Element => (
+      <WorkflowRunView
+        workflow={shown}
+        form={form}
+        configurations={configurationsPanel()}
+        runs={runsPanel}
+        review={reviewPanel()}
+      />
+    )
+    const { rerender } = render(view(workflow))
+    fireEvent.change(screen.getByLabelText("Prompt"), { target: { value: "She turns, slowly." } })
+
+    rerender(view({ ...workflow, contentHash: "def" }))
+
+    expect(screen.getByLabelText("Prompt")).toHaveValue("She turns, slowly.")
+    expect(screen.queryByText("Prompt sent from the clip Anna.")).not.toBeInTheDocument()
   })
 
   it("filters the outputs shown by verdict, leaving out runs with none to show", () => {
