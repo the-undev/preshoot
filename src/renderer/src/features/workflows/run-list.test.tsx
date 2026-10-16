@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, within } from "@testing-library/react"
 import { describe, expect, it, vi } from "vitest"
-import type { RunRecord } from "@renderer/lib/trpc"
+import type { RunRecord, WorkflowSlot } from "@renderer/lib/trpc"
 import { RunList } from "./run-list"
 
 function run(over: Partial<RunRecord>): RunRecord {
@@ -51,8 +51,24 @@ const runs: RunRecord[] = [
   run({ id: 1, state: "queued", seed: 7 }),
 ]
 
+function slot(over: Partial<WorkflowSlot>): WorkflowSlot {
+  return {
+    id: 1,
+    workflowId: 3,
+    nodeId: 10,
+    nodeType: "PrimitiveStringMultiline",
+    name: "Prompt",
+    kind: "text",
+    tier: "basic",
+    bypassed: false,
+    position: 0,
+    ...over,
+  }
+}
+
 /** The review and cancel props every list takes, showing every output with nothing cancelling. */
 const reviewProps = {
+  slots: [] as WorkflowSlot[],
   filter: "all" as const,
   onSetVerdict: vi.fn(),
   onSetNote: vi.fn(),
@@ -66,6 +82,51 @@ function row(runId: number): ReturnType<typeof within> {
 }
 
 describe("RunList", () => {
+  it("shows what each slot was sent behind a fold", () => {
+    const prompt = "A man walks in.\nHe sits down.\nHe looks up.\nHe speaks."
+    render(
+      <RunList
+        runs={[
+          run({
+            id: 7,
+            bindings: [
+              { slotId: 1, slotName: "Old prompt", on: true, value: prompt, file: null },
+              { slotId: 2, slotName: "Turbo", on: false, value: true, file: null },
+              {
+                slotId: 3,
+                slotName: "Picture 1",
+                on: true,
+                value: "preshoot/anna.png",
+                file: "/home/someone/pictures/anna.png",
+              },
+              { slotId: 9, slotName: "Gone slot", on: true, value: 20, file: null },
+            ],
+          }),
+        ]}
+        positions={{}}
+        pollError={null}
+        onOpenOutput={vi.fn()}
+        {...reviewProps}
+        slots={[
+          slot({ id: 1, name: "Prompt" }),
+          slot({ id: 2, name: "Turbo LoRA", kind: "boolean" }),
+          slot({ id: 3, name: "Picture 1", kind: "image" }),
+        ]}
+      />
+    )
+
+    expect(row(7).queryByText("Prompt")).not.toBeInTheDocument()
+    fireEvent.click(row(7).getByRole("button", { name: "Details" }))
+
+    const sent = (name: string): HTMLElement | null =>
+      row(7).getByText(name, { selector: "dt" }).nextElementSibling as HTMLElement | null
+    expect(sent("Prompt")).toHaveAttribute("title", prompt)
+    expect(sent("Prompt")?.textContent).toBe(prompt)
+    expect(sent("Turbo LoRA")).toHaveTextContent("off")
+    expect(sent("Picture 1")?.textContent).toBe("anna.png")
+    expect(sent("Gone slot")).toHaveTextContent("20")
+  })
+
   it("names the configuration a run was queued from", () => {
     render(
       <RunList

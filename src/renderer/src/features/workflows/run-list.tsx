@@ -1,5 +1,20 @@
-import { Button } from "@renderer/design-system"
-import type { RunOutput, RunRecord, RunState, Verdict, VerdictFilter } from "@renderer/lib/trpc"
+import { ChevronRight } from "lucide-react"
+import { useState } from "react"
+import {
+  Button,
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@renderer/design-system"
+import { fileName } from "@renderer/lib/file-name"
+import type {
+  RunOutput,
+  RunRecord,
+  RunState,
+  Verdict,
+  VerdictFilter,
+  WorkflowSlot,
+} from "@renderer/lib/trpc"
 import { RunOutputItem } from "./run-output"
 
 /** What each state is called, and the colour its chip takes. */
@@ -13,8 +28,13 @@ const STATE_CHIPS: Record<RunState, { label: string; className: string }> = {
 /** The states of a run ComfyUI has not finished with. */
 const UNFINISHED_STATES: ReadonlySet<RunState> = new Set(["queued", "running"])
 
+/** How a run filled one slot, as its record keeps it. */
+type RunBindingRecord = RunRecord["bindings"][number]
+
 interface RunListProps {
   runs: RunRecord[]
+  /** The workflow's slots as they are now, which name the slots a run filled. */
+  slots: WorkflowSlot[]
   positions: Record<number, number | null>
   pollError: string | null
   cancelError: string | null
@@ -33,6 +53,7 @@ interface RunListProps {
 /** A workflow's runs, newest first, each as one slim row with its outputs. */
 export function RunList({
   runs,
+  slots,
   positions,
   pollError,
   cancelError,
@@ -62,6 +83,7 @@ export function RunList({
             <RunRow
               key={run.id}
               run={run}
+              slots={slots}
               position={positions[run.id] ?? null}
               isCancelling={cancellingRunIds.has(run.id)}
               onOpenOutput={onOpenOutput}
@@ -78,6 +100,7 @@ export function RunList({
 
 interface RunRowProps {
   run: RunRecord
+  slots: WorkflowSlot[]
   position: number | null
   isCancelling: boolean
   onOpenOutput: (outputId: number) => void
@@ -88,10 +111,11 @@ interface RunRowProps {
 
 /**
  * One run: its state, its seed, when it was queued, the configuration it came from, a way to
- * cancel it while unfinished, and its error or its files.
+ * cancel it while unfinished, what it sent behind a fold, and its error or its files.
  */
 function RunRow({
   run,
+  slots,
   position,
   isCancelling,
   onOpenOutput,
@@ -130,6 +154,7 @@ function RunRow({
           </Button>
         )}
       </div>
+      <RunDetails bindings={run.bindings} slots={slots} />
       {run.state === "failed" && run.error && (
         <p className="text-sm break-words text-destructive">{run.error}</p>
       )}
@@ -150,6 +175,60 @@ function RunRow({
           </ul>
         ))}
     </li>
+  )
+}
+
+/** What each slot of a run was sent, behind a fold. */
+function RunDetails({
+  bindings,
+  slots,
+}: {
+  bindings: RunBindingRecord[]
+  slots: WorkflowSlot[]
+}): React.JSX.Element {
+  const [open, setOpen] = useState(false)
+  const slotNames = new Map(slots.map((slot) => [slot.id, slot.name]))
+  return (
+    <Collapsible open={open} onOpenChange={setOpen}>
+      <CollapsibleTrigger asChild>
+        <Button variant="ghost" size="xs" className="-ml-2 gap-1 text-muted-foreground">
+          <ChevronRight className={open ? "size-3 rotate-90 transition-transform" : "size-3"} />
+          Details
+        </Button>
+      </CollapsibleTrigger>
+      <CollapsibleContent className="pt-1">
+        {bindings.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Every slot ran as saved.</p>
+        ) : (
+          <dl className="grid grid-cols-[minmax(0,12rem)_minmax(0,1fr)] gap-x-4 gap-y-1 text-sm">
+            {bindings.map((binding) => (
+              <div key={binding.slotId} className="contents">
+                {/* A slot gone since the run is called what it was called then. */}
+                <dt className="truncate text-muted-foreground">
+                  {slotNames.get(binding.slotId) ?? binding.slotName}
+                </dt>
+                <SentValue binding={binding} />
+              </div>
+            ))}
+          </dl>
+        )}
+      </CollapsibleContent>
+    </Collapsible>
+  )
+}
+
+/** What one slot was sent: off, a file's name, a value kept as saved, or the value itself. */
+function SentValue({ binding }: { binding: RunBindingRecord }): React.JSX.Element {
+  if (!binding.on) return <dd className="text-muted-foreground">off</dd>
+  if (binding.file !== null) return <dd className="truncate">{fileName(binding.file)}</dd>
+  if (binding.value === null) return <dd className="text-muted-foreground">as saved</dd>
+  if (typeof binding.value === "boolean") return <dd>{binding.value ? "yes" : "no"}</dd>
+  const text = String(binding.value)
+  // Long prompts are clipped to a few lines, with the whole text on hover.
+  return (
+    <dd title={text} className="line-clamp-3 break-words whitespace-pre-wrap">
+      {text}
+    </dd>
   )
 }
 

@@ -165,6 +165,7 @@ export function WorkflowRunView({
         />
         <RunList
           runs={runs.runs}
+          slots={workflow.slots}
           positions={runs.positions}
           pollError={runs.pollError}
           cancelError={runs.cancelError}
