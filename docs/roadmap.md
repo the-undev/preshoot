@@ -228,13 +228,14 @@ describes reference pictures. Nothing else in the app calls a model.
   The earlier plan of rsync over SSH went: ComfyUI already serves outputs
   and user files over HTTP.
 - The library is a folder of files the user owns, pointed at in app settings
-  and watched. Top-level folders give the kind (characters, scenes, prompts),
-  a folder per entry, media type read from the file extension, and an
-  optional `entry.md` beside the files for notes. Kinds are shelf labels for
-  browsing: no code branches on them, so a new kind is a folder, not a
-  feature. The database holds an index rebuilt by scanning and nothing
-  unique, so deleting it loses nothing and leaving the app keeps the
-  collection.
+  and read again each time its screen is shown. Top-level folders give the
+  kind (characters, scenes, prompts), a folder per entry, a file directly
+  under a kind an entry of its own, media type read from the file extension,
+  and an optional `entry.md` beside the files for notes. Kinds are shelf
+  labels for browsing: no code branches on them, so a new kind is a folder,
+  not a feature. The database holds nothing of it, so leaving the app keeps
+  the collection. The renderer reads its pictures through a `library://`
+  scheme that serves only files inside the folder, links resolved first.
 - The app reads the user's collections and copies from them, and writes to
   them only on an explicit save or export. Using a library entry in a project
   clones it in, as copy-on-use already required, so projects stay portable
