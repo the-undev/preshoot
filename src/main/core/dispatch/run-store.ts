@@ -28,6 +28,9 @@ export interface RunOutput {
 export interface RunRecord {
   id: number
   workflowId: number
+  configurationId: number | null
+  /** The name of the configuration it was queued from, as that configuration is called now. */
+  configurationName: string | null
   promptId: string
   state: RunState
   seed: number | null
@@ -46,6 +49,7 @@ export function recordRun(
   db: ProjectDb,
   input: {
     workflowId: number
+    configurationId: number | null
     promptId: string
     apiPrompt: string
     bindings: RecordedBinding[]
@@ -58,14 +62,14 @@ export function recordRun(
     .values({ ...input, state: "queued" })
     .returning()
     .get()
-  return toRecord(row, [])
+  return toRecord(row, [], configurationNames(db, [row]))
 }
 
 /** One run with its outputs. */
 export function readRun(db: ProjectDb, runId: number): RunRecord {
   const row = db.select().from(schema.runs).where(eq(schema.runs.id, runId)).get()
   if (!row) throw DispatchError.notFound(`Run ${runId}`)
-  return toRecord(row, outputsOf(db, [runId]))
+  return toRecord(row, outputsOf(db, [runId]), configurationNames(db, [row]))
 }
 
 /** The prompt a run posted, exactly as it was sent. */
@@ -91,7 +95,8 @@ export function listRuns(db: ProjectDb, workflowId: number): RunRecord[] {
     db,
     rows.map((row) => row.id)
   )
-  return rows.map((row) => toRecord(row, outputs))
+  const names = configurationNames(db, rows)
+  return rows.map((row) => toRecord(row, outputs, names))
 }
 
 /** Moves an unfinished run to queued or running. A finished run stays as it is. */
@@ -165,10 +170,25 @@ function outputsOf(db: ProjectDb, runIds: number[]): OutputRow[] {
     .all()
 }
 
-function toRecord(row: RunRow, outputs: OutputRow[]): RunRecord {
+/** The names of the configurations `rows` were queued from, by id. */
+function configurationNames(db: ProjectDb, rows: RunRow[]): Map<number, string> {
+  const ids = [...new Set(rows.flatMap((row) => row.configurationId ?? []))]
+  if (ids.length === 0) return new Map()
+  const found = db
+    .select({ id: schema.configurations.id, name: schema.configurations.name })
+    .from(schema.configurations)
+    .where(inArray(schema.configurations.id, ids))
+    .all()
+  return new Map(found.map((entry) => [entry.id, entry.name]))
+}
+
+function toRecord(row: RunRow, outputs: OutputRow[], names: Map<number, string>): RunRecord {
   return {
     id: row.id,
     workflowId: row.workflowId,
+    configurationId: row.configurationId,
+    configurationName:
+      row.configurationId === null ? null : (names.get(row.configurationId) ?? null),
     promptId: row.promptId,
     state: row.state as RunState,
     seed: row.seed,

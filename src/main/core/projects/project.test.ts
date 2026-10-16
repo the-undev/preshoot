@@ -30,7 +30,7 @@ describe("projects", () => {
 
     expect(existsSync(join(dir, PROJECT_MARKER_FILENAME))).toBe(true)
     expect(existsSync(join(dir, PROJECT_DATABASE_FILENAME))).toBe(true)
-    for (const subfolder of ["assets", "outputs", "exports"]) {
+    for (const subfolder of ["assets", "inputs", "outputs", "exports"]) {
       expect(existsSync(join(dir, subfolder))).toBe(true)
     }
   })

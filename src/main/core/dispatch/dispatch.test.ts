@@ -3,10 +3,10 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { ComfyUiClient } from "../backend/comfyui-client"
-import { openProjectDatabase, type ProjectDatabaseHandle } from "../db"
+import { openProjectDatabase, schema, type ProjectDatabaseHandle } from "../db"
 import { fixtureText } from "../workflows/fixtures"
 import { importWorkflow, type WorkflowDetail } from "../workflows/store"
-import { pollRun, queueRun, savedSlotValues } from "./dispatch"
+import { pollRun, queueBatch, queueRun, savedSlotValues } from "./dispatch"
 import { objectInfoFixture } from "./fixtures"
 import { readRunPrompt } from "./run-store"
 
@@ -91,6 +91,7 @@ describe("dispatch", () => {
       db: handle.db,
       client,
       workflowId: workflow.id,
+      configurationId: null,
       bindings: [],
       now,
     })
@@ -117,6 +118,7 @@ describe("dispatch", () => {
       db: handle.db,
       client,
       workflowId: workflow.id,
+      configurationId: null,
       bindings: [
         { slotId: slotId("Prompt"), on: true, value: { type: "value", value: "A man walks in." } },
         { slotId: slotId("Seed"), on: true, value: { type: "value", value: 42 } },
@@ -150,6 +152,7 @@ describe("dispatch", () => {
       db: handle.db,
       client,
       workflowId: workflow.id,
+      configurationId: null,
       bindings: [],
       now,
     })
@@ -167,6 +170,7 @@ describe("dispatch", () => {
       db: handle.db,
       client,
       workflowId: workflow.id,
+      configurationId: null,
       bindings: [
         {
           slotId: slotId("Picture 3 (bypassed: Ctrl+B to use)"),
@@ -194,6 +198,7 @@ describe("dispatch", () => {
         db: handle.db,
         client,
         workflowId: workflow.id,
+        configurationId: null,
         bindings: [
           {
             slotId: slotId("Picture 1"),
@@ -233,7 +238,14 @@ describe("dispatch", () => {
     })
 
     await expect(
-      queueRun({ db: handle.db, client, workflowId: workflow.id, bindings: [], now })
+      queueRun({
+        db: handle.db,
+        client,
+        workflowId: workflow.id,
+        configurationId: null,
+        bindings: [],
+        now,
+      })
     ).rejects.toThrow(
       "ComfyUI refused the run: Prompt outputs failed validation. Picture 1: Value not in list: image: 'gone.png'. KSamplerSelect (node 24): Required input is missing."
     )
@@ -248,10 +260,117 @@ describe("dispatch", () => {
         db: handle.db,
         client,
         workflowId: workflow.id,
+        configurationId: null,
         bindings: [{ slotId: 999, on: true, value: null }],
         now,
       })
     ).rejects.toThrow(expect.objectContaining({ code: "not-found" }))
+  })
+
+  describe("a batch", () => {
+    function configuration(): number {
+      return handle.db
+        .insert(schema.configurations)
+        .values({
+          workflowId: workflow.id,
+          name: "Anna",
+          bindings: [],
+          createdAt: now,
+          updatedAt: now,
+        })
+        .returning()
+        .get().id
+    }
+
+    it("queues one run per count, each after the first with fresh seeds, all else the same", async () => {
+      const { routes } = accepting()
+      const { client } = fakeComfyUi(routes)
+      const configurationId = configuration()
+      const fresh = [101, 102, 103, 104]
+      const seedSlotIds = workflow.slots
+        .filter((slot) => slot.kind === "seed")
+        .map((slot) => slot.id)
+      expect(seedSlotIds.length).toBeGreaterThan(0)
+
+      const runs = await queueBatch({
+        db: handle.db,
+        client,
+        workflowId: workflow.id,
+        configurationId,
+        bindings: [
+          { slotId: slotId("Prompt"), on: true, value: { type: "value", value: "She turns." } },
+          { slotId: slotId("Seed"), on: true, value: { type: "value", value: 42 } },
+        ],
+        count: 3,
+        randomSeed: () => fresh.shift() as number,
+        now,
+      })
+
+      expect(runs).toHaveLength(3)
+      expect(runs.map((run) => run.configurationId)).toEqual([
+        configurationId,
+        configurationId,
+        configurationId,
+      ])
+      expect(runs.map((run) => run.configurationName)).toEqual(["Anna", "Anna", "Anna"])
+      for (const seedSlotId of seedSlotIds) {
+        const seeds = runs.map(
+          (run) => run.bindings.find((binding) => binding.slotId === seedSlotId)?.value
+        )
+        expect(new Set(seeds).size).toBe(3)
+      }
+      expect(runs.map((run) => run.seed)).toEqual([42, 101, 102])
+      for (const run of runs) {
+        expect(run.bindings.filter((binding) => !seedSlotIds.includes(binding.slotId))).toEqual([
+          {
+            slotId: slotId("Prompt"),
+            slotName: "Prompt",
+            on: true,
+            value: "She turns.",
+            file: null,
+          },
+        ])
+      }
+    })
+
+    it("queues one run as given when the count is one", async () => {
+      const { routes } = accepting()
+      const { client } = fakeComfyUi(routes)
+
+      const runs = await queueBatch({
+        db: handle.db,
+        client,
+        workflowId: workflow.id,
+        configurationId: null,
+        bindings: [],
+        count: 1,
+        randomSeed: () => {
+          throw new Error("a single run keeps its seed")
+        },
+        now,
+      })
+
+      expect(runs.map((run) => [run.seed, run.configurationId])).toEqual([[757358688076805, null]])
+    })
+
+    it("refuses a configuration of another workflow before anything is queued", async () => {
+      const { routes } = accepting()
+      const { client, calls } = fakeComfyUi(routes)
+
+      await expect(
+        queueBatch({
+          db: handle.db,
+          client,
+          workflowId: workflow.id,
+          configurationId: 999,
+          bindings: [],
+          count: 2,
+          randomSeed: () => 1,
+          now,
+        })
+      ).rejects.toThrow(expect.objectContaining({ code: "not-found" }))
+      expect(calls).toEqual([])
+    })
   })
 
   it("reports a waiting run with its place in the queue", async () => {

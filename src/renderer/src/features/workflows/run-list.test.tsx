@@ -7,6 +7,8 @@ function run(over: Partial<RunRecord>): RunRecord {
   return {
     id: 1,
     workflowId: 3,
+    configurationId: null,
+    configurationName: null,
     promptId: "a1b2",
     state: "queued",
     seed: 42,

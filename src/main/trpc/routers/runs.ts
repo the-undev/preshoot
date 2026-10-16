@@ -66,6 +66,7 @@ export const runsRouter = router({
           db,
           client: ctx.comfyUiClient(ctx.settings.comfyUiUrl()),
           workflowId: input.workflowId,
+          configurationId: null,
           bindings: input.bindings,
           now: new Date(),
         })

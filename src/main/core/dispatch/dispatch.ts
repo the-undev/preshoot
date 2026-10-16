@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto"
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs"
 import { basename, join } from "node:path"
-import { eq } from "drizzle-orm"
+import { and, eq } from "drizzle-orm"
 import type { ComfyUiClient, QueueAnswer } from "../backend/comfyui-client"
 import { schema, type ProjectDatabase } from "../db"
 import { readGraph } from "../workflows/scan"
@@ -34,6 +34,9 @@ export interface RunStatus {
   run: RunRecord
   position: number | null
 }
+
+/** The most runs one batch queues. */
+export const BATCH_LIMIT = 20
 
 /** The slot kinds whose node holds one value the form shows and a binding replaces. */
 const VALUE_KINDS: ReadonlySet<SlotRecord["kind"]> = new Set([
@@ -69,10 +72,11 @@ export async function queueRun(input: {
   db: ProjectDatabase
   client: ComfyUiClient
   workflowId: number
+  configurationId: number | null
   bindings: SlotBinding[]
   now: Date
 }): Promise<RunRecord> {
-  const { db, client, workflowId, now } = input
+  const { db, client, workflowId, configurationId, now } = input
   const workflow = readWorkflow(db, workflowId)
   const slotById = new Map(workflow.slots.map((slot) => [slot.id, slot]))
   const bound = input.bindings.map((binding) => {
@@ -101,12 +105,78 @@ export async function queueRun(input: {
   if (!answer.accepted) throw DispatchError.refused(refusalReasons(answer, workflow.slots))
   return recordRun(db, {
     workflowId,
+    configurationId,
     promptId: answer.promptId,
     apiPrompt: JSON.stringify(prompt),
     bindings: recorded,
     seed: seedOf(workflow.slots, recorded, savedSlotValues(db, workflowId)),
     createdAt: now,
   })
+}
+
+/**
+ * Queues `count` runs of a workflow one after another. The first runs with the bindings as given
+ * and each one after it with a fresh seed in every seed slot, so a batch tries one set of values
+ * over several seeds. Runs queued before a refusal stay queued and recorded.
+ */
+export async function queueBatch(input: {
+  db: ProjectDatabase
+  client: ComfyUiClient
+  workflowId: number
+  configurationId: number | null
+  bindings: SlotBinding[]
+  count: number
+  randomSeed: () => number
+  now: Date
+}): Promise<RunRecord[]> {
+  const { db, workflowId, configurationId } = input
+  if (configurationId !== null) requireConfiguration(db, workflowId, configurationId)
+  const seedSlots = readWorkflow(db, workflowId).slots.filter((slot) => slot.kind === "seed")
+  const runs: RunRecord[] = []
+  for (let index = 0; index < input.count; index += 1) {
+    const bindings =
+      index === 0 ? input.bindings : withFreshSeeds(input.bindings, seedSlots, input.randomSeed)
+    runs.push(await queueRun({ ...input, bindings }))
+  }
+  return runs
+}
+
+/** A seed JavaScript can hold exactly, which is all but the top bits ComfyUI's seeds allow. */
+export function randomSeed(): number {
+  return Math.floor(Math.random() * Number.MAX_SAFE_INTEGER)
+}
+
+/** `bindings` with each seed slot given a new value, bound as it stands when it was not bound. */
+function withFreshSeeds(
+  bindings: SlotBinding[],
+  seedSlots: SlotRecord[],
+  random: () => number
+): SlotBinding[] {
+  const bySlot = new Map(bindings.map((binding) => [binding.slotId, binding]))
+  for (const slot of seedSlots) {
+    const on = bySlot.get(slot.id)?.on ?? !slot.bypassed
+    bySlot.set(slot.id, { slotId: slot.id, on, value: { type: "value", value: random() } })
+  }
+  return [...bySlot.values()]
+}
+
+/** Refuses a configuration that is not one of the workflow's. */
+function requireConfiguration(
+  db: ProjectDatabase,
+  workflowId: number,
+  configurationId: number
+): void {
+  const row = db
+    .select({ id: schema.configurations.id })
+    .from(schema.configurations)
+    .where(
+      and(
+        eq(schema.configurations.id, configurationId),
+        eq(schema.configurations.workflowId, workflowId)
+      )
+    )
+    .get()
+  if (!row) throw DispatchError.notFound(`Configuration ${configurationId}`)
 }
 
 /**

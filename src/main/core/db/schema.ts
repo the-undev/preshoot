@@ -162,6 +162,22 @@ export const workflowSlots = sqliteTable("workflow_slots", {
 })
 
 /**
+ * A saved set of values for one workflow's slots, which the run form loads back. Each binding
+ * names its slot by node id and node type, so it still finds the slot after the workflow's source
+ * changes, and a file it holds is a copy in the project's inputs folder.
+ */
+export const configurations = sqliteTable("configurations", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  workflowId: integer("workflow_id")
+    .notNull()
+    .references(() => workflows.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  bindings: text("bindings", { mode: "json" }).notNull(),
+  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
+})
+
+/**
  * One time a workflow was queued. The prompt is the API-format JSON exactly as it was posted and
  * the bindings are what filled the slots, so a run can say what made it after the workflow moves
  * on.
@@ -175,6 +191,10 @@ export const runs = sqliteTable("runs", {
   promptId: text("prompt_id").notNull(),
   apiPrompt: text("api_prompt").notNull(),
   bindings: text("bindings", { mode: "json" }).notNull(),
+  // The configuration the run was queued from, or nothing for one filled by hand. A plain column
+  // rather than a key: drizzle-kit adds a key to an existing table without its delete rule, so
+  // deleting a configuration clears this itself.
+  configurationId: integer("configuration_id"),
   // The value the seed slot ran with, or nothing when the workflow has no seed slot.
   seed: integer("seed"),
   // Queued, running, failed or done, as the last poll of ComfyUI found it.

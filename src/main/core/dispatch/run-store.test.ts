@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
-import { openProjectDatabase, type ProjectDatabaseHandle } from "../db"
+import { openProjectDatabase, schema, type ProjectDatabaseHandle } from "../db"
 import { fixtureText } from "../workflows/fixtures"
 import { importWorkflow } from "../workflows/store"
 import {
@@ -50,6 +50,7 @@ describe("run store", () => {
   function record(promptId: string, createdAt: Date): ReturnType<typeof recordRun> {
     return recordRun(handle.db, {
       workflowId,
+      configurationId: null,
       promptId,
       apiPrompt: '{"1":{"class_type":"KSamplerSelect","inputs":{}}}',
       bindings: [binding],
@@ -64,6 +65,8 @@ describe("run store", () => {
     expect(readRun(handle.db, run.id)).toEqual({
       id: run.id,
       workflowId,
+      configurationId: null,
+      configurationName: null,
       promptId: "a1b2",
       state: "queued",
       seed: 42,
@@ -83,6 +86,27 @@ describe("run store", () => {
     record("second", new Date("2026-03-04T06:00:00Z"))
 
     expect(listRuns(handle.db, workflowId).map((run) => run.promptId)).toEqual(["second", "first"])
+  })
+
+  it("names the configuration a run was queued from", () => {
+    const at = new Date("2026-03-04T05:00:00Z")
+    const configuration = handle.db
+      .insert(schema.configurations)
+      .values({ workflowId, name: "Anna", bindings: [], createdAt: at, updatedAt: at })
+      .returning()
+      .get()
+    const run = recordRun(handle.db, {
+      workflowId,
+      configurationId: configuration.id,
+      promptId: "a1b2",
+      apiPrompt: "{}",
+      bindings: [binding],
+      seed: 42,
+      createdAt: at,
+    })
+
+    expect(run).toMatchObject({ configurationId: configuration.id, configurationName: "Anna" })
+    expect(listRuns(handle.db, workflowId)[0].configurationName).toBe("Anna")
   })
 
   it("moves an unfinished run between queued and running", () => {
