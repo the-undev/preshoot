@@ -86,6 +86,7 @@ function renderForm(over: Partial<Parameters<typeof RunForm>[0]> = {}): {
       onUpdate={onUpdate}
       onPickFile={async () => null}
       library={listedLibrary}
+      onReadText={async () => ""}
       {...over}
     />
   )
@@ -421,5 +422,73 @@ describe("RunForm", () => {
       on: true,
       value: { type: "file", path: "/l/characters/Daniel/voice.wav" },
     })
+  })
+
+  it("offers the library's text files to a text slot, each with the start of its text", async () => {
+    const onReadText = vi.fn(
+      async () => `She turns from the window.\n\n${"Rain runs down. ".repeat(20)}`
+    )
+    renderForm({ onReadText })
+
+    fireEvent.click(screen.getByRole("button", { name: "Fill Prompt from the library" }))
+    const dialog = screen.getByRole("dialog")
+    const file = within(dialog).getByRole("button", { name: "one-liner: one-liner.txt" })
+
+    expect(
+      await within(file).findByText(/^She turns from the window\. Rain runs down\./)
+    ).toHaveTextContent(/…$/)
+    expect(within(dialog).queryByRole("button", { name: /daniel-cafe\.png/ })).toBeNull()
+    expect(within(dialog).queryByRole("button", { name: /voice\.wav/ })).toBeNull()
+    expect(onReadText).toHaveBeenCalledWith(
+      expect.objectContaining({ relativePath: "prompts/one-liner.txt" })
+    )
+  })
+
+  it("offers the library to a one-line text slot as well", () => {
+    renderForm({
+      slots: [slot({ nodeType: "PrimitiveString", name: "File prefix", multiline: false })],
+      savedValues: [],
+    })
+
+    expect(
+      screen.getByRole("button", { name: "Fill File prefix from the library" })
+    ).toBeInTheDocument()
+  })
+
+  it("fills a text slot with the text of the file picked from the library", async () => {
+    const { onQueue } = renderForm({ onReadText: async () => "She turns from the window." })
+
+    fireEvent.click(screen.getByRole("button", { name: "Fill Prompt from the library" }))
+    await act(async () =>
+      fireEvent.click(screen.getByRole("button", { name: "one-liner: one-liner.txt" }))
+    )
+    fireEvent.click(screen.getByRole("button", { name: "Queue" }))
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+    expect(screen.getByLabelText("Prompt")).toHaveValue("She turns from the window.")
+    expect(onQueue.mock.calls[0][0][0]).toEqual({
+      slotId: 1,
+      on: true,
+      value: { type: "value", value: "She turns from the window." },
+    })
+  })
+
+  it("keeps the text and says why when the picked file cannot be read", async () => {
+    let calls = 0
+    const onReadText = async (): Promise<string> => {
+      calls += 1
+      if (calls > 1) throw new Error("prompts/one-liner.txt is not in the library.")
+      return "A preview."
+    }
+    renderForm({ onReadText })
+
+    fireEvent.click(screen.getByRole("button", { name: "Fill Prompt from the library" }))
+    await screen.findByText("A preview.")
+    await act(async () =>
+      fireEvent.click(screen.getByRole("button", { name: "one-liner: one-liner.txt" }))
+    )
+
+    expect(screen.getByLabelText("Prompt")).toHaveValue("A man at a window.")
+    expect(screen.getByText("prompts/one-liner.txt is not in the library.")).toBeInTheDocument()
   })
 })

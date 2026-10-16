@@ -14,6 +14,7 @@ import { LibraryFilePicker } from "@renderer/features/library/library-file-picke
 import { fileName } from "@renderer/lib/file-name"
 import {
   libraryFileUrl,
+  type LibraryFile,
   type LibraryFolder,
   type RunBinding,
   type SavedSlotValue,
@@ -68,8 +69,10 @@ interface RunFormProps {
   onSaveNew: (name: string, bindings: RunBinding[]) => Promise<void>
   onUpdate: (bindings: RunBinding[]) => Promise<void>
   onPickFile: (kind: FileKind) => Promise<string | null>
-  /** The library folder, whose pictures and sounds a file slot can be filled from. */
+  /** The library folder, whose files a file or text slot can be filled from. */
   library: LibraryFolder | undefined
+  /** Reads a library text file, which fills a text slot picked from the library. */
+  onReadText: (file: LibraryFile) => Promise<string>
 }
 
 /**
@@ -90,6 +93,7 @@ export function RunForm({
   onUpdate,
   onPickFile,
   library,
+  onReadText,
 }: RunFormProps): React.JSX.Element {
   const [states, setStates] = useState<Record<number, SlotState>>(() =>
     startingStates(slots, savedValues, initialBindings, keptFields)
@@ -123,6 +127,7 @@ export function RunForm({
           onChange={(state) => setState(slot.id, state)}
           onPickFile={onPickFile}
           library={library}
+          onReadText={onReadText}
         />
       ))}
     </ul>
@@ -209,6 +214,7 @@ interface SlotFieldProps {
   onChange: (state: SlotState) => void
   onPickFile: (kind: FileKind) => Promise<string | null>
   library: LibraryFolder | undefined
+  onReadText: (file: LibraryFile) => Promise<string>
 }
 
 /** One slot: its name, a switch when it is off in the workflow, and the control for its value. */
@@ -218,6 +224,7 @@ function SlotField({
   onChange,
   onPickFile,
   library,
+  onReadText,
 }: SlotFieldProps): React.JSX.Element {
   const id = `slot-${slot.id}`
   // A slot bypassed in the workflow, or one that only switches a node, can be turned on and off.
@@ -249,6 +256,7 @@ function SlotField({
         onChange={setField}
         onPickFile={onPickFile}
         library={library}
+        onReadText={onReadText}
       />
     </li>
   )
@@ -262,6 +270,7 @@ interface FieldControlProps {
   onChange: (field: Field) => void
   onPickFile: (kind: FileKind) => Promise<string | null>
   library: LibraryFolder | undefined
+  onReadText: (file: LibraryFile) => Promise<string>
 }
 
 /** The control a slot's value is set with, by what the slot takes. */
@@ -273,8 +282,10 @@ function FieldControl({
   onChange,
   onPickFile,
   library,
+  onReadText,
 }: FieldControlProps): React.JSX.Element | null {
   const [pickingFromLibrary, setPickingFromLibrary] = useState(false)
+  const [readError, setReadError] = useState<string | null>(null)
 
   if (field.type === "as-saved") {
     return slot.kind === "lora" ? (
@@ -345,23 +356,56 @@ function FieldControl({
   }
   if (slot.kind === "text") {
     const typed = (text: string): void => onChange({ type: "typed", text })
-    return slot.multiline ? (
-      <Textarea
-        id={id}
-        className="min-h-40"
-        disabled={disabled}
-        value={field.text}
-        onChange={(event) => typed(event.target.value)}
-      />
-    ) : (
-      <Input
-        id={id}
-        disabled={disabled}
-        value={field.text}
-        onChange={(event) => typed(event.target.value)}
-      />
+    const fillFrom = async (file: LibraryFile): Promise<void> => {
+      setPickingFromLibrary(false)
+      try {
+        typed(await onReadText(file))
+        setReadError(null)
+      } catch (error) {
+        setReadError(error instanceof Error ? error.message : `${file.name} could not be read.`)
+      }
+    }
+    return (
+      <div className="flex flex-col items-start gap-1.5">
+        {slot.multiline ? (
+          <Textarea
+            id={id}
+            className="min-h-40"
+            disabled={disabled}
+            value={field.text}
+            onChange={(event) => typed(event.target.value)}
+          />
+        ) : (
+          <Input
+            id={id}
+            disabled={disabled}
+            value={field.text}
+            onChange={(event) => typed(event.target.value)}
+          />
+        )}
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={disabled}
+          aria-label={`Fill ${slot.name} from the library`}
+          onClick={() => setPickingFromLibrary(true)}
+        >
+          From library
+        </Button>
+        {readError && <p className="text-sm text-destructive">{readError}</p>}
+        {pickingFromLibrary && (
+          <LibraryFilePicker
+            media="text"
+            folder={library}
+            readText={onReadText}
+            onPick={(file) => void fillFrom(file)}
+            onCancel={() => setPickingFromLibrary(false)}
+          />
+        )}
+      </div>
     )
   }
+
   return (
     <div className="flex items-center gap-2">
       <Input

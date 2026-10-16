@@ -132,6 +132,7 @@ export function WorkflowRunView({
             }}
             onPickFile={form.pickFile}
             library={form.library}
+            onReadText={form.readLibraryText}
           />
         ) : (
           <p className="text-sm text-muted-foreground">Reading the values saved in the workflow…</p>

@@ -64,6 +64,7 @@ function formPanel(): RunFormPanel {
     queue: vi.fn(),
     pickFile: async () => null,
     library: { state: "unset" },
+    readLibraryText: async () => "",
     errorMessage: null,
   }
 }

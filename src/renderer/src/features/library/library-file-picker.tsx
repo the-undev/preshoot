@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react"
 import {
   Button,
   Dialog,
@@ -6,6 +7,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@renderer/design-system"
+import { cutAtWord } from "@renderer/lib/cut-at-word"
 import {
   libraryFileUrl,
   type LibraryEntry,
@@ -14,7 +16,10 @@ import {
 } from "@renderer/lib/trpc"
 
 /** The kinds of library file a slot can be filled from. */
-export type PickableMedia = "image" | "audio"
+export type PickableMedia = "image" | "audio" | "text"
+
+/** How many characters of a text file the picker shows under its name. */
+const PREVIEW_LENGTH = 150
 
 /** How the picker speaks of the files it offers, by what they hold. */
 const PICKER_WORDS: Record<PickableMedia, { title: string; description: string; plural: string }> =
@@ -31,23 +36,30 @@ const PICKER_WORDS: Record<PickableMedia, { title: string; description: string; 
         "The sound is sent from where it sits in the library, as one chosen from disk would be.",
       plural: "sounds",
     },
+    text: {
+      title: "Pick a text from the library",
+      description: "The file's text replaces what the field holds.",
+      plural: "text files",
+    },
   }
 
-interface LibraryFilePickerProps {
-  media: PickableMedia
+/** What the files of each media need to be shown: text files are read for their previews. */
+type MediaProps =
+  { media: "image" | "audio" } | { media: "text"; readText: (file: LibraryFile) => Promise<string> }
+
+type FilesProps = MediaProps & {
   folder: LibraryFolder | undefined
   onPick: (file: LibraryFile) => void
-  onCancel: () => void
 }
+
+type LibraryFilePickerProps = FilesProps & { onCancel: () => void }
 
 /** The library's files of one media by kind and entry, to pick one from as a file picker would. */
 export function LibraryFilePicker({
-  media,
-  folder,
-  onPick,
   onCancel,
+  ...filesProps
 }: LibraryFilePickerProps): React.JSX.Element {
-  const words = PICKER_WORDS[media]
+  const words = PICKER_WORDS[filesProps.media]
   return (
     <Dialog
       open
@@ -60,17 +72,14 @@ export function LibraryFilePicker({
           <DialogTitle>{words.title}</DialogTitle>
           <DialogDescription>{words.description}</DialogDescription>
         </DialogHeader>
-        <Files media={media} folder={folder} onPick={onPick} />
+        <Files {...filesProps} />
       </DialogContent>
     </Dialog>
   )
 }
 
-function Files({
-  media,
-  folder,
-  onPick,
-}: Omit<LibraryFilePickerProps, "onCancel">): React.JSX.Element {
+function Files(props: FilesProps): React.JSX.Element {
+  const { media, folder, onPick } = props
   const plural = PICKER_WORDS[media].plural
   if (!folder) {
     return <p className="text-sm text-muted-foreground">Reading the library folder…</p>
@@ -105,10 +114,10 @@ function Files({
           <h3 className="text-sm font-medium">
             {entry.name} <span className="text-xs text-muted-foreground">{entry.kind}</span>
           </h3>
-          {media === "image" ? (
-            <PictureGrid entry={entry} files={files} onPick={onPick} />
-          ) : (
-            <SoundRows entry={entry} files={files} onPick={onPick} />
+          {props.media === "image" && <PictureGrid entry={entry} files={files} onPick={onPick} />}
+          {props.media === "audio" && <SoundRows entry={entry} files={files} onPick={onPick} />}
+          {props.media === "text" && (
+            <TextRows entry={entry} files={files} onPick={onPick} readText={props.readText} />
           )}
         </section>
       ))}
@@ -173,4 +182,63 @@ function SoundRows({ entry, files, onPick }: EntryFilesProps): React.JSX.Element
       ))}
     </ul>
   )
+}
+
+/** An entry's text files as named rows, each with the start of its text to tell it by. */
+function TextRows({
+  entry,
+  files,
+  onPick,
+  readText,
+}: EntryFilesProps & { readText: (file: LibraryFile) => Promise<string> }): React.JSX.Element {
+  return (
+    <ul className="flex flex-col gap-1">
+      {files.map((file) => (
+        <li key={file.path}>
+          <Button
+            variant="ghost"
+            className="flex h-auto w-full flex-col items-start gap-0.5 px-2 py-1.5 text-left"
+            aria-label={`${entry.name}: ${file.name}`}
+            onClick={() => onPick(file)}
+          >
+            <span className="w-full truncate">{file.name}</span>
+            <TextPreview file={file} readText={readText} />
+          </Button>
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+/** The start of a text file, on one run of lines, read when the row is shown. */
+function TextPreview({
+  file,
+  readText,
+}: {
+  file: LibraryFile
+  readText: (file: LibraryFile) => Promise<string>
+}): React.JSX.Element {
+  const [preview, setPreview] = useState<string | null>(null)
+  useEffect(() => {
+    let shown = true
+    readText(file).then(
+      (text) => shown && setPreview(previewOf(text)),
+      () => shown && setPreview("This file could not be read.")
+    )
+    return () => {
+      shown = false
+    }
+  }, [file, readText])
+
+  return (
+    <span className="w-full text-xs font-normal whitespace-normal text-muted-foreground">
+      {preview ?? "Reading…"}
+    </span>
+  )
+}
+
+/** The start of a text with its whitespace run together, cut at a word. */
+function previewOf(text: string): string {
+  const flat = text.replace(/\s+/g, " ").trim()
+  return flat.length === 0 ? "This file is empty." : cutAtWord(flat, PREVIEW_LENGTH)
 }

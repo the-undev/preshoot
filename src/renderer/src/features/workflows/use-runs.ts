@@ -1,8 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import {
   useTRPC,
   useTRPCClient,
+  type LibraryFile,
   type LibraryFolder,
   type OutputExport,
   type RunBinding,
@@ -28,6 +29,7 @@ export interface RunFormPanel {
   queue(bindings: RunBinding[], count: number, configurationId: number | null): void
   pickFile(kind: FileKind): Promise<string | null>
   library: LibraryFolder | undefined
+  readLibraryText(file: LibraryFile): Promise<string>
   errorMessage: string | null
 }
 
@@ -37,6 +39,7 @@ export interface RunFormPanel {
  */
 export function useRunForm(workflowId: number): RunFormPanel {
   const trpc = useTRPC()
+  const client = useTRPCClient()
   const queryClient = useQueryClient()
   const values = useQuery(trpc.runs.values.queryOptions({ workflowId }))
   const settings = useQuery(trpc.settings.get.queryOptions())
@@ -53,6 +56,12 @@ export function useRunForm(workflowId: number): RunFormPanel {
   )
   const pickFile = useMutation(trpc.runs.pickFile.mutationOptions())
   const library = useQuery(trpc.library.entries.queryOptions())
+  // Kept the same between renders, so the picker's previews are not read again on each poll.
+  const readLibraryText = useCallback(
+    async (file: LibraryFile) =>
+      (await client.library.readText.query({ relativePath: file.relativePath })).text,
+    [client]
+  )
 
   return {
     savedValues: values.data,
@@ -62,6 +71,7 @@ export function useRunForm(workflowId: number): RunFormPanel {
       queue.mutate({ workflowId, bindings, count, configurationId }),
     pickFile: (kind) => pickFile.mutateAsync({ kind }),
     library: library.data,
+    readLibraryText,
     errorMessage: queue.error?.message ?? pickFile.error?.message ?? values.error?.message ?? null,
   }
 }
