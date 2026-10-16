@@ -130,6 +130,24 @@ describe("RunForm", () => {
     expect(reset()).not.toBeInTheDocument()
   })
 
+  it("says a batch gives later runs fresh seeds once more than one run is asked for", () => {
+    renderForm()
+    const seedNote = "The first run uses the seeds above; later runs each get fresh ones."
+    expect(screen.queryByText(seedNote)).not.toBeInTheDocument()
+
+    fireEvent.change(screen.getByLabelText("Number of runs"), { target: { value: "3" } })
+
+    expect(screen.getByText(seedNote)).toBeInTheDocument()
+  })
+
+  it("says nothing of seeds for a batch of a workflow with no seed slot", () => {
+    renderForm({ slots: slots.filter((entry) => entry.kind !== "seed") })
+
+    fireEvent.change(screen.getByLabelText("Number of runs"), { target: { value: "3" } })
+
+    expect(screen.queryByText(/later runs each get fresh ones/)).not.toBeInTheDocument()
+  })
+
   it("offers to start from the workflow when started from a configuration or clip", () => {
     renderForm({ hasStart: true })
 

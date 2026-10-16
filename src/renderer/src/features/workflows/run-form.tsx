@@ -208,6 +208,12 @@ export function RunForm({
         {reason && <p className="text-sm text-muted-foreground">{reason}</p>}
       </div>
 
+      {count !== null && count > 1 && slots.some((slot) => slot.kind === "seed") && (
+        <p className="text-sm text-muted-foreground">
+          The first run uses the seeds above; later runs each get fresh ones.
+        </p>
+      )}
+
       {saving && (
         <SaveConfigurationDialog
           configurationName={configurationName}
