@@ -573,7 +573,10 @@ function initialField(slot: WorkflowSlot, saved: SavedSlotValue["value"]): Field
   }
 }
 
-/** The binding a slot sends, or what stops it being sent. */
+/**
+ * The binding a slot sends, or what stops it being sent. Only a slot that is shown and on is
+ * checked: a hidden slot runs as saved, and one switched off keeps its text for when it is on.
+ */
 function bindingOf(
   slot: WorkflowSlot,
   state: SlotState
@@ -581,6 +584,7 @@ function bindingOf(
   const send = (value: RunBinding["value"]): { binding: RunBinding } => ({
     binding: { slotId: slot.id, on: state.on, value },
   })
+  if (slot.tier === "hidden") return send(null)
   const field = state.field
   switch (field.type) {
     case "as-saved":
@@ -591,6 +595,7 @@ function bindingOf(
       if (field.path) return send({ type: "file", path: field.path })
       return send(field.saved === null ? null : { type: "value", value: field.saved })
     case "typed": {
+      if (!state.on) return send(null)
       if (slot.kind === "text") return send({ type: "value", value: field.text })
       const number = readNumber(slot.kind, field.text)
       return number === null

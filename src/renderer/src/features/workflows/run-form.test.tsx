@@ -109,7 +109,7 @@ const unchangedBindings: RunBinding[] = [
   { slotId: 5, on: false, value: { type: "value", value: "Qwen-Image-2512_00004_.png" } },
   { slotId: 6, on: true, value: { type: "value", value: 20 } },
   { slotId: 7, on: true, value: { type: "value", value: 757358688076805 } },
-  { slotId: 8, on: true, value: { type: "value", value: 5 } },
+  { slotId: 8, on: true, value: null },
 ]
 
 describe("RunForm", () => {
@@ -339,6 +339,61 @@ describe("RunForm", () => {
 
     expect(screen.getByRole("button", { name: "Queue" })).toBeDisabled()
     expect(screen.getByText("Steps needs a whole number.")).toBeInTheDocument()
+  })
+
+  it("queues past a switched-off slot holding something it does not take, and sends nothing for it", () => {
+    const { onQueue } = renderForm({
+      slots: [
+        slot({ id: 9, nodeType: "PrimitiveInt", name: "Frames", kind: "integer", startsOff: true }),
+      ],
+      savedValues: [{ slotId: 9, value: null }],
+    })
+
+    expect(screen.getByLabelText("Frames")).toHaveValue("")
+    fireEvent.click(screen.getByRole("button", { name: "Queue" }))
+
+    expect(onQueue).toHaveBeenCalledWith([{ slotId: 9, on: false, value: null }], 1)
+  })
+
+  it("queues past a hidden number slot with no saved value, running it as saved", () => {
+    const { onQueue } = renderForm({
+      slots: [
+        slot({
+          id: 9,
+          nodeType: "PrimitiveFloat",
+          name: "Duration (s)",
+          kind: "number",
+          tier: "hidden",
+        }),
+      ],
+      savedValues: [],
+    })
+
+    fireEvent.click(screen.getByRole("button", { name: "Queue" }))
+
+    expect(onQueue).toHaveBeenCalledWith([{ slotId: 9, on: true, value: null }], 1)
+  })
+
+  it("brings back a slot's typed text, and its check, when it is switched on again", () => {
+    renderForm({
+      slots: [
+        slot({ id: 9, nodeType: "PrimitiveInt", name: "Frames", kind: "integer", startsOff: true }),
+      ],
+      savedValues: [{ slotId: 9, value: 20 }],
+    })
+    const use = screen.getByRole("switch", { name: "Use Frames" })
+
+    fireEvent.click(use)
+    fireEvent.change(screen.getByLabelText("Frames"), { target: { value: "eight" } })
+    expect(screen.getByRole("button", { name: "Queue" })).toBeDisabled()
+    fireEvent.click(use)
+    expect(screen.getByRole("button", { name: "Queue" })).toBeEnabled()
+    expect(screen.queryByText("Frames needs a whole number.")).not.toBeInTheDocument()
+    fireEvent.click(use)
+
+    expect(screen.getByLabelText("Frames")).toHaveValue("eight")
+    expect(screen.getByRole("button", { name: "Queue" })).toBeDisabled()
+    expect(screen.getByText("Frames needs a whole number.")).toBeInTheDocument()
   })
 
   it("will not queue while ComfyUI does not answer, and says why", () => {
