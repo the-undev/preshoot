@@ -131,6 +131,39 @@ describe("workflows router", () => {
     expect(qwen.suggestion).toBeNull()
   })
 
+  it("copies a base workflow's tiers, names and notes onto the matching slots", async () => {
+    await openProject()
+    settings.setWorkflowsFolder(folder)
+    writeFileSync(join(folder, "h3-fl2v-base.json"), fixtureText("h3-fl2v-base"))
+    const { workflow: base } = await caller.workflows.import({ path: sourcePath })
+    const seed = base.slots.find((slot) => slot.name === "Seed")
+    if (!seed) throw new Error("no seed slot")
+    await caller.workflows.setTier({ slotId: seed.id, tier: "hidden" })
+    await caller.workflows.setLabel({ slotId: seed.id, displayName: "Noise", note: "Keep it." })
+    const { workflow: fresh } = await caller.workflows.import({
+      path: join(folder, "h3-fl2v-base.json"),
+    })
+
+    const copied = await caller.workflows.copyMapping({
+      workflowId: fresh.id,
+      fromWorkflowId: base.id,
+    })
+
+    expect(copied.slots.find((slot) => slot.name === "Seed")).toEqual(
+      expect.objectContaining({ tier: "hidden", displayName: "Noise", note: "Keep it." })
+    )
+  })
+
+  it("reports a copy from a workflow that is not there as not found", async () => {
+    await openProject()
+    settings.setWorkflowsFolder(folder)
+    const { workflow } = await caller.workflows.import({ path: sourcePath })
+
+    await expect(
+      caller.workflows.copyMapping({ workflowId: workflow.id, fromWorkflowId: 99 })
+    ).rejects.toThrow(expect.objectContaining({ code: "NOT_FOUND" }))
+  })
+
   it("removes a workflow and lists its source as importable again", async () => {
     await openProject()
     settings.setWorkflowsFolder(folder)

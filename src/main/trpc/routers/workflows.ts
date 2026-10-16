@@ -2,7 +2,7 @@ import { TRPCError } from "@trpc/server"
 import { z } from "zod"
 import { configurationNamesBinding } from "../../core/configurations/store"
 import { listWorkflowFolder } from "../../core/workflows/folder"
-import { suggestBase } from "../../core/workflows/base"
+import { copyMapping, suggestBase } from "../../core/workflows/base"
 import { removeWorkflow } from "../../core/workflows/remove"
 import { SLOT_TIERS } from "../../core/workflows/scan"
 import {
@@ -81,6 +81,20 @@ export const workflowsRouter = router({
           displayName: input.displayName,
           note: input.note,
         })
+      } catch (error) {
+        asClientError(error)
+      }
+    }),
+
+  /**
+   * Copies the tier, display name and note of each slot of another workflow onto the slot of this
+   * one that agrees with it on node type and scanned name.
+   */
+  copyMapping: publicProcedure
+    .input(z.object({ workflowId, fromWorkflowId: workflowId }))
+    .mutation(({ ctx, input }) => {
+      try {
+        return copyMapping(requireProject(ctx), input)
       } catch (error) {
         asClientError(error)
       }

@@ -1,5 +1,6 @@
-import type { ProjectDatabase } from "../db"
-import { listWorkflows, readWorkflowSlots } from "./store"
+import { eq } from "drizzle-orm"
+import { schema, type ProjectDatabase } from "../db"
+import { listWorkflows, readWorkflow, readWorkflowSlots, type WorkflowDetail } from "./store"
 
 /** The least share of slots two workflows agree on for one to be offered as the other's base. */
 export const MIN_BASE_SCORE = 0.5
@@ -92,6 +93,29 @@ export function suggestBase(db: ProjectDatabase, workflowId: number): BaseSugges
       slots: readWorkflowSlots(db, workflow.id),
     }))
   return pickBase(slots, candidates)
+}
+
+/**
+ * Copies the tier, display name and note of each slot of `fromWorkflowId` onto the slot of
+ * `workflowId` it pairs with, all at once or not at all. A slot with no pair is left as it is.
+ */
+export function copyMapping(
+  db: ProjectDatabase,
+  input: { workflowId: number; fromWorkflowId: number }
+): WorkflowDetail {
+  return db.transaction((tx) => {
+    const pairs = matchSlots(
+      readWorkflowSlots(tx, input.workflowId),
+      readWorkflowSlots(tx, input.fromWorkflowId)
+    )
+    for (const [slot, from] of pairs) {
+      tx.update(schema.workflowSlots)
+        .set({ tier: from.tier, displayName: from.displayName, note: from.note })
+        .where(eq(schema.workflowSlots.id, slot.id))
+        .run()
+    }
+    return readWorkflow(tx, input.workflowId)
+  })
 }
 
 function identityOf(slot: SlotIdentity): string {

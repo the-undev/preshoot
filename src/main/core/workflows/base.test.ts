@@ -1,11 +1,13 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { sql } from "drizzle-orm"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
 import { openProjectDatabase, type ProjectDatabaseHandle } from "../db"
 import {
   MIN_BASE_MATCHES,
   MIN_BASE_SCORE,
+  copyMapping,
   matchSlots,
   pickBase,
   scoreBase,
@@ -14,7 +16,14 @@ import {
 } from "./base"
 import { FIXTURE_NAMES, fixtureText } from "./fixtures"
 import { readGraph, scanGraph } from "./scan"
-import { importWorkflow, type WorkflowDetail } from "./store"
+import {
+  importWorkflow,
+  readWorkflow,
+  setSlotLabel,
+  setSlotTier,
+  type SlotRecord,
+  type WorkflowDetail,
+} from "./store"
 
 const migrationsFolder = join(__dirname, "../../../../resources/migrations")
 
@@ -154,5 +163,98 @@ describe("suggestBase", () => {
       matchingSlots: 7,
     })
     expect(suggestBase(handle.db, qwen.id)).toBeNull()
+  })
+})
+
+describe("copyMapping", () => {
+  let dir: string
+  let folder: string
+  let handle: ProjectDatabaseHandle
+
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), "preshoot-copy-mapping-"))
+    folder = join(dir, "workflows")
+    mkdirSync(folder)
+    for (const name of FIXTURE_NAMES) writeFileSync(join(folder, `${name}.json`), fixtureText(name))
+    handle = openProjectDatabase(join(dir, "project.db"), migrationsFolder)
+  })
+
+  afterEach(() => {
+    handle.close()
+    rmSync(dir, { recursive: true, force: true })
+  })
+
+  function imported(name: FixtureName): WorkflowDetail {
+    return importWorkflow(handle.db, { folder, sourcePath: join(folder, `${name}.json`) })
+  }
+
+  function slotNamed(workflow: WorkflowDetail, name: string): SlotRecord {
+    const slot = workflow.slots.find((entry) => entry.name === name)
+    if (!slot) throw new Error(`no slot ${name}`)
+    return slot
+  }
+
+  /** What the user sets on a slot, as the copy carries it. */
+  function labelOf(slot: SlotRecord): Pick<SlotRecord, "tier" | "displayName" | "note"> {
+    return { tier: slot.tier, displayName: slot.displayName, note: slot.note }
+  }
+
+  /** The r2v workflow with a tier, name or note set on a slot fl2v shares and one it does not. */
+  function labelledBase(): WorkflowDetail {
+    const base = imported("h3-r2v-base")
+    setSlotTier(handle.db, slotNamed(base, "Seed").id, "hidden")
+    setSlotLabel(handle.db, slotNamed(base, "Prompt").id, {
+      displayName: "Scene",
+      note: "Say what moves.",
+    })
+    setSlotTier(handle.db, slotNamed(base, "Picture 1").id, "hidden")
+    setSlotLabel(handle.db, slotNamed(base, "Picture 1").id, { displayName: "Anna", note: "" })
+    return readWorkflow(handle.db, base.id)
+  }
+
+  it("copies tier, display name and note onto the slots that match, and only those", () => {
+    const base = labelledBase()
+    const fresh = imported("h3-fl2v-base")
+    setSlotTier(handle.db, slotNamed(fresh, "Turbo").id, "hidden")
+    setSlotLabel(handle.db, slotNamed(fresh, "First frame").id, {
+      displayName: "Opening",
+      note: "",
+    })
+
+    const copied = copyMapping(handle.db, { workflowId: fresh.id, fromWorkflowId: base.id })
+
+    expect(labelOf(slotNamed(copied, "Seed"))).toEqual({
+      tier: "hidden",
+      displayName: null,
+      note: "",
+    })
+    expect(labelOf(slotNamed(copied, "Prompt"))).toEqual({
+      tier: "basic",
+      displayName: "Scene",
+      note: "Say what moves.",
+    })
+    expect(labelOf(slotNamed(copied, "Turbo"))).toEqual(labelOf(slotNamed(base, "Turbo")))
+    expect(labelOf(slotNamed(copied, "First frame"))).toEqual({
+      tier: slotNamed(fresh, "First frame").tier,
+      displayName: "Opening",
+      note: "",
+    })
+    expect(readWorkflow(handle.db, base.id)).toEqual(base)
+  })
+
+  it("leaves every slot as it was when the copy fails part way", () => {
+    const base = labelledBase()
+    const fresh = imported("h3-fl2v-base")
+    // Refusing the last slot the copy writes shows whether the ones before it are undone.
+    handle.db.run(
+      sql.raw(
+        `CREATE TRIGGER refuse_seed BEFORE UPDATE ON workflow_slots WHEN OLD.id = ${slotNamed(fresh, "Seed").id} BEGIN SELECT RAISE(ABORT, refused); END`
+      )
+    )
+
+    expect(() => copyMapping(handle.db, { workflowId: fresh.id, fromWorkflowId: base.id })).toThrow(
+      /refused/
+    )
+    expect(readWorkflow(handle.db, fresh.id)).toEqual(fresh)
   })
 })
