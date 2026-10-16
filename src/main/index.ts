@@ -9,7 +9,7 @@ import { ProjectSession } from "./core/projects/session"
 import { AppSettingsStore } from "./core/settings/app-settings"
 import { createDialogs } from "./dialogs"
 import { APP_MENU } from "./menu"
-import { handleAssetRequests } from "./images/protocol"
+import { handleAssetRequests, handleLibraryRequests } from "./images/protocol"
 import { PRIVILEGED_SCHEMES } from "./schemes"
 import { handleTrpcRequests } from "./trpc/protocol"
 import type { Context } from "./trpc/context"
@@ -32,8 +32,7 @@ function migrationsFolder(): string {
 }
 
 /** Builds the values every procedure reaches. Folder pickers open over `window`. */
-function createContext(window: BrowserWindow): () => Context {
-  const settings = new AppSettingsStore(join(app.getPath("userData"), "settings.json"))
+function createContext(window: BrowserWindow, settings: AppSettingsStore): () => Context {
   const context: Context = {
     versions: {
       app: app.getVersion(),
@@ -106,8 +105,10 @@ app.whenReady().then(() => {
 
   // The window exists before the page loads so the protocol handler is ready for its first request.
   const mainWindow = createWindow()
-  handleTrpcRequests(createContext(mainWindow))
+  const settings = new AppSettingsStore(join(app.getPath("userData"), "settings.json"))
+  handleTrpcRequests(createContext(mainWindow, settings))
   handleAssetRequests(projects)
+  handleLibraryRequests(settings)
   loadRenderer(mainWindow)
 
   app.on("activate", function () {

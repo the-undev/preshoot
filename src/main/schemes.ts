@@ -6,6 +6,9 @@ export const TRPC_SCHEME = "trpc"
 /** Scheme the renderer reads pictures through; a picture's URL is `asset://<id>`. */
 export const ASSET_SCHEME = "asset"
 
+/** Scheme the renderer reads library files through; a file's URL is `library://file/<path>`. */
+export const LIBRARY_SCHEME = "library"
+
 /**
  * Every scheme the app serves, as one list.
  *
@@ -28,6 +31,10 @@ export const PRIVILEGED_SCHEMES: CustomScheme[] = [
   },
   {
     scheme: ASSET_SCHEME,
+    privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true },
+  },
+  {
+    scheme: LIBRARY_SCHEME,
     privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true },
   },
 ]
