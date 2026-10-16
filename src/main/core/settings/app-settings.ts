@@ -10,8 +10,14 @@ const RECENT_PROJECT_LIMIT = 20
 /** Where llama-server listens when the user has not said otherwise. */
 export const DEFAULT_LLAMA_SERVER_URL = "http://127.0.0.1:8080"
 
+/** Where ComfyUI listens when the user has not said otherwise. */
+export const DEFAULT_COMFYUI_URL = "http://127.0.0.1:8188"
+
 /** An http URL the app can fetch from. A bare `host:port` parses as a URL of its own scheme, so the protocol is checked. */
 export const llamaServerUrlSchema = z.url({ protocol: /^https?$/ })
+
+/** The base URL of a ComfyUI instance, held to the same rule as llama-server's. */
+export const comfyUiUrlSchema = llamaServerUrlSchema
 
 /** One entry in the recent projects list. */
 export const recentProjectSchema = z.object({
@@ -27,6 +33,7 @@ export const appSettingsSchema = z.object({
   recentProjects: z.array(recentProjectSchema).default([]),
   llamaServerUrl: llamaServerUrlSchema.default(DEFAULT_LLAMA_SERVER_URL),
   llamaModel: z.string().default(""),
+  comfyUiUrl: comfyUiUrlSchema.default(DEFAULT_COMFYUI_URL),
 })
 
 export type AppSettings = z.infer<typeof appSettingsSchema>
@@ -79,6 +86,16 @@ export class AppSettingsStore {
   /** Asks the server for a different model from now on. */
   setLlamaModel(id: string): void {
     this.update({ llamaModel: id })
+  }
+
+  /** The base URL of the ComfyUI instance the app generates through. */
+  comfyUiUrl(): string {
+    return this.read().comfyUiUrl
+  }
+
+  /** Points the app at a different ComfyUI instance. */
+  setComfyUiUrl(url: string): void {
+    this.update({ comfyUiUrl: url })
   }
 
   /** Replaces the settings file, writing beside it first so a failed write leaves the old file intact. */

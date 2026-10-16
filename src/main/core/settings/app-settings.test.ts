@@ -3,7 +3,12 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
 import { PROJECT_MARKER_FILENAME } from "../projects/marker"
-import { AppSettingsStore, appSettingsSchema, DEFAULT_LLAMA_SERVER_URL } from "./app-settings"
+import {
+  AppSettingsStore,
+  appSettingsSchema,
+  DEFAULT_COMFYUI_URL,
+  DEFAULT_LLAMA_SERVER_URL,
+} from "./app-settings"
 
 describe("AppSettingsStore", () => {
   let dir: string
@@ -36,6 +41,7 @@ describe("AppSettingsStore", () => {
       recentProjects: [],
       llamaServerUrl: DEFAULT_LLAMA_SERVER_URL,
       llamaModel: "",
+      comfyUiUrl: DEFAULT_COMFYUI_URL,
     })
   })
 
@@ -45,6 +51,7 @@ describe("AppSettingsStore", () => {
       recentProjects: [],
       llamaServerUrl: DEFAULT_LLAMA_SERVER_URL,
       llamaModel: "",
+      comfyUiUrl: DEFAULT_COMFYUI_URL,
     })
   })
 
@@ -87,6 +94,41 @@ describe("AppSettingsStore", () => {
     store.recordRecentProject({ directory, name: "Kept", createdAt: "" })
 
     expect(store.llamaServerUrl()).toBe("http://192.168.1.20:9000")
+  })
+
+  it("reads a file without a ComfyUI URL as the default one", () => {
+    writeFileSync(
+      settingsPath,
+      JSON.stringify({ recentProjects: [], llamaServerUrl: DEFAULT_LLAMA_SERVER_URL }),
+      "utf8"
+    )
+
+    expect(store.comfyUiUrl()).toBe(DEFAULT_COMFYUI_URL)
+  })
+
+  it("reads back the ComfyUI URL it was given and leaves llama-server alone", () => {
+    store.setComfyUiUrl("http://127.0.0.1:8190")
+
+    expect(store.comfyUiUrl()).toBe("http://127.0.0.1:8190")
+    expect(store.llamaServerUrl()).toBe(DEFAULT_LLAMA_SERVER_URL)
+  })
+
+  it("keeps the recent projects when the ComfyUI URL changes", () => {
+    const directory = makeProjectFolder("kept")
+    store.recordRecentProject({ directory, name: "Kept", createdAt: "" })
+
+    store.setComfyUiUrl("http://127.0.0.1:8190")
+
+    expect(store.listRecentProjects().map((entry) => entry.directory)).toEqual([directory])
+  })
+
+  it("keeps the ComfyUI URL when a project is recorded", () => {
+    store.setComfyUiUrl("http://127.0.0.1:8190")
+
+    const directory = makeProjectFolder("kept")
+    store.recordRecentProject({ directory, name: "Kept", createdAt: "" })
+
+    expect(store.comfyUiUrl()).toBe("http://127.0.0.1:8190")
   })
 
   it("writes a file the schema accepts", () => {
