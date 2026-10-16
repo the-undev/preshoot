@@ -11,7 +11,7 @@ import {
   DialogTitle,
 } from "@renderer/design-system"
 import { useTRPC, type ShownSlot, type WorkflowShownSlots } from "@renderer/lib/trpc"
-import { setPromptTransfer } from "./prompt-transfer"
+import { setClipTransfer } from "./clip-transfer"
 import { shownName } from "./slot-labels"
 
 /** A workflow and the text slots its form shows, in the order they are offered. */
@@ -67,7 +67,7 @@ export function SendPromptDialog({
   const targets = sendTargets(list.data ?? [])
 
   const send = (workflowId: number, slotId: number): void => {
-    setPromptTransfer({ workflowId, slotId, text, clipName })
+    setClipTransfer({ workflowId, clipName, values: [{ slotId, value: { type: "text", text } }] })
     onOpenWorkflow(workflowId)
   }
 

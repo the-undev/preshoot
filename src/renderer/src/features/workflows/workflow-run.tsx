@@ -2,7 +2,7 @@ import { useState } from "react"
 import { Alert, AlertDescription } from "@renderer/design-system"
 import type { Configuration, RunBinding, VerdictFilter, WorkflowDetail } from "@renderer/lib/trpc"
 import { ConfigurationStrip } from "./configuration-strip"
-import { takePromptTransfer } from "./prompt-transfer"
+import { takeClipTransfer, type SentValue } from "./clip-transfer"
 import { ReviewBar } from "./review-bar"
 import { RunForm, type FormFields } from "./run-form"
 import { RunList } from "./run-list"
@@ -34,8 +34,8 @@ export function WorkflowRun({ workflow }: { workflow: WorkflowDetail }): React.J
 
 /**
  * What the form was last started from, and the values it gave: a configuration loaded into it or
- * saved from it, or a prompt sent from a clip, which holds while the workflow's snapshot is the
- * one it was sent to.
+ * saved from it, or a clip's pieces sent to it, which hold while the workflow's snapshot is the
+ * one they were sent to.
  */
 type FormStart =
   | {
@@ -46,17 +46,26 @@ type FormStart =
     }
   | { from: "clip"; clipName: string | null; contentHash: string; bindings: RunBinding[] }
 
-/** The prompt sent from a clip to this workflow, as the form's start, when one is waiting. */
+/** A sent value as the form binds it: text and numbers as typed values, a file as one chosen. */
+function boundValue(value: SentValue): NonNullable<RunBinding["value"]> {
+  if (value.type === "text") return { type: "value", value: value.text }
+  if (value.type === "number") return { type: "value", value: value.value }
+  return { type: "file", path: value.path }
+}
+
+/** The pieces sent from a clip to this workflow, as the form's start, when some are waiting. */
 function sentStart(workflow: WorkflowDetail): FormStart | null {
-  const transfer = takePromptTransfer(workflow.id)
+  const transfer = takeClipTransfer(workflow.id)
   if (!transfer) return null
   return {
     from: "clip",
     clipName: transfer.clipName,
     contentHash: workflow.contentHash,
-    bindings: [
-      { slotId: transfer.slotId, on: true, value: { type: "value", value: transfer.text } },
-    ],
+    bindings: transfer.values.map(({ slotId, value }) => ({
+      slotId,
+      on: true,
+      value: boundValue(value),
+    })),
   }
 }
 
@@ -85,7 +94,7 @@ export function WorkflowRunView({
   // The form's fields as they last stood, which a form started again after a source change keeps.
   const [keptFields, setKeptFields] = useState<FormFields | null>(null)
   const loaded = start?.from === "configuration" ? start : null
-  // A source change starts the form again from what it held, so the prompt is then typed text.
+  // A source change starts the form again from what it held, so what was sent is then typed in.
   const sent = start?.from === "clip" && start.contentHash === workflow.contentHash ? start : null
   // Looked up in the list, so a rename shows and a deleted one is no longer loaded.
   const loadedConfiguration: Configuration | null =
@@ -134,8 +143,8 @@ export function WorkflowRunView({
         {sent && (
           <p className="text-sm text-muted-foreground">
             {sent.clipName === null
-              ? "Prompt sent from the clip."
-              : `Prompt sent from the clip ${sent.clipName}.`}
+              ? "Sent from the clip."
+              : `Sent from the clip ${sent.clipName}.`}
           </p>
         )}
         {staleSlotNames.length > 0 && (

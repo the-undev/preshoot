@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, within } from "@testing-library/react"
 import { describe, expect, it, vi } from "vitest"
-import { takePromptTransfer } from "@renderer/features/workflows/prompt-transfer"
+import { takeClipTransfer } from "@renderer/features/workflows/clip-transfer"
 import { StubTrpcProvider, type StubAnswers } from "@renderer/lib/stub-trpc"
 import type { ClipPrompt, ShownSlot, WorkflowShownSlots } from "@renderer/lib/trpc"
 import { ClipPromptPanel } from "./clip-prompt"
@@ -166,11 +166,15 @@ describe("ClipPromptPanel", () => {
     fireEvent.click(within(row).getByRole("button", { name: "Style" }))
 
     expect(onOpenWorkflow).toHaveBeenCalledWith(3)
-    expect(takePromptTransfer(3)).toEqual({
+    expect(takeClipTransfer(3)).toEqual({
       workflowId: 3,
-      slotId: 12,
-      text: "integrated_multimodal_description: [Shot 1] Live-action.",
       clipName: "Anna at the window",
+      values: [
+        {
+          slotId: 12,
+          value: { type: "text", text: "integrated_multimodal_description: [Shot 1] Live-action." },
+        },
+      ],
     })
   })
 
@@ -182,7 +186,7 @@ describe("ClipPromptPanel", () => {
     fireEvent.click(within(row).getByRole("button"))
 
     expect(onOpenWorkflow).toHaveBeenCalledWith(6)
-    expect(takePromptTransfer(6)).toMatchObject({ workflowId: 6, slotId: 40 })
+    expect(takeClipTransfer(6)).toMatchObject({ workflowId: 6, values: [{ slotId: 40 }] })
   })
 
   it("offers a slot by its display name where it has one", async () => {
