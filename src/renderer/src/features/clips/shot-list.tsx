@@ -206,10 +206,10 @@ function NameShotDialog({ number, onSave, onCancel }: NameShotDialogProps): Reac
           }}
         >
           <DialogHeader>
-            <DialogTitle>Save shot {number} to the library</DialogTitle>
+            <DialogTitle>Save shot {number} as a starting point</DialogTitle>
             <DialogDescription>
-              A copy goes in the library, with whatever it shows, ready to drop into another clip.
-              This one stays where it is.
+              A copy goes in Saved, with whatever it shows, ready to drop into another clip. This
+              one stays where it is.
             </DialogDescription>
           </DialogHeader>
 

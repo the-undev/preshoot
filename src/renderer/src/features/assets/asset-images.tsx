@@ -10,7 +10,7 @@ interface AssetImagesProps {
   onDraft: () => void
 }
 
-/** The reference pictures of one library thing, and the button that describes them. */
+/** The reference pictures of one saved subject, and the button that describes them. */
 export function AssetImages({
   images,
   isAdding,

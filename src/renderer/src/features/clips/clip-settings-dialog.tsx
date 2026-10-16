@@ -259,7 +259,7 @@ interface ClipFrameProps {
   onChoose: (imageId: number | null) => void
 }
 
-/** The picture one end of the clip is anchored to, chosen from the library's pictures. */
+/** The picture one end of the clip is anchored to, chosen from the saved pictures. */
 function ClipFrame({ role, label, frame, library, onChoose }: ClipFrameProps): React.JSX.Element {
   return (
     <div className="flex min-w-0 flex-col gap-1">

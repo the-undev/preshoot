@@ -64,8 +64,8 @@ export function ClipEditor({
           <h2 className="font-heading text-sm font-semibold text-muted-foreground">Cast</h2>
           <FieldHelp label="the cast">
             The people, places and objects this clip refers to. They belong to this clip, so
-            changing one here changes nothing in any other, and saving one puts a copy in the
-            library to start from.
+            changing one here changes nothing in any other, and saving one puts a copy in Saved to
+            start from.
           </FieldHelp>
         </div>
         <ClipCast

@@ -16,7 +16,7 @@ export const Route = createFileRoute("/project/saved")({
   component: Saved,
 })
 
-/** Which thing the form is for: none, a new one, or one already in the library. */
+/** Which thing the form is for: none, a new one, or one already saved. */
 type Editing = { kind: "none" } | { kind: "new" } | { kind: "existing"; asset: Asset }
 
 const EMPTY: AssetFields = { kind: "person", name: "", description: "", voice: null }

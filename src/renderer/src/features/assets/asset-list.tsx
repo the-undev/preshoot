@@ -9,7 +9,7 @@ interface AssetListProps {
   onCopyToLibrary: (asset: Asset) => void
 }
 
-/** The library, grouped by kind, in the order the project keeps it. */
+/** The project's saved subjects, grouped by kind, in the order the project keeps it. */
 export function AssetList({
   assets,
   images,
@@ -18,7 +18,7 @@ export function AssetList({
   onCopyToLibrary,
 }: AssetListProps): React.JSX.Element {
   if (assets.length === 0) {
-    return <p className="text-sm text-muted-foreground">Nothing in the library yet.</p>
+    return <p className="text-sm text-muted-foreground">Nothing saved yet.</p>
   }
 
   const kinds = [...new Set(assets.map((asset) => asset.kind))]

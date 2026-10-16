@@ -53,9 +53,6 @@ says so.
   name is typed without an extension.
 - Streaming tokens to the renderer as they arrive needs a subscription link
   over the `trpc://` scheme, which nothing implements yet.
-- The project's saved starting points are under Saved, and Library is the
-  user's folder, but the cast still offers "Save to the library" and "From
-  the library", and an empty Saved list says "Nothing in the library yet".
 - The library and workflows folders are read again when their screen is
   shown, from the refresh control, and on the page's `visibilitychange`,
   which is the only event TanStack Query refetches on. Whether Electron fires

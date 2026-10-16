@@ -115,7 +115,7 @@ export function ShotRow({
             <Button
               variant="ghost"
               size="sm"
-              aria-label={`Save shot ${index + 1} to the library`}
+              aria-label={`Save shot ${index + 1} as a starting point`}
               onClick={onSave}
             >
               Save

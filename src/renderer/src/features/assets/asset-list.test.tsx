@@ -86,7 +86,7 @@ describe("AssetList", () => {
     expect(onRemove).toHaveBeenCalledWith(2)
   })
 
-  it("says so when the library is empty", () => {
+  it("says so when nothing is saved", () => {
     render(
       <AssetList
         assets={[]}
@@ -97,7 +97,7 @@ describe("AssetList", () => {
       />
     )
 
-    expect(screen.getByText("Nothing in the library yet.")).toBeInTheDocument()
+    expect(screen.getByText("Nothing saved yet.")).toBeInTheDocument()
   })
 
   it("reports the thing to copy out to the library", () => {

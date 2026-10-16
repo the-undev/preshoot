@@ -15,7 +15,7 @@ export interface AssetImagesPanel {
   forget(): void
 }
 
-/** Reads every picture in the library and keeps them fresh as they change. */
+/** Reads every picture saved subjects hold and keeps them fresh as they change. */
 export function useAssetImages(): AssetImagesPanel {
   const trpc = useTRPC()
   const queryClient = useQueryClient()

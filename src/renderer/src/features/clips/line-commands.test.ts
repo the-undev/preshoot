@@ -145,7 +145,7 @@ describe("lineCommands", () => {
     expect(groups).toContain("Shot")
   })
 
-  it("offers the shots the library holds", () => {
+  it("offers the shots that are saved", () => {
     const onAddSavedShot = vi.fn()
     const commands = build({
       menu: menuContext({
@@ -160,8 +160,8 @@ describe("lineCommands", () => {
   })
 })
 
-describe("lineCommands and the library", () => {
-  it("offers the subjects the library holds", () => {
+describe("lineCommands and saved starting points", () => {
+  it("offers the subjects that are saved", () => {
     const onAddSavedSubject = vi.fn()
     const commands = build({
       menu: menuContext({
@@ -180,7 +180,7 @@ describe("lineCommands and the library", () => {
       }),
     })
 
-    commands.find((command) => command.label === "Add Lamp from the library")?.run()
+    commands.find((command) => command.label === "Add Lamp from saved")?.run()
 
     expect(onAddSavedSubject).toHaveBeenCalledWith(9)
   })
@@ -202,7 +202,7 @@ describe("lineCommands and the library", () => {
       }),
     })
 
-    expect(labels(commands)).not.toContain("Add Keeper from the library")
+    expect(labels(commands)).not.toContain("Add Keeper from saved")
   })
 })
 
