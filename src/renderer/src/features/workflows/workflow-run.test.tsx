@@ -67,7 +67,15 @@ function formPanel(): RunFormPanel {
   }
 }
 
-const runsPanel: RunsPanel = { runs: [], positions: {}, pollError: null, openOutput: vi.fn() }
+const runsPanel: RunsPanel = {
+  runs: [],
+  positions: {},
+  pollError: null,
+  openOutput: vi.fn(),
+  cancel: vi.fn(),
+  cancellingRunIds: new Set(),
+  cancelError: null,
+}
 
 function reviewPanel(over: Partial<ReviewPanel> = {}): ReviewPanel {
   return {
@@ -391,6 +399,27 @@ describe("WorkflowRunView", () => {
 
     expect(review.setVerdict).toHaveBeenCalledWith(9, "bad")
     expect(review.setNote).toHaveBeenCalledWith(9, "Sharp.")
+  })
+
+  it("passes a cancel through to the runs call", () => {
+    const cancel = vi.fn()
+    render(
+      <WorkflowRunView
+        workflow={workflow}
+        form={formPanel()}
+        configurations={configurationsPanel()}
+        runs={{
+          ...runsPanel,
+          runs: [{ ...doneRun(4, []), state: "running", finishedAt: null }],
+          cancel,
+        }}
+        review={reviewPanel()}
+      />
+    )
+
+    fireEvent.click(screen.getByRole("button", { name: "Cancel run 4" }))
+
+    expect(cancel).toHaveBeenCalledWith(4)
   })
 
   it("shows why a review call failed", () => {

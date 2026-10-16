@@ -37,6 +37,9 @@ const POLL_TIMEOUT_MS = 10_000
 /** How long a post to the queue may take, which validates the whole prompt first. */
 const QUEUE_TIMEOUT_MS = 30_000
 
+/** How long taking a prompt off the queue or stopping it may take. */
+const CANCEL_TIMEOUT_MS = 10_000
+
 /** How long a file may take to cross either way, which can be a video. */
 const TRANSFER_TIMEOUT_MS = 300_000
 
@@ -198,6 +201,24 @@ export class ComfyUiClient {
     }
   }
 
+  /** Takes waiting prompts off the queue. A prompt that is not waiting is passed over. */
+  async deletePending(promptIds: string[]): Promise<void> {
+    await this.post(
+      "/queue",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ delete: promptIds }),
+      },
+      "to take the run off the queue"
+    )
+  }
+
+  /** Stops the prompt ComfyUI is running now, whichever it is. */
+  async interrupt(): Promise<void> {
+    await this.post("/interrupt", { method: "POST" }, "to stop the running prompt")
+  }
+
   /** How a prompt ended, or nothing while it has not. */
   async history(promptId: string): Promise<HistoryEntry | null> {
     const body = await this.getJson(`/history/${encodeURIComponent(promptId)}`, POLL_TIMEOUT_MS)
@@ -247,6 +268,14 @@ export class ComfyUiClient {
     if (!body.success) throw BackendError.badResponse()
     const subfolder = body.data.subfolder ?? ""
     return subfolder.length > 0 ? `${subfolder}/${body.data.name}` : body.data.name
+  }
+
+  /** A post whose answer carries nothing, refused in ComfyUI's words when it says no. */
+  private async post(path: string, init: RequestInit, what: string): Promise<void> {
+    const response = await this.send(path, init, CANCEL_TIMEOUT_MS)
+    if (response.ok) return
+    const reason = (await response.text().catch(() => "")).trim()
+    throw BackendError.refused(what, reason || `it answered ${response.status}.`)
   }
 
   /** The JSON body of a GET, telling an instance that never answered from one that answered badly. */

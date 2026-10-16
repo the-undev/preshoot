@@ -7,7 +7,14 @@ import { ComfyUiClient } from "../backend/comfyui-client"
 import { openProjectDatabase, schema, type ProjectDatabaseHandle } from "../db"
 import { fixtureText } from "../workflows/fixtures"
 import { importWorkflow, type WorkflowDetail } from "../workflows/store"
-import { pollRuns, queueBatch, queueRun, savedSlotValues, type RunStatus } from "./dispatch"
+import {
+  cancelRun,
+  pollRuns,
+  queueBatch,
+  queueRun,
+  savedSlotValues,
+  type RunStatus,
+} from "./dispatch"
 import { objectInfoFixture } from "./fixtures"
 import { readRun, readRunPrompt } from "./run-store"
 
@@ -574,6 +581,97 @@ describe("dispatch", () => {
 
     expect(statuses).toEqual([])
     expect(calls).toEqual([])
+  })
+
+  describe("cancelling a run", () => {
+    /** A ComfyUI whose queue holds `queue`, recording each post and answering it with `answer`. */
+    function queueHolding(
+      queue: { queue_running: unknown[]; queue_pending: unknown[] },
+      answer: () => Response = () => new Response(null, { status: 200 })
+    ): ReturnType<typeof fakeComfyUi> {
+      const read = (): Response => json(queue)
+      return fakeComfyUi({
+        "/queue": (_url, init) => (init.method === "POST" ? answer() : read()),
+        "/interrupt": () => answer(),
+      })
+    }
+
+    function cancel(client: ComfyUiClient, runId: number): ReturnType<typeof cancelRun> {
+      return cancelRun({ db: handle.db, client, runId, now })
+    }
+
+    it("takes a waiting run off the queue and marks it failed", async () => {
+      const runId = await queued()
+      const { client, calls } = queueHolding({
+        queue_running: [[1, "other", {}, {}, []]],
+        queue_pending: [[5, "a1b2", {}, {}, []]],
+      })
+
+      const run = await cancel(client, runId)
+
+      expect(run).toMatchObject({ state: "failed", error: "Cancelled." })
+      expect(readRun(handle.db, runId).state).toBe("failed")
+      expect(calls.map((call) => [call.path, call.init.method])).toEqual([
+        ["/queue", "GET"],
+        ["/queue", "POST"],
+      ])
+      expect(JSON.parse(calls[1].init.body as string)).toEqual({ delete: ["a1b2"] })
+    })
+
+    it("stops a running run and marks it failed", async () => {
+      const runId = await queued()
+      const { client, calls } = queueHolding({
+        queue_running: [[3, "a1b2", {}, {}, []]],
+        queue_pending: [[5, "next", {}, {}, []]],
+      })
+
+      const run = await cancel(client, runId)
+
+      expect(run).toMatchObject({ state: "failed", error: "Cancelled." })
+      expect(calls.map((call) => [call.path, call.init.method])).toEqual([
+        ["/queue", "GET"],
+        ["/interrupt", "POST"],
+      ])
+    })
+
+    it("leaves a run in neither place to the next poll and says there was nothing to cancel", async () => {
+      const runId = await queued()
+      const { client, calls } = queueHolding({ queue_running: [], queue_pending: [] })
+
+      await expect(cancel(client, runId)).rejects.toThrow(
+        expect.objectContaining({ code: "nothing-to-cancel" })
+      )
+
+      expect(readRun(handle.db, runId).state).toBe("queued")
+      expect(calls.map((call) => call.path)).toEqual(["/queue"])
+    })
+
+    it("asks ComfyUI nothing about a run that has finished", async () => {
+      const runId = await queued()
+      handle.db.update(schema.runs).set({ state: "done" }).where(eq(schema.runs.id, runId)).run()
+      const { client, calls } = queueHolding({ queue_running: [], queue_pending: [] })
+
+      await expect(cancel(client, runId)).rejects.toThrow(
+        expect.objectContaining({ code: "nothing-to-cancel" })
+      )
+
+      expect(calls).toEqual([])
+      expect(readRun(handle.db, runId).state).toBe("done")
+    })
+
+    it("keeps the run as it was when ComfyUI refuses, and says why", async () => {
+      const runId = await queued()
+      const { client } = queueHolding(
+        { queue_running: [], queue_pending: [[5, "a1b2", {}, {}, []]] },
+        () => new Response("Bad Request", { status: 400 })
+      )
+
+      await expect(cancel(client, runId)).rejects.toThrow(
+        "ComfyUI refused to take the run off the queue: Bad Request"
+      )
+
+      expect(readRun(handle.db, runId).state).toBe("queued")
+    })
   })
 
   describe("a finished run", () => {

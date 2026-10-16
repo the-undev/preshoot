@@ -140,6 +140,54 @@ describe("ComfyUiClient.queue", () => {
   })
 })
 
+describe("ComfyUiClient.deletePending", () => {
+  it("posts the prompt ids to delete to the queue", async () => {
+    const { client, fetchMock } = clientAnswering(() => new Response(null, { status: 200 }))
+
+    await client.deletePending(["a1b2", "c3d4"])
+
+    const [url, init] = fetchMock.mock.calls[0]
+    expect(url).toBe(`${baseUrl}/queue`)
+    expect(init.method).toBe("POST")
+    expect(JSON.parse(init.body as string)).toEqual({ delete: ["a1b2", "c3d4"] })
+  })
+
+  it("surfaces the server's answer when it refuses", async () => {
+    const { client } = clientAnswering(() => new Response("Bad Request", { status: 400 }))
+
+    await expect(client.deletePending(["a1b2"])).rejects.toThrow(
+      expect.objectContaining({
+        code: "refused",
+        message: "ComfyUI refused to take the run off the queue: Bad Request",
+      })
+    )
+  })
+})
+
+describe("ComfyUiClient.interrupt", () => {
+  it("posts to interrupt with no body", async () => {
+    const { client, fetchMock } = clientAnswering(() => new Response(null, { status: 200 }))
+
+    await client.interrupt()
+
+    const [url, init] = fetchMock.mock.calls[0]
+    expect(url).toBe(`${baseUrl}/interrupt`)
+    expect(init.method).toBe("POST")
+    expect(init.body).toBeUndefined()
+  })
+
+  it("names the status when a refusal gives no reason", async () => {
+    const { client } = clientAnswering(() => new Response("", { status: 500 }))
+
+    await expect(client.interrupt()).rejects.toThrow(
+      expect.objectContaining({
+        code: "refused",
+        message: "ComfyUI refused to stop the running prompt: it answered 500.",
+      })
+    )
+  })
+})
+
 describe("ComfyUiClient.history", () => {
   it("answers nothing while the prompt has not finished", async () => {
     const { client, fetchMock } = clientAnswering(json({}))

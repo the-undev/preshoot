@@ -173,6 +173,38 @@ describe("runs router", () => {
     expect(await caller.runs.list({ workflowId: workflow.id })).toHaveLength(3)
   })
 
+  it("cancels a waiting run on the saved ComfyUI and records it failed", async () => {
+    const workflow = await openProjectWithWorkflow()
+    settings.setComfyUiUrl("http://127.0.0.1:8190")
+    const [run] = await caller.runs.queue({ workflowId: workflow.id, bindings: [] })
+    const deleted: unknown[] = []
+    routes["/queue"] = (_url, init) => {
+      if (init.method !== "POST") {
+        return json({ queue_running: [], queue_pending: [[1, "a1b2", {}, {}, []]] })
+      }
+      deleted.push(JSON.parse(init.body as string))
+      return new Response(null, { status: 200 })
+    }
+
+    const cancelled = await caller.runs.cancel({ runId: run.id })
+
+    expect(cancelled).toMatchObject({ id: run.id, state: "failed", error: "Cancelled." })
+    expect(deleted).toEqual([{ delete: ["a1b2"] }])
+    expect(comfyUiUrls).toEqual(["http://127.0.0.1:8190", "http://127.0.0.1:8190"])
+  })
+
+  it("reports a run with nothing to cancel as a conflict", async () => {
+    const workflow = await openProjectWithWorkflow()
+    const [run] = await caller.runs.queue({ workflowId: workflow.id, bindings: [] })
+
+    await expect(caller.runs.cancel({ runId: run.id })).rejects.toThrow(
+      expect.objectContaining({
+        code: "CONFLICT",
+        message: `Run ${run.id} is neither waiting nor running in ComfyUI, so there was nothing to cancel.`,
+      })
+    )
+  })
+
   it("refuses a batch larger than twenty", async () => {
     const workflow = await openProjectWithWorkflow()
 

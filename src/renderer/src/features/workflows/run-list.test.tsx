@@ -51,8 +51,15 @@ const runs: RunRecord[] = [
   run({ id: 1, state: "queued", seed: 7 }),
 ]
 
-/** The review props every list takes, showing every output. */
-const reviewProps = { filter: "all" as const, onSetVerdict: vi.fn(), onSetNote: vi.fn() }
+/** The review and cancel props every list takes, showing every output with nothing cancelling. */
+const reviewProps = {
+  filter: "all" as const,
+  onSetVerdict: vi.fn(),
+  onSetNote: vi.fn(),
+  cancelError: null,
+  cancellingRunIds: new Set<number>(),
+  onCancel: vi.fn(),
+}
 
 function row(runId: number): ReturnType<typeof within> {
   return within(screen.getByRole("listitem", { name: `Run ${runId}` }))
@@ -158,6 +165,51 @@ describe("RunList", () => {
     )
 
     expect(screen.getByText("No outputs match.")).toBeInTheDocument()
+  })
+
+  it("offers to cancel only queued and running runs, and asks for the one clicked", () => {
+    const onCancel = vi.fn()
+    render(
+      <RunList
+        runs={runs}
+        positions={{}}
+        pollError={null}
+        onOpenOutput={vi.fn()}
+        {...reviewProps}
+        onCancel={onCancel}
+      />
+    )
+
+    expect(row(1).getByRole("button", { name: "Cancel run 1" })).toHaveTextContent("Cancel")
+    expect(row(2).getByRole("button", { name: "Cancel run 2" })).toBeEnabled()
+    expect(row(3).queryByRole("button", { name: /Cancel/ })).not.toBeInTheDocument()
+    expect(row(4).queryByRole("button", { name: /Cancel/ })).not.toBeInTheDocument()
+    fireEvent.click(row(2).getByRole("button", { name: "Cancel run 2" }))
+    expect(onCancel).toHaveBeenCalledWith(2)
+  })
+
+  it("holds a cancel button while its cancel is answered, and shows why one failed", () => {
+    render(
+      <RunList
+        runs={runs}
+        positions={{}}
+        pollError={null}
+        onOpenOutput={vi.fn()}
+        {...reviewProps}
+        cancellingRunIds={new Set([1])}
+        cancelError="Run 2 is neither waiting nor running in ComfyUI, so there was nothing to cancel."
+      />
+    )
+
+    const button = row(1).getByRole("button", { name: "Cancel run 1" })
+    expect(button).toBeDisabled()
+    expect(button).toHaveTextContent("Cancelling…")
+    expect(row(2).getByRole("button", { name: "Cancel run 2" })).toBeEnabled()
+    expect(
+      screen.getByText(
+        "Run 2 is neither waiting nor running in ComfyUI, so there was nothing to cancel."
+      )
+    ).toBeInTheDocument()
   })
 
   it("says when nothing has been queued, and when ComfyUI could not be asked", () => {

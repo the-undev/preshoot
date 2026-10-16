@@ -76,12 +76,16 @@ function blockedReason(
   return `ComfyUI does not answer at ${url ?? "the saved URL"}. Start it, or change the URL in settings.`
 }
 
-/** A workflow's runs, where waiting ones stand in the queue, and the call that opens an output. */
+/** A workflow's runs, where waiting ones stand in the queue, and the calls that act on them. */
 export interface RunsPanel {
   runs: RunRecord[]
   positions: Record<number, number | null>
   pollError: string | null
   openOutput(outputId: number): void
+  cancel(runId: number): void
+  /** The runs a cancel has been asked for and not yet answered. */
+  cancellingRunIds: ReadonlySet<number>
+  cancelError: string | null
 }
 
 /** Lists a workflow's runs and asks ComfyUI about the unfinished ones until none are left. */
@@ -91,6 +95,13 @@ export function useRuns(workflowId: number): RunsPanel {
   const queryClient = useQueryClient()
   const runs = useQuery(trpc.runs.list.queryOptions({ workflowId }))
   const openOutput = useMutation(trpc.runs.openOutput.mutationOptions())
+  const cancel = useMutation(
+    trpc.runs.cancel.mutationOptions({
+      onSettled: () =>
+        queryClient.invalidateQueries({ queryKey: trpc.runs.list.queryKey({ workflowId }) }),
+    })
+  )
+  const [cancellingRunIds, setCancellingRunIds] = useState<ReadonlySet<number>>(new Set())
   const [positions, setPositions] = useState<Record<number, number | null>>({})
   const [pollError, setPollError] = useState<string | null>(null)
 
@@ -134,6 +145,22 @@ export function useRuns(workflowId: number): RunsPanel {
     positions,
     pollError: pollError ?? openOutput.error?.message ?? runs.error?.message ?? null,
     openOutput: (outputId) => openOutput.mutate({ outputId }),
+    cancel: (runId) => {
+      setCancellingRunIds((current) => new Set(current).add(runId))
+      // The error stays on the mutation, so the promise is settled here only to free the button.
+      void cancel
+        .mutateAsync({ runId })
+        .catch(() => {})
+        .finally(() =>
+          setCancellingRunIds((current) => {
+            const next = new Set(current)
+            next.delete(runId)
+            return next
+          })
+        )
+    },
+    cancellingRunIds,
+    cancelError: cancel.error?.message ?? null,
   }
 }
 

@@ -261,6 +261,33 @@ export async function pollRuns(input: {
   return statuses
 }
 
+/** The error a cancelled run is marked failed with. */
+const CANCELLED = "Cancelled."
+
+/**
+ * Cancels a run: takes it off ComfyUI's queue while it waits, or stops it while it runs, then
+ * marks it failed. A run in neither place is left for the next poll and refused.
+ */
+export async function cancelRun(input: {
+  db: ProjectDatabase
+  client: ComfyUiClient
+  runId: number
+  now: Date
+}): Promise<RunRecord> {
+  const { db, client, runId, now } = input
+  const run = readRun(db, runId)
+  if (!UNFINISHED_STATES.includes(run.state)) throw DispatchError.nothingToCancel(runId)
+  const queue = await client.queue()
+  if (queue.pending.includes(run.promptId)) {
+    await client.deletePending([run.promptId])
+  } else if (queue.running.includes(run.promptId)) {
+    await client.interrupt()
+  } else {
+    throw DispatchError.nothingToCancel(runId)
+  }
+  return markFailed(db, runId, CANCELLED, now)
+}
+
 /**
  * Records where one unfinished run stands against the queue as read. A finished run's files are
  * copied into the project before it is marked done, so a failed copy leaves it to the next poll.

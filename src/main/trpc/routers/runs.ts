@@ -2,7 +2,7 @@ import { join } from "node:path"
 import { z } from "zod"
 import { IMAGE_MEDIA_TYPES } from "../../core/composition/image-store"
 import { BATCH_LIMIT, randomSeed } from "../../core/dispatch/batch"
-import { pollRuns, queueBatch, savedSlotValues } from "../../core/dispatch/dispatch"
+import { cancelRun, pollRuns, queueBatch, savedSlotValues } from "../../core/dispatch/dispatch"
 import { listRuns, readRunOutput } from "../../core/dispatch/run-store"
 import { asClientError } from "../client-errors"
 import { requireOpenProject, requireProject } from "../project"
@@ -107,6 +107,23 @@ export const runsRouter = router({
       asClientError(error)
     }
   }),
+
+  /** Takes a run off ComfyUI's queue, or stops it while it runs, and records it failed. */
+  cancel: publicProcedure
+    .input(z.object({ runId: z.number().int() }))
+    .mutation(async ({ ctx, input }) => {
+      const db = requireProject(ctx)
+      try {
+        return await cancelRun({
+          db,
+          client: ctx.comfyUiClient(ctx.settings.comfyUiUrl()),
+          runId: input.runId,
+          now: new Date(),
+        })
+      } catch (error) {
+        asClientError(error)
+      }
+    }),
 
   /** Asks for a file to fill an image or audio slot, and hands its path back. */
   pickFile: publicProcedure

@@ -1,5 +1,6 @@
 /** Why a run could not be built, sent or followed. */
-export type DispatchErrorCode = "not-found" | "unresolvable" | "refused" | "unreadable-file"
+export type DispatchErrorCode =
+  "not-found" | "unresolvable" | "refused" | "unreadable-file" | "nothing-to-cancel"
 
 /** A refusal the renderer can show, raised while a run is built, queued or polled. */
 export class DispatchError extends Error {
@@ -24,6 +25,14 @@ export class DispatchError extends Error {
   /** ComfyUI answered and said no, in the words given. */
   static refused(reasons: string[]): DispatchError {
     return new DispatchError("refused", `ComfyUI refused the run: ${reasons.join(" ")}`)
+  }
+
+  /** A run asked to be cancelled is neither waiting nor running, so its end is left to a poll. */
+  static nothingToCancel(runId: number): DispatchError {
+    return new DispatchError(
+      "nothing-to-cancel",
+      `Run ${runId} is neither waiting nor running in ComfyUI, so there was nothing to cancel.`
+    )
   }
 
   /** A file picked for a slot could not be read. */

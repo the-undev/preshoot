@@ -167,10 +167,13 @@ export function WorkflowRunView({
           runs={runs.runs}
           positions={runs.positions}
           pollError={runs.pollError}
+          cancelError={runs.cancelError}
+          cancellingRunIds={runs.cancellingRunIds}
           filter={filter}
           onOpenOutput={runs.openOutput}
           onSetVerdict={review.setVerdict}
           onSetNote={review.setNote}
+          onCancel={runs.cancel}
         />
       </section>
     </div>

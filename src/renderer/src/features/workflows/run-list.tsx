@@ -1,3 +1,4 @@
+import { Button } from "@renderer/design-system"
 import type { RunOutput, RunRecord, RunState, Verdict, VerdictFilter } from "@renderer/lib/trpc"
 import { RunOutputItem } from "./run-output"
 
@@ -16,6 +17,9 @@ interface RunListProps {
   runs: RunRecord[]
   positions: Record<number, number | null>
   pollError: string | null
+  cancelError: string | null
+  /** The runs a cancel has been asked for and not yet answered, whose button waits. */
+  cancellingRunIds: ReadonlySet<number>
   /**
    * Which outputs show. A finished run with none of them is left out, unless every output shows.
    */
@@ -23,6 +27,7 @@ interface RunListProps {
   onOpenOutput: (outputId: number) => void
   onSetVerdict: (outputId: number, verdict: Verdict | null) => void
   onSetNote: (outputId: number, note: string) => void
+  onCancel: (runId: number) => void
 }
 
 /** A workflow's runs, newest first, each as one slim row with its outputs. */
@@ -30,10 +35,13 @@ export function RunList({
   runs,
   positions,
   pollError,
+  cancelError,
+  cancellingRunIds,
   filter,
   onOpenOutput,
   onSetVerdict,
   onSetNote,
+  onCancel,
 }: RunListProps): React.JSX.Element {
   const shown = filter === "all" ? runs : runs.flatMap((run) => withOutputsKept(run, filter))
   return (
@@ -43,6 +51,7 @@ export function RunList({
           Could not ask ComfyUI how runs stand: {pollError}
         </p>
       )}
+      {cancelError && <p className="text-sm break-words text-destructive">{cancelError}</p>}
       {runs.length === 0 && <p className="text-sm text-muted-foreground">Nothing queued yet.</p>}
       {runs.length > 0 && shown.length === 0 && (
         <p className="text-sm text-muted-foreground">No outputs match.</p>
@@ -54,9 +63,11 @@ export function RunList({
               key={run.id}
               run={run}
               position={positions[run.id] ?? null}
+              isCancelling={cancellingRunIds.has(run.id)}
               onOpenOutput={onOpenOutput}
               onSetVerdict={onSetVerdict}
               onSetNote={onSetNote}
+              onCancel={() => onCancel(run.id)}
             />
           ))}
         </ul>
@@ -68,21 +79,25 @@ export function RunList({
 interface RunRowProps {
   run: RunRecord
   position: number | null
+  isCancelling: boolean
   onOpenOutput: (outputId: number) => void
   onSetVerdict: (outputId: number, verdict: Verdict | null) => void
   onSetNote: (outputId: number, note: string) => void
+  onCancel: () => void
 }
 
 /**
- * One run: its state, its seed, when it was queued, the configuration it came from, and its error
- * or its files.
+ * One run: its state, its seed, when it was queued, the configuration it came from, a way to
+ * cancel it while unfinished, and its error or its files.
  */
 function RunRow({
   run,
   position,
+  isCancelling,
   onOpenOutput,
   onSetVerdict,
   onSetNote,
+  onCancel,
 }: RunRowProps): React.JSX.Element {
   const chip = STATE_CHIPS[run.state]
   const label =
@@ -103,6 +118,17 @@ function RunRow({
           {startedAt(run.createdAt)}
         </time>
         {run.configurationName && <span>{run.configurationName}</span>}
+        {UNFINISHED_STATES.has(run.state) && (
+          <Button
+            variant="outline"
+            size="xs"
+            aria-label={`Cancel run ${run.id}`}
+            disabled={isCancelling}
+            onClick={onCancel}
+          >
+            {isCancelling ? "Cancelling…" : "Cancel"}
+          </Button>
+        )}
       </div>
       {run.state === "failed" && run.error && (
         <p className="text-sm break-words text-destructive">{run.error}</p>
