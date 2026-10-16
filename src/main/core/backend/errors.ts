@@ -1,5 +1,5 @@
 /** Why a request to ComfyUI failed. */
-export type BackendErrorCode = "unreachable" | "bad-response" | "timeout"
+export type BackendErrorCode = "unreachable" | "bad-response" | "timeout" | "refused"
 
 /** A failure talking to a ComfyUI instance, carrying a message the user can act on. */
 export class BackendError extends Error {
@@ -30,5 +30,10 @@ export class BackendError extends Error {
       "bad-response",
       "ComfyUI answered with something the app could not read."
     )
+  }
+
+  /** The instance answered and said no, in its own words. */
+  static refused(what: string, reason: string): BackendError {
+    return new BackendError("refused", `ComfyUI refused ${what}: ${reason}`)
   }
 }
