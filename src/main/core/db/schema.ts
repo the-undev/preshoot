@@ -125,3 +125,38 @@ export const openTabs = sqliteTable("open_tabs", {
   clipId: integer("clip_id"),
   position: integer("position").notNull(),
 })
+
+/**
+ * A ComfyUI workflow copied into the project. The graph is the source file's text as it was read,
+ * so the hash of the snapshot and the hash of an unchanged source are the same.
+ */
+export const workflows = sqliteTable("workflows", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  // The source file's name without its extension.
+  name: text("name").notNull(),
+  // Where the workflow was copied from, which the app reads and never writes.
+  sourcePath: text("source_path").notNull(),
+  graph: text("graph").notNull(),
+  // A sha256 of the graph text, compared with the source file's to tell when it has changed.
+  contentHash: text("content_hash").notNull(),
+  importedAt: integer("imported_at", { mode: "timestamp_ms" }).notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
+})
+
+/** One input of a workflow the app can fill, found by scanning its graph. */
+export const workflowSlots = sqliteTable("workflow_slots", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  workflowId: integer("workflow_id")
+    .notNull()
+    .references(() => workflows.id, { onDelete: "cascade" }),
+  // The node's id in the graph, which ComfyUI never reuses or renumbers within one file.
+  nodeId: integer("node_id").notNull(),
+  nodeType: text("node_type").notNull(),
+  name: text("name").notNull(),
+  kind: text("kind").notNull(),
+  // Basic, advanced or hidden. Set by the scan and changed by the user, and kept across updates.
+  tier: text("tier").notNull(),
+  // Whether the node was bypassed in the graph, so the slot is off until it is used.
+  bypassed: integer("bypassed", { mode: "boolean" }).notNull(),
+  position: integer("position").notNull(),
+})
