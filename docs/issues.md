@@ -55,6 +55,11 @@ says so.
   name is typed without an extension.
 - Streaming tokens to the renderer as they arrive needs a subscription link
   over the `trpc://` scheme, which nothing implements yet.
+- A run cannot be queued again from its row. Running one more of the same
+  with a fresh seed means loading its configuration, or retyping, and
+  queueing from the form.
+- The send dialog carries a clip's prompt, duration and frame pictures,
+  but its width, height and aspect ratio are still copy-only.
 - The dispatch path has not run against a live instance end to end. Every
   piece is tested against recorded shapes, and the resolution rules were
   read out of the server's own source, but the first real queue is the
