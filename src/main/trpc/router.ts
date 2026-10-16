@@ -4,6 +4,7 @@ import { configurationsRouter } from "./routers/configurations"
 import { libraryRouter } from "./routers/library"
 import { projectsRouter } from "./routers/projects"
 import { promptsRouter } from "./routers/prompts"
+import { reviewRouter } from "./routers/review"
 import { runsRouter } from "./routers/runs"
 import { settingsRouter } from "./routers/settings"
 import { tabsRouter } from "./routers/tabs"
@@ -21,6 +22,7 @@ export const appRouter = router({
   settings: settingsRouter,
   workflows: workflowsRouter,
   runs: runsRouter,
+  review: reviewRouter,
   configurations: configurationsRouter,
   library: libraryRouter,
 })
