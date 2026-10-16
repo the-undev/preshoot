@@ -373,6 +373,39 @@ describe("dispatch", () => {
       }
     })
 
+    it("asks for the classes once and sends a bound file once for the whole batch", async () => {
+      const picture = join(dir, "anna.png")
+      writeFileSync(picture, Buffer.from([1, 2, 3]))
+      const { routes } = accepting()
+      const { client, calls } = fakeComfyUi(routes)
+      const fresh = [101, 102]
+
+      await queueBatch({
+        db: handle.db,
+        client,
+        workflowId: workflow.id,
+        configurationId: null,
+        bindings: [
+          {
+            slotId: slotId("Picture 3 (bypassed: Ctrl+B to use)"),
+            on: true,
+            value: { type: "file", path: picture },
+          },
+        ],
+        count: 3,
+        randomSeed: () => fresh.shift() as number,
+        now,
+      })
+
+      const count = (path: string): number => calls.filter((call) => call.path === path).length
+      expect(count("/object_info")).toBe(1)
+      expect(count("/upload/image")).toBe(1)
+      const images = calls
+        .filter((call) => call.path === "/prompt")
+        .map((call) => JSON.parse(call.init.body as string).prompt["12"].inputs.image)
+      expect(images).toEqual(["preshoot/anna.png", "preshoot/anna.png", "preshoot/anna.png"])
+    })
+
     it("queues one run as given when the count is one", async () => {
       const { routes } = accepting()
       const { client } = fakeComfyUi(routes)

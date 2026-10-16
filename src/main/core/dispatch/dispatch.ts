@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto"
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs"
 import { basename, join } from "node:path"
 import { and, eq } from "drizzle-orm"
-import type { ComfyUiClient, QueueAnswer } from "../backend/comfyui-client"
+import type { ComfyUiClient, ObjectInfo, QueueAnswer } from "../backend/comfyui-client"
 import { schema, type ProjectDatabase } from "../db"
 import { readGraph } from "../workflows/scan"
 import { readWorkflowSlots, type SlotRecord } from "../workflows/store"
@@ -49,19 +49,13 @@ const VALUE_KINDS: ReadonlySet<SlotRecord["kind"]> = new Set([
   "seed",
 ])
 
+/** The value one slot's node holds as saved. */
+type SavedValue = { slotId: number; value: SlotValue | null }
+
 /** The value each slot's node holds as saved, so a form can start from the workflow as it is. */
-export function savedSlotValues(
-  db: ProjectDatabase,
-  workflowId: number
-): { slotId: number; value: SlotValue | null }[] {
+export function savedSlotValues(db: ProjectDatabase, workflowId: number): SavedValue[] {
   const stored = storedGraph(db, workflowId)
-  const graph = readGraph(stored.sourcePath, stored.graph)
-  const nodes = new Map(graph.nodes.map((node) => [node.id, node]))
-  return readWorkflowSlots(db, workflowId).map((slot) => {
-    const saved = nodes.get(slot.nodeId)?.widgets_values
-    const value = VALUE_KINDS.has(slot.kind) && Array.isArray(saved) ? saved[0] : null
-    return { slotId: slot.id, value: isSlotValue(value) ? value : null }
-  })
+  return savedValuesOf(readWorkflowSlots(db, workflowId), stored.sourcePath, stored.graph)
 }
 
 /**
@@ -76,42 +70,7 @@ export async function queueRun(input: {
   bindings: SlotBinding[]
   now: Date
 }): Promise<RunRecord> {
-  const { db, client, workflowId, configurationId, now } = input
-  const slots = readWorkflowSlots(db, workflowId)
-  const slotById = new Map(slots.map((slot) => [slot.id, slot]))
-  const bound = input.bindings.map((binding) => {
-    const slot = slotById.get(binding.slotId)
-    if (!slot) throw DispatchError.notFound(`Slot ${binding.slotId}`)
-    return { slot, binding }
-  })
-
-  const objectInfo = await client.objectInfo()
-  const recorded: RecordedBinding[] = []
-  const patches: NodePatch[] = []
-  for (const { slot, binding } of bound) {
-    const value = await sentValue(client, binding)
-    patches.push({ nodeId: slot.nodeId, on: binding.on, value })
-    recorded.push({
-      slotId: slot.id,
-      slotName: slot.name,
-      on: binding.on,
-      value,
-      file: binding.value?.type === "file" ? binding.value.path : null,
-    })
-  }
-  const prompt = resolvePrompt(storedGraph(db, workflowId).graph, objectInfo, patches, now)
-
-  const answer = await client.queuePrompt(prompt, randomUUID())
-  if (!answer.accepted) throw DispatchError.refused(refusalReasons(answer, slots))
-  return recordRun(db, {
-    workflowId,
-    configurationId,
-    promptId: answer.promptId,
-    apiPrompt: JSON.stringify(prompt),
-    bindings: recorded,
-    seed: seedOf(slots, recorded, savedSlotValues(db, workflowId)),
-    createdAt: now,
-  })
+  return queueOne(await openBatch(input), input.bindings)
 }
 
 /**
@@ -131,14 +90,103 @@ export async function queueBatch(input: {
 }): Promise<RunRecord[]> {
   const { db, workflowId, configurationId } = input
   if (configurationId !== null) requireConfiguration(db, workflowId, configurationId)
-  const seedSlots = readWorkflowSlots(db, workflowId).filter((slot) => slot.kind === "seed")
+  const batch = await openBatch(input)
+  const seedSlots = batch.slots.filter((slot) => slot.kind === "seed")
   const runs: RunRecord[] = []
   for (let index = 0; index < input.count; index += 1) {
     const bindings =
       index === 0 ? input.bindings : withFreshSeeds(input.bindings, seedSlots, input.randomSeed)
-    runs.push(await queueRun({ ...input, bindings }))
+    runs.push(await queueOne(batch, bindings))
   }
   return runs
+}
+
+/** What every run of a batch shares, read once, and the names ComfyUI gave the files sent so far. */
+interface Batch {
+  db: ProjectDatabase
+  client: ComfyUiClient
+  workflowId: number
+  configurationId: number | null
+  now: Date
+  slots: SlotRecord[]
+  graph: string
+  savedValues: SavedValue[]
+  objectInfo: ObjectInfo
+  /** The name ComfyUI gave each file sent, by its path on disk. */
+  uploaded: Map<string, string>
+}
+
+/** Reads the workflow and asks ComfyUI for its classes, once for all the runs of a batch. */
+async function openBatch(input: {
+  db: ProjectDatabase
+  client: ComfyUiClient
+  workflowId: number
+  configurationId: number | null
+  now: Date
+}): Promise<Batch> {
+  const { db, client, workflowId, configurationId, now } = input
+  const stored = storedGraph(db, workflowId)
+  const slots = readWorkflowSlots(db, workflowId)
+  return {
+    db,
+    client,
+    workflowId,
+    configurationId,
+    now,
+    slots,
+    graph: stored.graph,
+    savedValues: savedValuesOf(slots, stored.sourcePath, stored.graph),
+    objectInfo: await client.objectInfo(),
+    uploaded: new Map(),
+  }
+}
+
+/** Queues one run of a batch with `bindings` and records it. */
+async function queueOne(batch: Batch, bindings: SlotBinding[]): Promise<RunRecord> {
+  const slotById = new Map(batch.slots.map((slot) => [slot.id, slot]))
+  const bound = bindings.map((binding) => {
+    const slot = slotById.get(binding.slotId)
+    if (!slot) throw DispatchError.notFound(`Slot ${binding.slotId}`)
+    return { slot, binding }
+  })
+
+  const recorded: RecordedBinding[] = []
+  const patches: NodePatch[] = []
+  for (const { slot, binding } of bound) {
+    const value = await sentValue(batch, binding)
+    patches.push({ nodeId: slot.nodeId, on: binding.on, value })
+    recorded.push({
+      slotId: slot.id,
+      slotName: slot.name,
+      on: binding.on,
+      value,
+      file: binding.value?.type === "file" ? binding.value.path : null,
+    })
+  }
+  const prompt = resolvePrompt(batch.graph, batch.objectInfo, patches, batch.now)
+
+  const answer = await batch.client.queuePrompt(prompt, randomUUID())
+  if (!answer.accepted) throw DispatchError.refused(refusalReasons(answer, batch.slots))
+  return recordRun(batch.db, {
+    workflowId: batch.workflowId,
+    configurationId: batch.configurationId,
+    promptId: answer.promptId,
+    apiPrompt: JSON.stringify(prompt),
+    bindings: recorded,
+    seed: seedOf(batch.slots, recorded, batch.savedValues),
+    createdAt: batch.now,
+  })
+}
+
+/** The value each slot's node holds in a stored graph. */
+function savedValuesOf(slots: SlotRecord[], sourcePath: string, graphText: string): SavedValue[] {
+  const graph = readGraph(sourcePath, graphText)
+  const nodes = new Map(graph.nodes.map((node) => [node.id, node]))
+  return slots.map((slot) => {
+    const saved = nodes.get(slot.nodeId)?.widgets_values
+    const value = VALUE_KINDS.has(slot.kind) && Array.isArray(saved) ? saved[0] : null
+    return { slotId: slot.id, value: isSlotValue(value) ? value : null }
+  })
 }
 
 /** A seed JavaScript can hold exactly, which is all but the top bits ComfyUI's seeds allow. */
@@ -227,19 +275,25 @@ export async function pollRun(input: {
   return { run: completeRun(db, runId, saved, now), position: null }
 }
 
-/** The value a binding sends: the value typed, or the name ComfyUI gave a file sent to it. */
-async function sentValue(client: ComfyUiClient, binding: SlotBinding): Promise<SlotValue | null> {
+/**
+ * The value a binding sends: the value typed, or the name ComfyUI gave a file sent to it. A file
+ * is sent once a batch, and not at all when its slot is off.
+ */
+async function sentValue(batch: Batch, binding: SlotBinding): Promise<SlotValue | null> {
   const { value } = binding
   if (value?.type !== "file") return value?.value ?? null
-  // A slot that is off feeds nothing, so its file is neither read nor sent.
   if (!binding.on) return null
+  const sent = batch.uploaded.get(value.path)
+  if (sent !== undefined) return sent
   let bytes: Buffer
   try {
     bytes = readFileSync(value.path)
   } catch {
     throw DispatchError.unreadableFile(value.path)
   }
-  return client.upload(basename(value.path), bytes)
+  const name = await batch.client.upload(basename(value.path), bytes)
+  batch.uploaded.set(value.path, name)
+  return name
 }
 
 /** ComfyUI's reasons, each node's under the name of its slot when it has one. */
@@ -263,7 +317,7 @@ function refusalReasons(
 function seedOf(
   slots: SlotRecord[],
   recorded: RecordedBinding[],
-  saved: { slotId: number; value: SlotValue | null }[]
+  saved: SavedValue[]
 ): number | null {
   for (const slot of slots) {
     if (slot.kind !== "seed") continue
