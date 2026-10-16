@@ -119,6 +119,17 @@ describe("RunForm", () => {
     expect(screen.getByText("As saved in the workflow.")).toBeInTheDocument()
   })
 
+  it("shows a slot by its display name, with its note under it", () => {
+    renderForm({
+      slots: [slot({ displayName: "Scene", note: "Say what moves, then what is heard." })],
+      savedValues: [{ slotId: 1, value: "A man at a window." }],
+    })
+
+    expect(screen.getByLabelText("Scene")).toHaveValue("A man at a window.")
+    expect(screen.queryByText("Prompt")).not.toBeInTheDocument()
+    expect(screen.getByText("Say what moves, then what is heard.")).toBeInTheDocument()
+  })
+
   it("gives a multiline text slot a box and a one-line text slot a single line", () => {
     renderForm({
       slots: [

@@ -12,6 +12,7 @@ import {
 } from "@renderer/design-system"
 import { useTRPC, type WorkflowDetail, type WorkflowSlot } from "@renderer/lib/trpc"
 import { setPromptTransfer } from "./prompt-transfer"
+import { shownName } from "./slot-labels"
 
 /** A workflow and the text slots its form shows, in the order they are offered. */
 interface SendTarget {
@@ -150,7 +151,7 @@ function TargetRow({
           onClick={() => onSend(slots[0].id)}
         >
           <span className="truncate">{workflow.name}</span>
-          <span className="truncate text-xs text-muted-foreground">{slots[0].name}</span>
+          <span className="truncate text-xs text-muted-foreground">{shownName(slots[0])}</span>
         </Button>
       </li>
     )
@@ -167,7 +168,7 @@ function TargetRow({
               className="w-full justify-start pl-6"
               onClick={() => onSend(slot.id)}
             >
-              <span className="truncate">{slot.name}</span>
+              <span className="truncate">{shownName(slot)}</span>
             </Button>
           </li>
         ))}

@@ -22,7 +22,7 @@ import {
 } from "@renderer/lib/trpc"
 import { SaveConfigurationDialog } from "./save-configuration-dialog"
 import { BATCH_LIMIT, randomSeed } from "../../../../main/core/dispatch/batch"
-import { KIND_LABELS } from "./slot-labels"
+import { KIND_LABELS, shownName } from "./slot-labels"
 
 /** The kinds of slot filled from a file on disk. */
 export type FileKind = "image" | "audio"
@@ -217,7 +217,7 @@ interface SlotFieldProps {
   onReadText: (file: LibraryFile) => Promise<string>
 }
 
-/** One slot: its name, a switch when it is off in the workflow, and the control for its value. */
+/** One slot: its shown name and note, a switch when it is off, and the control for its value. */
 function SlotField({
   slot,
   state,
@@ -236,18 +236,19 @@ function SlotField({
       <div className="flex items-center gap-3">
         {/* A file slot's button names itself, so the label points at nothing then. */}
         <Label htmlFor={LABELLED_FIELDS.has(state.field.type) ? id : undefined} className="min-w-0">
-          <span className="truncate">{slot.name}</span>
+          <span className="truncate">{shownName(slot)}</span>
         </Label>
         <span className="text-xs text-muted-foreground">{KIND_LABELS[slot.kind]}</span>
         {switchable && (
           <Switch
             className="ml-auto"
-            aria-label={`Use ${slot.name}`}
+            aria-label={`Use ${shownName(slot)}`}
             checked={state.on}
             onCheckedChange={(on) => onChange({ ...state, on })}
           />
         )}
       </div>
+      {slot.note !== "" && <p className="text-xs text-muted-foreground">{slot.note}</p>}
       <FieldControl
         id={id}
         slot={slot}
@@ -310,7 +311,7 @@ function FieldControl({
           variant="outline"
           size="sm"
           disabled={disabled}
-          aria-label={`Choose file for ${slot.name}`}
+          aria-label={`Choose file for ${shownName(slot)}`}
           onClick={async () => {
             const path = await onPickFile(kind)
             if (path) onChange({ ...field, path, libraryPath: null })
@@ -322,7 +323,7 @@ function FieldControl({
           variant="outline"
           size="sm"
           disabled={disabled}
-          aria-label={`Choose ${slot.name} from the library`}
+          aria-label={`Choose ${shownName(slot)} from the library`}
           onClick={() => setPickingFromLibrary(true)}
         >
           From library
@@ -387,7 +388,7 @@ function FieldControl({
           variant="outline"
           size="sm"
           disabled={disabled}
-          aria-label={`Fill ${slot.name} from the library`}
+          aria-label={`Fill ${shownName(slot)} from the library`}
           onClick={() => setPickingFromLibrary(true)}
         >
           From library
@@ -536,7 +537,7 @@ function bindingOf(
       if (slot.kind === "text") return send({ type: "value", value: field.text })
       const number = readNumber(slot.kind, field.text)
       return number === null
-        ? { problem: `${slot.name} needs ${NUMBER_NEEDS[slot.kind] ?? "a number"}.` }
+        ? { problem: `${shownName(slot)} needs ${NUMBER_NEEDS[slot.kind] ?? "a number"}.` }
         : send({ type: "value", value: number })
     }
   }

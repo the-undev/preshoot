@@ -21,6 +21,7 @@ import type {
   WorkflowSlot,
 } from "@renderer/lib/trpc"
 import { RunOutputItem } from "./run-output"
+import { shownName } from "./slot-labels"
 
 /** What each state is called, and the colour its chip takes. */
 const STATE_CHIPS: Record<RunState, { label: string; className: string }> = {
@@ -269,7 +270,7 @@ function RunDetails({
   slots: WorkflowSlot[]
 }): React.JSX.Element {
   const [open, setOpen] = useState(false)
-  const slotNames = new Map(slots.map((slot) => [slot.id, slot.name]))
+  const slotNames = new Map(slots.map((slot) => [slot.id, shownName(slot)]))
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
       <CollapsibleTrigger asChild>

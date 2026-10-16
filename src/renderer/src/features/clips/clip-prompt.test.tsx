@@ -204,6 +204,30 @@ describe("ClipPromptPanel", () => {
     expect(takePromptTransfer(6)).toMatchObject({ workflowId: 6, slotId: 40 })
   })
 
+  it("offers a slot by its display name where it has one", async () => {
+    renderPanel(
+      ready,
+      workflowAnswers([
+        workflow(3, "h3-r2v-base", [
+          slot({ id: 13, name: "Prompt", displayName: "Scene", position: 0 }),
+          slot({ id: 12, name: "Style", multiline: false, position: 1 }),
+        ]),
+        workflow(6, "qwen-image-edit", [
+          slot({ id: 40, name: "Instruction", displayName: "Edit" }),
+        ]),
+      ])
+    )
+    fireEvent.click(screen.getByRole("button", { name: "Send to workflow" }))
+    await screen.findByRole("listitem", { name: "h3-r2v-base" })
+
+    expect(choicesIn("h3-r2v-base")).toEqual(["Scene", "Style"])
+    const only = within(screen.getByRole("listitem", { name: "qwen-image-edit" })).getByRole(
+      "button"
+    )
+    expect(within(only).getByText("Edit")).toBeInTheDocument()
+    expect(within(only).queryByText("Instruction")).not.toBeInTheDocument()
+  })
+
   it("points to the Workflows page when the project has no workflows", async () => {
     const { onOpenWorkflows } = renderPanel(ready, workflowAnswers([]))
     fireEvent.click(screen.getByRole("button", { name: "Send to workflow" }))

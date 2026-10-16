@@ -169,6 +169,30 @@ describe("RunList", () => {
     expect(sent("Gone slot")).toHaveTextContent("20")
   })
 
+  it("names a slot in a run's details by its display name where it has one", () => {
+    render(
+      <RunList
+        runs={[
+          run({
+            id: 7,
+            bindings: [{ slotId: 1, slotName: "Prompt", on: true, value: "Hi.", file: null }],
+          }),
+        ]}
+        positions={{}}
+        pollError={null}
+        onOpenOutput={vi.fn()}
+        {...reviewProps}
+        slots={[slot({ id: 1, name: "Prompt", displayName: "Scene" })]}
+      />
+    )
+
+    fireEvent.click(row(7).getByRole("button", { name: "Details" }))
+
+    expect(row(7).getByText("Scene", { selector: "dt" }).nextElementSibling).toHaveTextContent(
+      "Hi."
+    )
+  })
+
   it("names the configuration a run was queued from", () => {
     render(
       <RunList
