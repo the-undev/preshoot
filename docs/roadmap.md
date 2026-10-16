@@ -321,11 +321,16 @@ describes reference pictures. Nothing else in the app calls a model.
    to its source, its inputs scanned into a mapping of tiered slots, its
    notes shown as its guide, and a literal kept, renamed, added and removed
    diff when the source changes, applied silently when no slot changed and
-   naming the configurations that bind a removed slot when one did.
+   naming the configurations that bind a removed slot when one did. Each
+   slot can carry a shown name and a note, and importing a workflow that
+   resembles a mapped one offers to copy its mapping.
 10. Dispatch: the graph resolved to API format against the instance's
     `/object_info`, bound values patched in, picked files uploaded, the run
     queued and followed by polling, its outputs pulled into the project,
-    and the run recorded with its bindings and its seed.
+    and the run recorded with its bindings and its seed. A run can be
+    cancelled, opened in its folder, read slot by slot behind a Details
+    fold, and deleted with its files, and an imported workflow can be
+    removed with everything that hangs off it.
 11. The library: a folder of files the user owns, named in settings, read
     as kinds, entries, files and notes, served read-only over `library://`,
     with copy-on-use into subjects, image slots and clips, and one explicit
@@ -336,10 +341,14 @@ describes reference pictures. Nothing else in the app calls a model.
 13. Review: outputs previewed beside their run, marked good or bad with a
     note, filtered with counts, and the good ones exported together to a
     chosen folder.
+14. The run form filled from outside itself: pictures, sounds and saved
+    prompt files picked from the library, a file dropped straight onto a
+    slot, and a clip's prompt sent into a chosen workflow's text slot,
+    arriving as typed text to edit, save or queue.
 
 ## Milestones
 
-14. H3 prompt builder overhaul: the clip editor as the editor behind a
+15. H3 prompt builder overhaul: the clip editor as the editor behind a
     prompt slot, library prompts offered as starting points, and the
     confusions of the ComfyUI builder it replaces addressed rather than
     copied.
@@ -374,7 +383,7 @@ improvements live in `docs/issues.md`.
 - Whether a prompt slot binds a composed clip by copy or by reference: by
   reference the prompt follows the clip as it is edited, by copy a
   configuration stays reproducible. As built, a text slot holds a literal,
-  so a configuration keeps its prompt by copy; binding a composed clip is
-  milestone 14's decision.
+  so a configuration keeps its prompt by copy, and a sent prompt arrives as
+  typed text; binding a composed clip is milestone 15's decision.
 - The exact shapes of the userdata routes, pinned against a live instance
   when the Runpod work starts.
