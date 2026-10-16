@@ -42,6 +42,7 @@ describe("AppSettingsStore", () => {
       llamaServerUrl: DEFAULT_LLAMA_SERVER_URL,
       llamaModel: "",
       comfyUiUrl: DEFAULT_COMFYUI_URL,
+      workflowsFolder: null,
     })
   })
 
@@ -52,6 +53,7 @@ describe("AppSettingsStore", () => {
       llamaServerUrl: DEFAULT_LLAMA_SERVER_URL,
       llamaModel: "",
       comfyUiUrl: DEFAULT_COMFYUI_URL,
+      workflowsFolder: null,
     })
   })
 
@@ -129,6 +131,26 @@ describe("AppSettingsStore", () => {
     store.recordRecentProject({ directory, name: "Kept", createdAt: "" })
 
     expect(store.comfyUiUrl()).toBe("http://127.0.0.1:8190")
+  })
+
+  it("has no workflows folder until one is named", () => {
+    writeFileSync(settingsPath, JSON.stringify({ recentProjects: [] }), "utf8")
+
+    expect(store.workflowsFolder()).toBeNull()
+  })
+
+  it("reads back the workflows folder it was given and leaves the URLs alone", () => {
+    store.setWorkflowsFolder("/home/someone/workflows")
+
+    expect(store.workflowsFolder()).toBe("/home/someone/workflows")
+    expect(store.comfyUiUrl()).toBe(DEFAULT_COMFYUI_URL)
+  })
+
+  it("forgets the workflows folder when given none", () => {
+    store.setWorkflowsFolder("/home/someone/workflows")
+    store.setWorkflowsFolder(null)
+
+    expect(store.workflowsFolder()).toBeNull()
   })
 
   it("writes a file the schema accepts", () => {

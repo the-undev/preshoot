@@ -17,27 +17,39 @@ export const settingsRouter = router({
     llamaServerUrl: ctx.settings.llamaServerUrl(),
     llamaModel: ctx.settings.llamaModel(),
     comfyUiUrl: ctx.settings.comfyUiUrl(),
+    workflowsFolder: ctx.settings.workflowsFolder(),
   })),
 
-  /** Points the app at a different llama-server, a different model on it, or a different ComfyUI. */
+  /**
+   * Points the app at a different llama-server, a different model on it, a different ComfyUI, or a
+   * different workflows folder.
+   */
   update: publicProcedure
     .input(
       z.object({
         llamaServerUrl: llamaServerUrlSchema,
         llamaModel: z.string(),
         comfyUiUrl: comfyUiUrlSchema,
+        workflowsFolder: z.string().trim().min(1).nullable(),
       })
     )
     .mutation(({ ctx, input }) => {
       ctx.settings.setLlamaServerUrl(input.llamaServerUrl)
       ctx.settings.setLlamaModel(input.llamaModel)
       ctx.settings.setComfyUiUrl(input.comfyUiUrl)
+      ctx.settings.setWorkflowsFolder(input.workflowsFolder)
       return {
         llamaServerUrl: ctx.settings.llamaServerUrl(),
         llamaModel: ctx.settings.llamaModel(),
         comfyUiUrl: ctx.settings.comfyUiUrl(),
+        workflowsFolder: ctx.settings.workflowsFolder(),
       }
     }),
+
+  /** Asks for a workflows folder and hands it back without saving it, for the form to show. */
+  pickWorkflowsFolder: publicProcedure.mutation(({ ctx }) =>
+    ctx.dialogs.pickDirectory({ title: "Choose the workflows folder", allowCreate: false })
+  ),
 
   /** What the saved server can serve, asked for whenever the dialog is opened. */
   models: publicProcedure.query(async ({ ctx }): Promise<ServerReport> => {

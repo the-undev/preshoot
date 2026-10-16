@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react"
+import { fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { describe, expect, it, vi } from "vitest"
 import type { ServerModel } from "@renderer/lib/trpc"
 import { SettingsForm } from "./settings-form"
@@ -12,17 +12,20 @@ function renderForm(over: Partial<React.ComponentProps<typeof SettingsForm>> = {
   onSave: ReturnType<typeof vi.fn>
   onCheck: ReturnType<typeof vi.fn>
   onCheckComfyUi: ReturnType<typeof vi.fn>
+  onPickWorkflowsFolder: ReturnType<typeof vi.fn>
   onUnload: ReturnType<typeof vi.fn>
 } {
   const onSave = vi.fn()
   const onCheck = vi.fn()
   const onCheckComfyUi = vi.fn()
+  const onPickWorkflowsFolder = vi.fn(async () => null)
   const onUnload = vi.fn()
   render(
     <SettingsForm
       llamaServerUrl="http://127.0.0.1:8080"
       llamaModel=""
       comfyUiUrl="http://127.0.0.1:8188"
+      workflowsFolder={null}
       models={models}
       checkState={null}
       isChecking={false}
@@ -34,13 +37,14 @@ function renderForm(over: Partial<React.ComponentProps<typeof SettingsForm>> = {
       errorMessage={null}
       onCheck={onCheck}
       onCheckComfyUi={onCheckComfyUi}
+      onPickWorkflowsFolder={onPickWorkflowsFolder}
       onUnload={onUnload}
       onSave={onSave}
       onCancel={vi.fn()}
       {...over}
     />
   )
-  return { onSave, onCheck, onCheckComfyUi, onUnload }
+  return { onSave, onCheck, onCheckComfyUi, onPickWorkflowsFolder, onUnload }
 }
 
 describe("SettingsForm", () => {
@@ -72,6 +76,7 @@ describe("SettingsForm", () => {
       llamaServerUrl: "http://127.0.0.1:8080",
       llamaModel: "qwen",
       comfyUiUrl: "http://127.0.0.1:8188",
+      workflowsFolder: null,
     })
   })
 
@@ -85,6 +90,7 @@ describe("SettingsForm", () => {
       llamaServerUrl: "http://127.0.0.1:8080",
       llamaModel: "other",
       comfyUiUrl: "http://127.0.0.1:8188",
+      workflowsFolder: null,
     })
   })
 
@@ -161,6 +167,45 @@ describe("SettingsForm", () => {
     renderForm({ comfyUiUrl: "" })
 
     expect(screen.getByRole("button", { name: "Save" })).toBeDisabled()
+  })
+
+  it("shows the saved workflows folder", () => {
+    renderForm({ workflowsFolder: "/home/someone/workflows" })
+
+    expect(screen.getByLabelText("Workflows folder")).toHaveValue("/home/someone/workflows")
+  })
+
+  it("fills the workflows folder from the picker and saves it", async () => {
+    const { onSave, onPickWorkflowsFolder } = renderForm()
+    onPickWorkflowsFolder.mockResolvedValue("/home/someone/workflows")
+
+    fireEvent.click(screen.getByRole("button", { name: "Browse for the workflows folder" }))
+
+    await waitFor(() =>
+      expect(screen.getByLabelText("Workflows folder")).toHaveValue("/home/someone/workflows")
+    )
+    fireEvent.click(screen.getByRole("button", { name: "Save" }))
+    expect(onSave).toHaveBeenCalledWith(
+      expect.objectContaining({ workflowsFolder: "/home/someone/workflows" })
+    )
+  })
+
+  it("keeps the typed folder when the picker is cancelled", async () => {
+    const { onPickWorkflowsFolder } = renderForm({ workflowsFolder: "/kept" })
+
+    fireEvent.click(screen.getByRole("button", { name: "Browse for the workflows folder" }))
+
+    await waitFor(() => expect(onPickWorkflowsFolder).toHaveBeenCalled())
+    expect(screen.getByLabelText("Workflows folder")).toHaveValue("/kept")
+  })
+
+  it("saves an emptied workflows folder as none", () => {
+    const { onSave } = renderForm({ workflowsFolder: "/home/someone/workflows" })
+
+    fireEvent.change(screen.getByLabelText("Workflows folder"), { target: { value: "  " } })
+    fireEvent.click(screen.getByRole("button", { name: "Save" }))
+
+    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ workflowsFolder: null }))
   })
 
   it("asks for a check when it has no models to show", () => {

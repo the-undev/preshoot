@@ -34,6 +34,8 @@ export const appSettingsSchema = z.object({
   llamaServerUrl: llamaServerUrlSchema.default(DEFAULT_LLAMA_SERVER_URL),
   llamaModel: z.string().default(""),
   comfyUiUrl: comfyUiUrlSchema.default(DEFAULT_COMFYUI_URL),
+  // The folder ComfyUI saves workflows into. Nothing until the user names one.
+  workflowsFolder: z.string().min(1).nullable().default(null),
 })
 
 export type AppSettings = z.infer<typeof appSettingsSchema>
@@ -96,6 +98,16 @@ export class AppSettingsStore {
   /** Points the app at a different ComfyUI instance. */
   setComfyUiUrl(url: string): void {
     this.update({ comfyUiUrl: url })
+  }
+
+  /** The folder workflows are imported from, which the app reads and never writes. */
+  workflowsFolder(): string | null {
+    return this.read().workflowsFolder
+  }
+
+  /** Imports workflows from a different folder, or from none. */
+  setWorkflowsFolder(folder: string | null): void {
+    this.update({ workflowsFolder: folder })
   }
 
   /** Replaces the settings file, writing beside it first so a failed write leaves the old file intact. */

@@ -26,6 +26,8 @@ describe("settings router", () => {
   let checkedUrl: string
   let comfyUiStatus: () => Promise<ComfyUiStatus>
   let checkedComfyUiUrl: string
+  let pickedFolder: string | null
+  let pickTitles: string[]
   let caller: ReturnType<typeof appRouter.createCaller>
 
   beforeEach(() => {
@@ -40,6 +42,8 @@ describe("settings router", () => {
     checkedUrl = ""
     comfyUiStatus = vi.fn(async () => ({ state: "reachable" as const, version: "0.39.2" }))
     checkedComfyUiUrl = ""
+    pickedFolder = null
+    pickTitles = []
     const ctx: Context = {
       versions: { app: "0.0.0", electron: "0", chrome: "0", node: "0" },
       projects: session,
@@ -47,7 +51,10 @@ describe("settings router", () => {
       settings: new AppSettingsStore(join(dir, "settings.json")),
       migrationsFolder,
       dialogs: {
-        pickDirectory: async () => null,
+        pickDirectory: async ({ title }) => {
+          pickTitles.push(title)
+          return pickedFolder
+        },
         pickFiles: async () => [],
         saveFile: async () => null,
       },
@@ -80,20 +87,23 @@ describe("settings router", () => {
       llamaServerUrl: DEFAULT_LLAMA_SERVER_URL,
       llamaModel: "",
       comfyUiUrl: DEFAULT_COMFYUI_URL,
+      workflowsFolder: null,
     })
   })
 
-  it("saves the server URLs and a model and reads them back", async () => {
+  it("saves the server URLs, a model and the workflows folder and reads them back", async () => {
     await caller.settings.update({
       llamaServerUrl: "http://192.168.1.20:9000",
       llamaModel: "qwen",
       comfyUiUrl: "http://127.0.0.1:8190",
+      workflowsFolder: "/home/someone/workflows",
     })
 
     expect(await caller.settings.get()).toEqual({
       llamaServerUrl: "http://192.168.1.20:9000",
       llamaModel: "qwen",
       comfyUiUrl: "http://127.0.0.1:8190",
+      workflowsFolder: "/home/someone/workflows",
     })
   })
 
@@ -103,6 +113,7 @@ describe("settings router", () => {
         llamaServerUrl: "localhost:8080",
         llamaModel: "",
         comfyUiUrl: DEFAULT_COMFYUI_URL,
+        workflowsFolder: null,
       })
     ).rejects.toThrow(expect.objectContaining({ code: "BAD_REQUEST" }))
   })
@@ -113,8 +124,34 @@ describe("settings router", () => {
         llamaServerUrl: DEFAULT_LLAMA_SERVER_URL,
         llamaModel: "",
         comfyUiUrl: "localhost:8188",
+        workflowsFolder: null,
       })
     ).rejects.toThrow(expect.objectContaining({ code: "BAD_REQUEST" }))
+  })
+
+  it("forgets the workflows folder when it is saved as none", async () => {
+    await caller.settings.update({
+      llamaServerUrl: DEFAULT_LLAMA_SERVER_URL,
+      llamaModel: "",
+      comfyUiUrl: DEFAULT_COMFYUI_URL,
+      workflowsFolder: "/home/someone/workflows",
+    })
+    await caller.settings.update({
+      llamaServerUrl: DEFAULT_LLAMA_SERVER_URL,
+      llamaModel: "",
+      comfyUiUrl: DEFAULT_COMFYUI_URL,
+      workflowsFolder: null,
+    })
+
+    expect((await caller.settings.get()).workflowsFolder).toBeNull()
+  })
+
+  it("hands back the folder picked for workflows without saving it", async () => {
+    pickedFolder = "/home/someone/workflows"
+
+    expect(await caller.settings.pickWorkflowsFolder()).toBe("/home/someone/workflows")
+    expect(pickTitles).toEqual(["Choose the workflows folder"])
+    expect((await caller.settings.get()).workflowsFolder).toBeNull()
   })
 
   it("asks the saved ComfyUI for its status", async () => {
@@ -122,6 +159,7 @@ describe("settings router", () => {
       llamaServerUrl: DEFAULT_LLAMA_SERVER_URL,
       llamaModel: "",
       comfyUiUrl: "http://127.0.0.1:8190",
+      workflowsFolder: null,
     })
 
     expect(await caller.settings.comfyUiStatus()).toEqual({
