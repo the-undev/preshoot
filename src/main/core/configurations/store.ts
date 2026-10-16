@@ -1,11 +1,12 @@
 import { copyFileSync, existsSync, mkdirSync, renameSync, rmSync } from "node:fs"
-import { basename, join, relative, sep } from "node:path"
+import { basename, join, resolve } from "node:path"
 import { asc, eq } from "drizzle-orm"
 import { schema, type ProjectDatabase, type ProjectDb } from "../db"
 import type { BoundValue, SlotBinding } from "../dispatch/dispatch"
 import type { RecordedBinding } from "../dispatch/run-store"
 import { slotKey, type StoredSlotKey } from "../workflows/diff"
 import { freeName } from "../files/free-name"
+import { projectPath } from "../files/project-path"
 import { isInsideFolder } from "../workflows/folder"
 import { readWorkflowSlots, type SlotRecord } from "../workflows/store"
 import { ConfigurationError } from "./errors"
@@ -273,9 +274,8 @@ export function removeUnnamedFiles(db: ProjectDb, directory: string, paths: stri
   const runs = db.select({ bindings: schema.runs.bindings }).from(schema.runs).all()
   for (const run of runs) {
     for (const binding of run.bindings as RecordedBinding[]) {
-      if (binding.file && isInsideFolder(directory, binding.file)) {
-        named.add(projectPath(directory, binding.file))
-      }
+      const file = binding.file && resolve(directory, binding.file)
+      if (file && isInsideFolder(directory, file)) named.add(projectPath(directory, file))
     }
   }
   for (const path of paths) {
@@ -288,11 +288,12 @@ export function removeUnnamedFiles(db: ProjectDb, directory: string, paths: stri
  * picked from anywhere else is the user's, so it is never among them.
  */
 export function inputsNamedByRun(directory: string, bindings: RecordedBinding[]): string[] {
-  return bindings.flatMap((binding) =>
-    binding.file && isInsideFolder(join(directory, INPUTS_FOLDER), binding.file)
-      ? [projectPath(directory, binding.file)]
+  return bindings.flatMap((binding) => {
+    const file = binding.file && resolve(directory, binding.file)
+    return file && isInsideFolder(join(directory, INPUTS_FOLDER), file)
+      ? [projectPath(directory, file)]
       : []
-  )
+  })
 }
 
 /** The files in the project's inputs folder that a workflow's configurations and runs name. */
@@ -315,11 +316,6 @@ export function inputsNamedByWorkflow(
     ...configurations.flatMap((row) => filesOf(bindingsOf(row))),
     ...runs.flatMap((run) => inputsNamedByRun(directory, run.bindings as RecordedBinding[])),
   ]
-}
-
-/** Where a file under the project folder sits, with forward slashes. */
-function projectPath(directory: string, path: string): string {
-  return relative(directory, path).split(sep).join("/")
 }
 
 function filesOf(bindings: StoredBinding[]): string[] {

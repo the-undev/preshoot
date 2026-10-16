@@ -18,6 +18,7 @@ export interface RecordedBinding {
   slotName: string
   on: boolean
   value: SlotValue | null
+  /** A project path for a file under the project folder, the full path for any other. */
   file: string | null
 }
 

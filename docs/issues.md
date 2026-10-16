@@ -62,9 +62,6 @@ says so.
   documented behaviour and not yet exercised against a live instance. Whether
   a live instance stops only that prompt, or ignores the id and stops
   whatever runs, is unverified.
-- Run bindings record absolute file paths, so a run's provenance names
-  where a file sat on the machine that queued it rather than a
-  project-relative path.
 - A workflow's guide is shown as plain text. Markdown in a How to use note
   is not rendered.
 - LoadAudio's saved widget shape is unverified. A workflow holding one may

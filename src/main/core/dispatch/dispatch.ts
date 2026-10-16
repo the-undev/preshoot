@@ -11,6 +11,8 @@ import type {
 } from "../backend/comfyui-client"
 import { schema, type ProjectDatabase } from "../db"
 import { freeName } from "../files/free-name"
+import { projectPath } from "../files/project-path"
+import { isInsideFolder } from "../workflows/folder"
 import { readGraph } from "../workflows/scan"
 import { readWorkflowSlots, type SlotRecord } from "../workflows/store"
 import { DispatchError } from "./errors"
@@ -72,6 +74,7 @@ export function savedSlotValues(db: ProjectDatabase, workflowId: number): SavedV
  */
 export async function queueRun(input: {
   db: ProjectDatabase
+  directory: string
   client: ComfyUiClient
   workflowId: number
   configurationId: number | null
@@ -88,6 +91,7 @@ export async function queueRun(input: {
  */
 export async function queueBatch(input: {
   db: ProjectDatabase
+  directory: string
   client: ComfyUiClient
   workflowId: number
   configurationId: number | null
@@ -112,6 +116,8 @@ export async function queueBatch(input: {
 /** What every run of a batch shares, read once, and the names ComfyUI gave the files sent so far. */
 interface Batch {
   db: ProjectDatabase
+  /** The open project's folder, which a recorded file under it is named relative to. */
+  directory: string
   client: ComfyUiClient
   workflowId: number
   configurationId: number | null
@@ -127,16 +133,18 @@ interface Batch {
 /** Reads the workflow and asks ComfyUI for its classes, once for all the runs of a batch. */
 async function openBatch(input: {
   db: ProjectDatabase
+  directory: string
   client: ComfyUiClient
   workflowId: number
   configurationId: number | null
   now: Date
 }): Promise<Batch> {
-  const { db, client, workflowId, configurationId, now } = input
+  const { db, directory, client, workflowId, configurationId, now } = input
   const stored = storedGraph(db, workflowId)
   const slots = readWorkflowSlots(db, workflowId)
   return {
     db,
+    directory,
     client,
     workflowId,
     configurationId,
@@ -168,7 +176,8 @@ async function queueOne(batch: Batch, bindings: SlotBinding[]): Promise<RunRecor
       slotName: slot.name,
       on: binding.on,
       value,
-      file: binding.value?.type === "file" ? binding.value.path : null,
+      file:
+        binding.value?.type === "file" ? recordedFile(batch.directory, binding.value.path) : null,
     })
   }
   const prompt = resolvePrompt(batch.graph, batch.objectInfo, patches, batch.now)
@@ -184,6 +193,11 @@ async function queueOne(batch: Batch, bindings: SlotBinding[]): Promise<RunRecor
     seed: seedOf(batch.slots, recorded, batch.savedValues),
     createdAt: batch.now,
   })
+}
+
+/** How a run records a file it was sent: by project path when it sits under the project folder. */
+function recordedFile(directory: string, path: string): string {
+  return isInsideFolder(directory, path) ? projectPath(directory, path) : path
 }
 
 /** The value each slot's node holds in a stored graph. */

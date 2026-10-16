@@ -111,6 +111,7 @@ describe("dispatch", () => {
     const { client } = fakeComfyUi(routes)
     const run = await queueRun({
       db: handle.db,
+      directory: dir,
       client,
       workflowId: workflow.id,
       configurationId: null,
@@ -138,6 +139,7 @@ describe("dispatch", () => {
 
     const run = await queueRun({
       db: handle.db,
+      directory: dir,
       client,
       workflowId: workflow.id,
       configurationId: null,
@@ -172,6 +174,7 @@ describe("dispatch", () => {
 
     const run = await queueRun({
       db: handle.db,
+      directory: dir,
       client,
       workflowId: workflow.id,
       configurationId: null,
@@ -188,6 +191,7 @@ describe("dispatch", () => {
 
     const run = await queueRun({
       db: handle.db,
+      directory: dir,
       client,
       workflowId: workflow.id,
       configurationId: null,
@@ -205,6 +209,7 @@ describe("dispatch", () => {
 
     const run = await queueRun({
       db: handle.db,
+      directory: dir,
       client,
       workflowId: workflow.id,
       configurationId: null,
@@ -219,7 +224,7 @@ describe("dispatch", () => {
     })
 
     expect(calls.map((call) => call.path)).not.toContain("/upload/image")
-    expect(run.bindings[0]).toMatchObject({ on: false, value: null, file: gone })
+    expect(run.bindings[0]).toMatchObject({ on: false, value: null, file: "gone.png" })
   })
 
   it("sends a picked file and fills the slot with the name ComfyUI gave it", async () => {
@@ -230,6 +235,7 @@ describe("dispatch", () => {
 
     const run = await queueRun({
       db: handle.db,
+      directory: dir,
       client,
       workflowId: workflow.id,
       configurationId: null,
@@ -248,7 +254,42 @@ describe("dispatch", () => {
     const prompt = (posted() as { prompt: Record<string, { inputs: Record<string, unknown> }> })
       .prompt
     expect(prompt["12"].inputs).toEqual({ image: "preshoot/anna.png" })
-    expect(run.bindings[0]).toMatchObject({ value: "preshoot/anna.png", file: picture })
+    expect(run.bindings[0]).toMatchObject({ value: "preshoot/anna.png", file: "anna.png" })
+  })
+
+  it("records a file under the project by its project path, and any other in full", async () => {
+    mkdirSync(join(dir, "inputs"))
+    const copied = join(dir, "inputs", "anna.png")
+    writeFileSync(copied, Buffer.from([1, 2, 3]))
+    const elsewhere = mkdtempSync(join(tmpdir(), "preshoot-elsewhere-"))
+    const outside = join(elsewhere, "bea.png")
+    writeFileSync(outside, Buffer.from([4, 5]))
+    const { routes } = accepting()
+    const { client, calls } = fakeComfyUi(routes)
+
+    try {
+      const run = await queueRun({
+        db: handle.db,
+        directory: dir,
+        client,
+        workflowId: workflow.id,
+        configurationId: null,
+        bindings: [
+          { slotId: slotId("Picture 1"), on: true, value: { type: "file", path: copied } },
+          { slotId: slotId("Picture 2"), on: true, value: { type: "file", path: outside } },
+        ],
+        now,
+      })
+
+      expect(calls.filter((call) => call.path === "/upload/image")).toHaveLength(2)
+      expect(run.bindings.map((binding) => binding.file)).toEqual(["inputs/anna.png", outside])
+      expect(readRun(handle.db, run.id).bindings.map((binding) => binding.file)).toEqual([
+        "inputs/anna.png",
+        outside,
+      ])
+    } finally {
+      rmSync(elsewhere, { recursive: true, force: true })
+    }
   })
 
   it("refuses a file that cannot be read before anything is queued", async () => {
@@ -258,6 +299,7 @@ describe("dispatch", () => {
     await expect(
       queueRun({
         db: handle.db,
+        directory: dir,
         client,
         workflowId: workflow.id,
         configurationId: null,
@@ -302,6 +344,7 @@ describe("dispatch", () => {
     await expect(
       queueRun({
         db: handle.db,
+        directory: dir,
         client,
         workflowId: workflow.id,
         configurationId: null,
@@ -320,6 +363,7 @@ describe("dispatch", () => {
     await expect(
       queueRun({
         db: handle.db,
+        directory: dir,
         client,
         workflowId: workflow.id,
         configurationId: null,
@@ -356,6 +400,7 @@ describe("dispatch", () => {
 
       const runs = await queueBatch({
         db: handle.db,
+        directory: dir,
         client,
         workflowId: workflow.id,
         configurationId,
@@ -404,6 +449,7 @@ describe("dispatch", () => {
 
       await queueBatch({
         db: handle.db,
+        directory: dir,
         client,
         workflowId: workflow.id,
         configurationId: null,
@@ -434,6 +480,7 @@ describe("dispatch", () => {
 
       const runs = await queueBatch({
         db: handle.db,
+        directory: dir,
         client,
         workflowId: workflow.id,
         configurationId: null,
@@ -455,6 +502,7 @@ describe("dispatch", () => {
       await expect(
         queueBatch({
           db: handle.db,
+          directory: dir,
           client,
           workflowId: workflow.id,
           configurationId: 999,

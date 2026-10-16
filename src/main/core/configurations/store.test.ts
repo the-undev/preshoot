@@ -274,6 +274,31 @@ describe("configuration store", () => {
     expect(row?.configurationId).toBeNull()
   })
 
+  it("keeps a file a run names by its project path", () => {
+    const saved = save("Anna")
+    recordRun(handle.db, {
+      workflowId: workflow.id,
+      configurationId: saved.id,
+      promptId: "a1b2",
+      apiPrompt: "{}",
+      bindings: [
+        {
+          slotId: slotId("Picture 1"),
+          slotName: "Picture 1",
+          on: true,
+          value: "x",
+          file: "inputs/anna.png",
+        },
+      ],
+      seed: null,
+      createdAt: now,
+    })
+
+    deleteConfiguration({ db: handle.db, directory: project, configurationId: saved.id })
+
+    expect(existsSync(join(project, "inputs", "anna.png"))).toBe(true)
+  })
+
   it("updates a configuration's bindings and removes the file it no longer names", () => {
     const saved = save("Anna")
     const other = join(dir, "bea.png")

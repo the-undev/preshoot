@@ -250,6 +250,25 @@ describe("run store", () => {
     expect(existsSync(join(dir, "pictures/own.png"))).toBe(true)
   })
 
+  it("reads a run's files named by project path as it reads those named in full", () => {
+    mkdirSync(join(dir, "inputs"))
+    for (const path of ["inputs/anna.png", "inputs/kept.png"]) writeFileSync(join(dir, path), "")
+    const picture = (slotId: number, file: string): RecordedBinding => ({
+      slotId,
+      slotName: "Picture",
+      on: true,
+      value: "preshoot/picture.png",
+      file,
+    })
+    finished("other", [picture(1, "inputs/kept.png")])
+    const runId = finished("a1b2", [picture(1, "inputs/anna.png"), picture(2, "inputs/kept.png")])
+
+    deleteRun({ db: handle.db, directory: dir, runId })
+
+    expect(existsSync(join(dir, "inputs/anna.png"))).toBe(false)
+    expect(existsSync(join(dir, "inputs/kept.png"))).toBe(true)
+  })
+
   it("reports a run that is not there as not found", () => {
     expect(() => readRun(handle.db, 99)).toThrow(expect.objectContaining({ code: "not-found" }))
   })

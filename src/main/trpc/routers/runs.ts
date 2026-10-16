@@ -72,10 +72,11 @@ export const runsRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const db = requireProject(ctx)
+      const project = requireOpenProject(ctx)
       try {
         return await queueBatch({
-          db,
+          db: project.db,
+          directory: project.directory,
           client: ctx.comfyUiClient(ctx.settings.comfyUiUrl()),
           workflowId: input.workflowId,
           configurationId: input.configurationId,
