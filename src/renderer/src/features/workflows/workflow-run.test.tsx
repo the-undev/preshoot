@@ -291,6 +291,84 @@ describe("WorkflowRunView", () => {
     expect(screen.getByLabelText("Prompt")).toHaveValue("From Anna.")
   })
 
+  it("starts from the workflow's saved values again after a load, without the note", async () => {
+    const stale = configuration({ staleSlotNames: ["Turbo steps"] })
+    const configurations = configurationsPanel({
+      configurations: [stale],
+      load: vi.fn(async () => ({
+        configuration: stale,
+        bindings: [{ slotId: 1, on: true, value: { type: "value" as const, value: "From Anna." } }],
+      })),
+    })
+    render(
+      <WorkflowRunView
+        workflow={workflow}
+        form={formPanel()}
+        configurations={configurations}
+        runs={runsPanel}
+        review={reviewPanel()}
+      />
+    )
+    await act(async () =>
+      fireEvent.click(
+        within(screen.getByRole("listitem", { name: "Anna" })).getByRole("button", {
+          name: "Load",
+        })
+      )
+    )
+    fireEvent.change(screen.getByLabelText("Seed"), { target: { value: "9" } })
+
+    fireEvent.click(screen.getByRole("button", { name: "Start from the workflow" }))
+
+    expect(screen.getByLabelText("Prompt")).toHaveValue("A man at a window.")
+    expect(screen.getByLabelText("Seed")).toHaveValue("42")
+    expect(screen.queryByText("Filled from Anna.")).not.toBeInTheDocument()
+    expect(screen.queryByText(/so not loaded/)).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole("button", { name: "Start from the workflow" })
+    ).not.toBeInTheDocument()
+  })
+
+  it("starts from the workflow's saved values again after a clip's prompt was sent", () => {
+    setClipTransfer(sentPrompt("Anna"))
+    render(
+      <WorkflowRunView
+        workflow={workflow}
+        form={formPanel()}
+        configurations={configurationsPanel()}
+        runs={runsPanel}
+        review={reviewPanel()}
+      />
+    )
+
+    fireEvent.click(screen.getByRole("button", { name: "Start from the workflow" }))
+
+    expect(screen.getByLabelText("Prompt")).toHaveValue("A man at a window.")
+    expect(screen.queryByText("Sent from the clip Anna.")).not.toBeInTheDocument()
+  })
+
+  it("clears what was typed when the form starts from the workflow again", () => {
+    const form = formPanel()
+    const view = (shown: WorkflowDetail): React.JSX.Element => (
+      <WorkflowRunView
+        workflow={shown}
+        form={form}
+        configurations={configurationsPanel()}
+        runs={runsPanel}
+        review={reviewPanel()}
+      />
+    )
+    const { rerender } = render(view(workflow))
+    fireEvent.change(screen.getByLabelText("Prompt"), { target: { value: "She turns." } })
+
+    fireEvent.click(screen.getByRole("button", { name: "Start from the workflow" }))
+
+    expect(screen.getByLabelText("Prompt")).toHaveValue("A man at a window.")
+    // Nothing typed is kept for the next form a source change starts.
+    rerender(view({ ...workflow, contentHash: "def" }))
+    expect(screen.getByLabelText("Prompt")).toHaveValue("A man at a window.")
+  })
+
   it("queues a form filled by hand with no configuration", () => {
     const form = formPanel()
     render(

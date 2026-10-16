@@ -88,8 +88,8 @@ export function WorkflowRunView({
   // Taken once, so a second visit to the workflow starts from its saved values again.
   const [start, setStart] = useState<FormStart | null>(() => sentStart(workflow))
   const [filter, setFilter] = useState<VerdictFilter>("all")
-  // Counts loads, so loading the same configuration again starts the form again from it.
-  const [loadCount, setLoadCount] = useState(0)
+  // Counts each start by hand, so loading the same configuration again starts the form again.
+  const [startCount, setStartCount] = useState(0)
   const [loadError, setLoadError] = useState<string | null>(null)
   // The form's fields as they last stood, which a form started again after a source change keeps.
   const [keptFields, setKeptFields] = useState<FormFields | null>(null)
@@ -112,10 +112,16 @@ export function WorkflowRunView({
         bindings: result.bindings,
         staleSlotNames: result.configuration.staleSlotNames,
       })
-      setLoadCount((count) => count + 1)
+      setStartCount((count) => count + 1)
     } catch (error) {
       setLoadError(error instanceof Error ? error.message : String(error))
     }
+  }
+  const startFromWorkflow = (): void => {
+    setLoadError(null)
+    setKeptFields(null)
+    setStart(null)
+    setStartCount((count) => count + 1)
   }
   const saved = (configuration: Configuration, bindings: RunBinding[]): void =>
     setStart({
@@ -155,17 +161,19 @@ export function WorkflowRunView({
           </Alert>
         )}
         {form.savedValues ? (
-          // Keyed on the snapshot, its saved values and each load, so taking the source's changes or
-          // loading a configuration starts the form again. The saved values are in the key since
+          // Keyed on the snapshot, its saved values and each start by hand, so taking the source's
+          // changes, loading a configuration or going back to the workflow starts the form again. The saved values are in the key since
           // they are read apart from the snapshot and may land after it.
           <RunForm
-            key={`${workflow.contentHash}:${JSON.stringify(form.savedValues)}:${loadCount}`}
+            key={`${workflow.contentHash}:${JSON.stringify(form.savedValues)}:${startCount}`}
             slots={workflow.slots}
             savedValues={form.savedValues}
             initialBindings={loaded?.bindings ?? sent?.bindings ?? []}
             keptFields={keptFields}
             onFieldsChange={setKeptFields}
             configurationName={loadedConfiguration?.name ?? null}
+            hasStart={start !== null}
+            onStartFromWorkflow={startFromWorkflow}
             blockedReason={form.blockedReason}
             isQueueing={form.isQueueing}
             onQueue={(bindings, count) =>

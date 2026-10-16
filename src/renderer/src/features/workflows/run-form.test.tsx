@@ -86,6 +86,8 @@ function renderForm({ library = () => listedLibrary, ...over }: FormOptions = {}
         keptFields={null}
         onFieldsChange={() => {}}
         configurationName={null}
+        hasStart={false}
+        onStartFromWorkflow={() => {}}
         blockedReason={null}
         isQueueing={false}
         onQueue={onQueue}
@@ -113,6 +115,27 @@ const unchangedBindings: RunBinding[] = [
 ]
 
 describe("RunForm", () => {
+  it("offers to start from the workflow once the form is edited or started from elsewhere", () => {
+    const onStartFromWorkflow = vi.fn()
+    renderForm({ onStartFromWorkflow })
+    const reset = (): HTMLElement | null =>
+      screen.queryByRole("button", { name: "Start from the workflow" })
+    expect(reset()).not.toBeInTheDocument()
+
+    fireEvent.change(screen.getByLabelText("Prompt"), { target: { value: "She turns." } })
+    fireEvent.click(screen.getByRole("button", { name: "Start from the workflow" }))
+    expect(onStartFromWorkflow).toHaveBeenCalledTimes(1)
+
+    fireEvent.change(screen.getByLabelText("Prompt"), { target: { value: "A man at a window." } })
+    expect(reset()).not.toBeInTheDocument()
+  })
+
+  it("offers to start from the workflow when started from a configuration or clip", () => {
+    renderForm({ hasStart: true })
+
+    expect(screen.getByRole("button", { name: "Start from the workflow" })).toBeInTheDocument()
+  })
+
   it("starts from the values saved in the graph", () => {
     renderForm()
 

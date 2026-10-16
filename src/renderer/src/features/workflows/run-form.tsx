@@ -74,6 +74,10 @@ interface RunFormProps {
   onFieldsChange: (fields: FormFields) => void
   /** The name of the configuration loaded into the form, which saving can update. */
   configurationName: string | null
+  /** Whether the form was started from a configuration or a clip rather than the workflow. */
+  hasStart: boolean
+  /** Starts the form again from the values saved in the workflow, dropping its start and edits. */
+  onStartFromWorkflow: () => void
   blockedReason: string | null
   isQueueing: boolean
   onQueue: (bindings: RunBinding[], count: number) => void
@@ -95,6 +99,8 @@ export function RunForm({
   keptFields,
   onFieldsChange,
   configurationName,
+  hasStart,
+  onStartFromWorkflow,
   blockedReason,
   isQueueing,
   onQueue,
@@ -122,6 +128,9 @@ export function RunForm({
   const reason = blockedReason ?? bindingProblem ?? countProblem
   const sent = (): RunBinding[] =>
     bindings.flatMap((entry) => ("binding" in entry ? [entry.binding] : []))
+  // Built the same way as the states, so a form holding the workflow's values reads as unedited.
+  const edited =
+    JSON.stringify(states) !== JSON.stringify(startingStates(slots, savedValues, [], null))
   const basic = slots.filter((slot) => slot.tier === "basic")
   const advanced = slots.filter((slot) => slot.tier === "advanced")
 
@@ -191,6 +200,11 @@ export function RunForm({
         >
           Save as configuration
         </Button>
+        {(hasStart || edited) && (
+          <Button variant="outline" onClick={onStartFromWorkflow}>
+            Start from the workflow
+          </Button>
+        )}
         {reason && <p className="text-sm text-muted-foreground">{reason}</p>}
       </div>
 
