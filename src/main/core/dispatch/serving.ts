@@ -1,5 +1,9 @@
-import { extname } from "node:path"
+import { extname, join, relative, resolve } from "node:path"
 import { IMAGE_MEDIA_TYPES } from "../composition/image-store"
+import { resolveFileInside } from "../files/inside-folder"
+
+/** The folder of a project that runs write their files into. */
+const OUTPUTS_FOLDER = "outputs"
 
 /** The media type each kind of output file is served as. Anything else is plain bytes. */
 const OUTPUT_MEDIA_TYPES: Record<string, string> = {
@@ -44,4 +48,18 @@ export function byteRange(header: string | null, size: number): ByteRange {
   if (start >= size) return { kind: "unsatisfiable" }
   if (end < start) return { kind: "whole" }
   return { kind: "part", start, end }
+}
+
+/**
+ * Where the file at `relativePath` under the open project really is, or nothing when no project
+ * is open or the path leads anywhere but a file inside the project's outputs folder. The same
+ * checks as the library's keep `..` and symbolic links from reaching the rest of the project.
+ */
+export function resolveOutputFile(
+  projectDirectory: string | null,
+  relativePath: string
+): string | null {
+  if (projectDirectory === null) return null
+  const outputs = join(projectDirectory, OUTPUTS_FOLDER)
+  return resolveFileInside(outputs, relative(outputs, resolve(projectDirectory, relativePath)))
 }
