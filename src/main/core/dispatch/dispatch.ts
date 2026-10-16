@@ -39,9 +39,6 @@ export interface RunStatus {
 /** The states of a run ComfyUI has not finished with. */
 const UNFINISHED_STATES: RunState[] = ["queued", "running"]
 
-/** The most runs one batch queues. */
-export const BATCH_LIMIT = 20
-
 /** The slot kinds whose node holds one value the form shows and a binding replaces. */
 const VALUE_KINDS: ReadonlySet<SlotRecord["kind"]> = new Set([
   "text",
@@ -191,11 +188,6 @@ function savedValuesOf(slots: SlotRecord[], sourcePath: string, graphText: strin
     const value = VALUE_KINDS.has(slot.kind) && Array.isArray(saved) ? saved[0] : null
     return { slotId: slot.id, value: isSlotValue(value) ? value : null }
   })
-}
-
-/** A seed JavaScript can hold exactly, which is all but the top bits ComfyUI's seeds allow. */
-export function randomSeed(): number {
-  return Math.floor(Math.random() * Number.MAX_SAFE_INTEGER)
 }
 
 /** `bindings` with each seed slot given a new value, bound as it stands when it was not bound. */

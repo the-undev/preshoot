@@ -1,13 +1,8 @@
 import { join } from "node:path"
 import { z } from "zod"
 import { IMAGE_MEDIA_TYPES } from "../../core/composition/image-store"
-import {
-  BATCH_LIMIT,
-  pollRuns,
-  queueBatch,
-  randomSeed,
-  savedSlotValues,
-} from "../../core/dispatch/dispatch"
+import { BATCH_LIMIT, randomSeed } from "../../core/dispatch/batch"
+import { pollRuns, queueBatch, savedSlotValues } from "../../core/dispatch/dispatch"
 import { listRuns, readRunOutput } from "../../core/dispatch/run-store"
 import { asClientError } from "../client-errors"
 import { requireOpenProject, requireProject } from "../project"

@@ -1,5 +1,6 @@
 import { Check, X } from "lucide-react"
 import { Input } from "@renderer/design-system"
+import { fileName } from "@renderer/lib/file-name"
 import { outputFileUrl, type RunOutput, type Verdict } from "@renderer/lib/trpc"
 
 interface RunOutputItemProps {
@@ -136,9 +137,4 @@ function VerdictButton({
       {children}
     </button>
   )
-}
-
-/** The last part of a path in the project. */
-function fileName(path: string): string {
-  return path.split("/").pop() ?? path
 }

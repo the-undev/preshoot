@@ -11,8 +11,10 @@ import {
   Textarea,
 } from "@renderer/design-system"
 import { LibraryImagePicker } from "@renderer/features/library/library-image-picker"
+import { fileName } from "@renderer/lib/file-name"
 import type { LibraryFolder, RunBinding, SavedSlotValue, WorkflowSlot } from "@renderer/lib/trpc"
 import { SaveConfigurationDialog } from "./save-configuration-dialog"
+import { BATCH_LIMIT, randomSeed } from "../../../../main/core/dispatch/batch"
 import { KIND_LABELS } from "./slot-labels"
 
 /** The kinds of slot filled from a file on disk. */
@@ -33,9 +35,6 @@ interface SlotState {
   on: boolean
   field: Field
 }
-
-/** The most runs one click queues, which the router holds to as well. */
-const BATCH_LIMIT = 20
 
 interface RunFormProps {
   slots: WorkflowSlot[]
@@ -441,14 +440,4 @@ function readNumber(kind: WorkflowSlot["kind"], text: string): number | null {
   }
   const pattern = kind === "seed" ? /^\d+$/ : /^-?\d+$/
   return pattern.test(trimmed) ? Number(trimmed) : null
-}
-
-/** A seed JavaScript can hold exactly, which is all but the top bits ComfyUI's seeds allow. */
-function randomSeed(): number {
-  return Math.floor(Math.random() * Number.MAX_SAFE_INTEGER)
-}
-
-/** The last part of a path, whichever separator it uses. */
-function fileName(path: string): string {
-  return path.split(/[/\\]/).pop() ?? path
 }
