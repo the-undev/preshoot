@@ -5,6 +5,7 @@ import { schema, type ProjectDatabase, type ProjectDb } from "../db"
 import type { BoundValue, SlotBinding } from "../dispatch/dispatch"
 import type { RecordedBinding } from "../dispatch/run-store"
 import { slotKey, type StoredSlotKey } from "../workflows/diff"
+import { freeName } from "../files/free-name"
 import { isInsideFolder } from "../workflows/folder"
 import { readWorkflowSlots, type SlotRecord } from "../workflows/store"
 import { ConfigurationError } from "./errors"
@@ -249,7 +250,7 @@ function withCleanup<T>(directory: string, copied: string[], build: () => T): T 
 function copyIn(directory: string, sourcePath: string): string {
   const folder = join(directory, INPUTS_FOLDER)
   mkdirSync(folder, { recursive: true })
-  const name = freeName(folder, basename(sourcePath))
+  const name = freeName(basename(sourcePath), (candidate) => !existsSync(join(folder, candidate)))
   const target = join(folder, name)
   // Written aside and moved into place, so a copy cut short is never bound.
   try {
@@ -260,17 +261,6 @@ function copyIn(directory: string, sourcePath: string): string {
   }
   renameSync(`${target}.part`, target)
   return `${INPUTS_FOLDER}/${name}`
-}
-
-/** `name`, or `name` with a number before its extension when the folder already holds it. */
-function freeName(folder: string, name: string): string {
-  const dot = name.lastIndexOf(".")
-  const [stem, extension] = dot > 0 ? [name.slice(0, dot), name.slice(dot)] : [name, ""]
-  let candidate = name
-  for (let count = 2; existsSync(join(folder, candidate)); count += 1) {
-    candidate = `${stem}-${count}${extension}`
-  }
-  return candidate
 }
 
 /** Removes each of `paths` that no configuration and no run names any more. */

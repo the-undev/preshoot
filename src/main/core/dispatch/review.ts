@@ -2,6 +2,7 @@ import { constants, copyFileSync, existsSync, mkdirSync } from "node:fs"
 import { basename, join } from "node:path"
 import { and, asc, count, desc, eq, isNull, type SQL } from "drizzle-orm"
 import { schema, type ProjectDb } from "../db"
+import { freeName } from "../files/free-name"
 import { DispatchError } from "./errors"
 import { toOutput, type RunOutput, type Verdict } from "./run-store"
 
@@ -157,15 +158,19 @@ function namePart(text: string): string {
  * even when a file appears between two attempts.
  */
 function copyUnderFreeName(source: string, folder: string, name: string): string {
-  const dot = name.lastIndexOf(".")
-  const [stem, extension] = dot > 0 ? [name.slice(0, dot), name.slice(dot)] : [name, ""]
-  for (let number = 1; ; number += 1) {
-    const target = join(folder, number === 1 ? name : `${stem}-${number}${extension}`)
-    try {
-      copyFileSync(source, target, constants.COPYFILE_EXCL)
-      return target
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error
-    }
+  return join(
+    folder,
+    freeName(name, (candidate) => copyUnlessTaken(source, join(folder, candidate)))
+  )
+}
+
+/** Copies `source` to `target` and says so, or says nothing was copied since `target` exists. */
+function copyUnlessTaken(source: string, target: string): boolean {
+  try {
+    copyFileSync(source, target, constants.COPYFILE_EXCL)
+    return true
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "EEXIST") return false
+    throw error
   }
 }

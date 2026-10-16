@@ -4,6 +4,7 @@ import { basename, join } from "node:path"
 import { and, asc, eq, inArray } from "drizzle-orm"
 import type { ComfyUiClient, ObjectInfo, QueueAnswer, QueueState } from "../backend/comfyui-client"
 import { schema, type ProjectDatabase } from "../db"
+import { freeName } from "../files/free-name"
 import { readGraph } from "../workflows/scan"
 import { readWorkflowSlots, type SlotRecord } from "../workflows/store"
 import { DispatchError } from "./errors"
@@ -301,7 +302,11 @@ async function pollRun(
   const taken = new Set<string>()
   const saved: { path: string; sourceFilename: string }[] = []
   for (const file of history.outputs) {
-    const name = uniqueName(taken, safeName(file.filename))
+    const name = freeName(safeName(file.filename), (candidate) => {
+      if (taken.has(candidate)) return false
+      taken.add(candidate)
+      return true
+    })
     const target = join(input.directory, folder, name)
     // Written aside and moved into place, so a copy cut short never looks like an output.
     writeFileSync(`${target}.part`, await client.view(file))
@@ -383,18 +388,6 @@ function storedGraph(
 function safeName(filename: string): string {
   const name = basename(filename)
   return name === "" || name === "." || name === ".." ? "output" : name
-}
-
-/** `name`, or `name` with a number before its extension when the run already has one so called. */
-function uniqueName(taken: Set<string>, name: string): string {
-  const dot = name.lastIndexOf(".")
-  const [stem, extension] = dot > 0 ? [name.slice(0, dot), name.slice(dot)] : [name, ""]
-  let candidate = name
-  for (let count = 2; taken.has(candidate); count += 1) {
-    candidate = `${stem}-${count}${extension}`
-  }
-  taken.add(candidate)
-  return candidate
 }
 
 function isSlotValue(value: unknown): value is SlotValue {
