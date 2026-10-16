@@ -164,6 +164,35 @@ describe("assets router", () => {
     expect(await caller.assets.images()).toEqual([])
   })
 
+  it("gives the path of a picture's file inside the project", async () => {
+    await openProject()
+    const keeper = await caller.assets.create({
+      kind: "person",
+      name: "Keeper",
+      description: "an elderly man",
+    })
+    picked = [sourceImage("keeper.png")]
+    const [image] = await caller.assets.addImages({ assetId: keeper.id })
+
+    expect(await caller.assets.picturePath({ imageId: image.id })).toBe(
+      join(dir, "film", "assets", "images", image.fileName)
+    )
+  })
+
+  it("refuses the path of a picture the project does not hold", async () => {
+    await openProject()
+
+    await expect(caller.assets.picturePath({ imageId: 99 })).rejects.toThrow(
+      expect.objectContaining({ code: "NOT_FOUND" })
+    )
+  })
+
+  it("refuses a picture's path without an open project", async () => {
+    await expect(caller.assets.picturePath({ imageId: 1 })).rejects.toThrow(
+      expect.objectContaining({ code: "PRECONDITION_FAILED" })
+    )
+  })
+
   it("drafts a description from the pictures without saving it", async () => {
     await openProject()
     const keeper = await caller.assets.create({
