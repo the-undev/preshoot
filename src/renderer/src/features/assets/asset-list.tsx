@@ -6,10 +6,17 @@ interface AssetListProps {
   images: AssetImage[]
   onEdit: (asset: Asset) => void
   onRemove: (id: number) => void
+  onCopyToLibrary: (asset: Asset) => void
 }
 
 /** The library, grouped by kind, in the order the project keeps it. */
-export function AssetList({ assets, images, onEdit, onRemove }: AssetListProps): React.JSX.Element {
+export function AssetList({
+  assets,
+  images,
+  onEdit,
+  onRemove,
+  onCopyToLibrary,
+}: AssetListProps): React.JSX.Element {
   if (assets.length === 0) {
     return <p className="text-sm text-muted-foreground">Nothing in the library yet.</p>
   }
@@ -42,6 +49,14 @@ export function AssetList({ assets, images, onEdit, onRemove }: AssetListProps):
                     </div>
                   </div>
                   <div className="flex shrink-0 gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      aria-label={`Copy ${asset.name} to the library`}
+                      onClick={() => onCopyToLibrary(asset)}
+                    >
+                      Copy to library
+                    </Button>
                     <Button variant="ghost" size="sm" onClick={() => onEdit(asset)}>
                       Edit
                     </Button>

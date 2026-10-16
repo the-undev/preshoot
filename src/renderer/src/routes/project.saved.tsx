@@ -8,6 +8,8 @@ import { AssetImages } from "@renderer/features/assets/asset-images"
 import { AssetList } from "@renderer/features/assets/asset-list"
 import { useAssetImages } from "@renderer/features/assets/use-asset-images"
 import { useAssets, type AssetFields } from "@renderer/features/assets/use-assets"
+import { CopyToLibraryDialog } from "@renderer/features/library/copy-to-library-dialog"
+import { useCopyToLibrary } from "@renderer/features/library/use-copy-to-library"
 import { useTRPC, type Asset } from "@renderer/lib/trpc"
 
 export const Route = createFileRoute("/project/saved")({
@@ -26,6 +28,8 @@ function Saved(): React.JSX.Element {
   const [editing, setEditing] = useState<Editing>({ kind: "none" })
   const [fields, setFields] = useState<AssetFields>(EMPTY)
   const [removing, setRemoving] = useState<Asset | null>(null)
+  const [copying, setCopying] = useState<Asset | null>(null)
+  const copyToLibrary = useCopyToLibrary()
   const trpc = useTRPC()
   const queryClient = useQueryClient()
   const shots = useQuery(trpc.clips.savedShots.queryOptions())
@@ -156,6 +160,10 @@ function Saved(): React.JSX.Element {
           images={pictures.images}
           onEdit={(asset) => open({ kind: "existing", asset })}
           onRemove={(id) => setRemoving(library.assets.find((asset) => asset.id === id) ?? null)}
+          onCopyToLibrary={(asset) => {
+            copyToLibrary.reset()
+            setCopying(asset)
+          }}
         />
 
         <div className="flex flex-col gap-2">
@@ -190,6 +198,18 @@ function Saved(): React.JSX.Element {
           )}
         </div>
       </section>
+
+      {copying && (
+        <CopyToLibraryDialog
+          subjectName={copying.name}
+          folder={copyToLibrary.folder}
+          isCopying={copyToLibrary.isCopying}
+          errorMessage={copyToLibrary.errorMessage}
+          copiedTo={copyToLibrary.copiedTo}
+          onCopy={(kind) => copyToLibrary.copy(copying.id, kind)}
+          onClose={() => setCopying(null)}
+        />
+      )}
 
       {removing && (
         <ConfirmDialog
