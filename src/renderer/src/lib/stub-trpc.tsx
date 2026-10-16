@@ -5,7 +5,10 @@ import { useState } from "react"
 import type { AppRouter } from "../../../main/trpc/router"
 import { TRPCProvider } from "./trpc"
 
-/** What each procedure answers with, by its path such as `settings.get`, for a test. */
+/**
+ * What each procedure answers with, by its path such as `settings.get`, for a test. A function
+ * answers each call from its input.
+ */
 export type StubAnswers = Record<string, unknown>
 
 interface StubTrpcProviderProps {
@@ -39,7 +42,9 @@ function answeringLink(answers: StubAnswers): TRPCLink<AppRouter> {
           observer.error(TRPCClientError.from(new Error(`Nothing answers ${op.path}.`)))
           return
         }
-        observer.next({ result: { type: "data", data: answers[op.path] } })
+        const answer = answers[op.path]
+        const data = typeof answer === "function" ? answer(op.input) : answer
+        observer.next({ result: { type: "data", data } })
         observer.complete()
       })
 }
