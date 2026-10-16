@@ -15,6 +15,7 @@ function storedFrom(graph: WorkflowGraph): StoredSlotKey[] {
     nodeId: slot.nodeId,
     nodeType: slot.nodeType,
     name: slot.name,
+    displayName: null,
   }))
 }
 
@@ -44,12 +45,26 @@ describe("diffSlots", () => {
     const diff = diffSlots(stored, scanGraph(edited).slots)
 
     expect(diff.renamed).toEqual([
-      { slotId: 118, nodeId: 18, from: "Duration (s)", to: "Length (s)" },
+      { slotId: 118, nodeId: 18, from: "Duration (s)", to: "Length (s)", displayName: null },
     ])
     expect(diff.added).toEqual([])
     expect(diff.removed).toEqual([])
     expect(diff.kept).toHaveLength(stored.length - 1)
     expect(changesNoSlots(diff)).toBe(false)
+  })
+
+  it("carries a renamed slot's display name with it", () => {
+    const stored = storedFrom(r2v()).map((slot) =>
+      slot.nodeId === 18 ? { ...slot, displayName: "Length" } : slot
+    )
+    const edited = r2v()
+    nodeOf(edited, 18).title = "Length (s)"
+
+    const diff = diffSlots(stored, scanGraph(edited).slots)
+
+    expect(diff.renamed).toEqual([
+      { slotId: 118, nodeId: 18, from: "Duration (s)", to: "Length (s)", displayName: "Length" },
+    ])
   })
 
   it("reads a new input node as an added slot", () => {
@@ -74,7 +89,7 @@ describe("diffSlots", () => {
     const diff = diffSlots(stored, scanGraph(edited).slots)
 
     expect(diff.removed).toEqual([
-      { id: 121, nodeId: 21, nodeType: "PrimitiveInt", name: "Turbo steps" },
+      { id: 121, nodeId: 21, nodeType: "PrimitiveInt", name: "Turbo steps", displayName: null },
     ])
     expect(diff.added).toEqual([])
   })

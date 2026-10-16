@@ -4,8 +4,10 @@ import type { SlotDiff, SourceStatus } from "@renderer/lib/trpc"
 import { WorkflowSource } from "./workflow-source"
 
 const diff: SlotDiff = {
-  kept: [{ id: 1, nodeId: 14, nodeType: "PrimitiveStringMultiline", name: "Prompt" }],
-  renamed: [{ slotId: 2, nodeId: 18, from: "Duration (s)", to: "Length (s)" }],
+  kept: [
+    { id: 1, nodeId: 14, nodeType: "PrimitiveStringMultiline", name: "Prompt", displayName: null },
+  ],
+  renamed: [{ slotId: 2, nodeId: 18, from: "Duration (s)", to: "Length (s)", displayName: null }],
   added: [
     {
       nodeId: 33,
@@ -18,7 +20,9 @@ const diff: SlotDiff = {
       position: 3,
     },
   ],
-  removed: [{ id: 4, nodeId: 21, nodeType: "PrimitiveInt", name: "Turbo steps" }],
+  removed: [
+    { id: 4, nodeId: 21, nodeType: "PrimitiveInt", name: "Turbo steps", displayName: null },
+  ],
 }
 
 function renderSource(status: SourceStatus | undefined): {
@@ -75,6 +79,37 @@ describe("WorkflowSource", () => {
       within(screen.getByRole("region", { name: "Removed" })).getByText("Turbo steps")
     ).toBeInTheDocument()
     expect(screen.getByText(/1 slot is kept as they are/)).toBeInTheDocument()
+  })
+
+  it("says what a renamed or removed slot is shown as, beside its scanned name", () => {
+    renderSource({
+      state: "changed",
+      contentHash: "b".repeat(64),
+      diff: {
+        ...diff,
+        renamed: [{ ...diff.renamed[0], displayName: "Length" }],
+        removed: [{ ...diff.removed[0], displayName: "Fast steps" }],
+      },
+      boundConfigurationNames: [],
+    })
+
+    const renamed = within(screen.getByRole("region", { name: "Renamed" }))
+    expect(renamed.getByText(/Duration \(s\) → Length \(s\)/)).toBeInTheDocument()
+    expect(renamed.getByText("· shown as Length")).toBeInTheDocument()
+    const removed = within(screen.getByRole("region", { name: "Removed" }))
+    expect(removed.getByText(/Turbo steps/)).toBeInTheDocument()
+    expect(removed.getByText("· shown as Fast steps")).toBeInTheDocument()
+  })
+
+  it("shows no display name for a slot that has none", () => {
+    renderSource({
+      state: "changed",
+      contentHash: "b".repeat(64),
+      diff,
+      boundConfigurationNames: [],
+    })
+
+    expect(screen.queryByText(/shown as/)).not.toBeInTheDocument()
   })
 
   it("names the configurations that bind a removed slot", () => {

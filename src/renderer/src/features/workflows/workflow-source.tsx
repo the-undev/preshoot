@@ -82,6 +82,7 @@ function DiffLists({ diff }: { diff: SlotDiff }): React.JSX.Element {
           {diff.renamed.map((slot) => (
             <li key={slot.slotId}>
               {slot.from} → {slot.to}
+              <ShownAs displayName={slot.displayName} />
             </li>
           ))}
         </DiffSection>
@@ -98,16 +99,25 @@ function DiffLists({ diff }: { diff: SlotDiff }): React.JSX.Element {
       {diff.removed.length > 0 && (
         <DiffSection title="Removed">
           {diff.removed.map((slot) => (
-            <li key={slot.id}>{slot.name}</li>
+            <li key={slot.id}>
+              {slot.name}
+              <ShownAs displayName={slot.displayName} />
+            </li>
           ))}
         </DiffSection>
       )}
       <p className="text-xs text-muted-foreground">
         {diff.kept.length} {diff.kept.length === 1 ? "slot is" : "slots are"} kept as they are.
-        Renamed and kept slots keep their tiers.
+        Renamed and kept slots keep their tiers, display names and notes.
       </p>
     </div>
   )
+}
+
+/** The name the form shows for a slot in the diff, when it has one. */
+function ShownAs({ displayName }: { displayName: string | null }): React.JSX.Element | null {
+  if (displayName === null) return null
+  return <span className="text-muted-foreground"> · shown as {displayName}</span>
 }
 
 function DiffSection({

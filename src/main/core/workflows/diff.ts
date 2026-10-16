@@ -6,6 +6,8 @@ export interface StoredSlotKey {
   nodeId: number
   nodeType: string
   name: string
+  /** The name the form shows instead of the scanned one, or null. */
+  displayName: string | null
 }
 
 /** A stored slot whose node is still in the graph under a new title. */
@@ -14,6 +16,8 @@ export interface RenamedSlot {
   nodeId: number
   from: string
   to: string
+  /** The name the form shows instead, which the rename leaves as it is. */
+  displayName: string | null
 }
 
 /**
@@ -43,7 +47,13 @@ export function diffSlots(stored: StoredSlotKey[], scanned: ScannedSlot[]): Slot
       diff.kept.push(slot)
       continue
     }
-    diff.renamed.push({ slotId: slot.id, nodeId: slot.nodeId, from: slot.name, to: fresh.name })
+    diff.renamed.push({
+      slotId: slot.id,
+      nodeId: slot.nodeId,
+      from: slot.name,
+      to: fresh.name,
+      displayName: slot.displayName,
+    })
   }
   diff.added = scanned.filter((slot) => !storedKeys.has(slotKey(slot)))
   return diff
