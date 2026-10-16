@@ -25,7 +25,17 @@ const runs: RunRecord[] = [
   run({
     id: 4,
     state: "done",
-    outputs: [{ id: 9, path: "outputs/run-4/clip.mp4", sourceFilename: "clip_00001_.mp4" }],
+    outputs: [
+      {
+        id: 9,
+        runId: 4,
+        path: "outputs/run-4/clip.mp4",
+        sourceFilename: "clip_00001_.mp4",
+        media: "other",
+        verdict: null,
+        note: "",
+      },
+    ],
   }),
   run({ id: 3, state: "failed", error: "SamplerCustomAdvanced (node 28): Out of memory" }),
   run({ id: 2, state: "running", seed: null }),

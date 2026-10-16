@@ -1,5 +1,6 @@
 import { asc, desc, eq, inArray } from "drizzle-orm"
 import { schema, type ProjectDb } from "../db"
+import { mediaOf, type LibraryMedia } from "../library-folder/media"
 import { DispatchError } from "./errors"
 import type { SlotValue } from "./resolve"
 
@@ -17,11 +18,21 @@ export interface RecordedBinding {
   file: string | null
 }
 
-/** A file a run wrote, as it sits in the project. */
+/** What a reviewer said of an output. */
+export const VERDICTS = ["good", "bad"] as const
+
+export type Verdict = (typeof VERDICTS)[number]
+
+/** A file a run wrote, as it sits in the project, with what a reviewer said of it. */
 export interface RunOutput {
   id: number
+  runId: number
   path: string
   sourceFilename: string
+  /** What the file holds, as far as its extension says. */
+  media: LibraryMedia
+  verdict: Verdict | null
+  note: string
 }
 
 /** A run with its times as ISO strings, since it crosses to the renderer. */
@@ -200,6 +211,15 @@ function toRecord(row: RunRow, outputs: OutputRow[], names: Map<number, string>)
   }
 }
 
-function toOutput(row: OutputRow): RunOutput {
-  return { id: row.id, path: row.path, sourceFilename: row.sourceFilename }
+/** A stored output as the renderer sees it. */
+export function toOutput(row: OutputRow): RunOutput {
+  return {
+    id: row.id,
+    runId: row.runId,
+    path: row.path,
+    sourceFilename: row.sourceFilename,
+    media: mediaOf(row.path),
+    verdict: row.verdict as Verdict | null,
+    note: row.note,
+  }
 }

@@ -216,4 +216,7 @@ export const runOutputs = sqliteTable("run_outputs", {
   // The name ComfyUI saved it under.
   sourceFilename: text("source_filename").notNull(),
   position: integer("position").notNull(),
+  // Good, bad, or nothing until the output has been looked at.
+  verdict: text("verdict"),
+  note: text("note").notNull().default(""),
 })
