@@ -10,6 +10,7 @@ import {
   CollapsibleTrigger,
 } from "@renderer/design-system"
 import { useOpenSettings } from "@renderer/features/settings/settings-dialog-context"
+import { BaseSuggestionLine } from "@renderer/features/workflows/base-suggestion"
 import {
   useWorkflow,
   useWorkflowRemoval,
@@ -20,6 +21,13 @@ import { WorkflowGuide, WorkflowMapping } from "@renderer/features/workflows/wor
 import { WorkflowRemoval } from "@renderer/features/workflows/workflow-removal"
 import { WorkflowRun } from "@renderer/features/workflows/workflow-run"
 import { WorkflowSource } from "@renderer/features/workflows/workflow-source"
+import type { BaseSuggestion } from "@renderer/lib/trpc"
+
+/** A workflow just imported, with the one whose mapping it could start from. */
+interface ImportedWorkflow {
+  workflowId: number
+  suggestion: BaseSuggestion
+}
 
 /** Which workflow is open beside the list, when one is. */
 interface WorkflowsSearch {
@@ -38,6 +46,8 @@ function Workflows(): React.JSX.Element {
   const openSettings = useOpenSettings()
   const panel = useWorkflows()
   const open = (id: number): void => void navigate({ search: { workflow: id } })
+  // Offered only on the workflow just imported, and gone once another is opened.
+  const [imported, setImported] = useState<ImportedWorkflow | null>(null)
 
   return (
     <main className="mx-auto grid h-full w-full max-w-[1920px] gap-8 overflow-y-auto p-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,3fr)]">
@@ -52,8 +62,16 @@ function Workflows(): React.JSX.Element {
           workflows={panel.workflows}
           selectedId={workflowId ?? null}
           isImporting={panel.isImporting}
-          onOpen={open}
-          onImport={(path) => panel.importFile(path, open)}
+          onOpen={(id) => {
+            setImported(null)
+            open(id)
+          }}
+          onImport={(path) =>
+            panel.importFile(path, (id, suggestion) => {
+              setImported(suggestion ? { workflowId: id, suggestion } : null)
+              open(id)
+            })
+          }
           onRefresh={panel.refresh}
           onOpenSettings={openSettings}
         />
@@ -67,6 +85,7 @@ function Workflows(): React.JSX.Element {
         <OpenWorkflow
           key={workflowId}
           workflowId={workflowId}
+          suggestion={imported?.workflowId === workflowId ? imported.suggestion : null}
           onRemoved={() => navigate({ search: {} })}
         />
       )}
@@ -75,14 +94,16 @@ function Workflows(): React.JSX.Element {
 }
 
 /**
- * One workflow: where its source stands, the form that queues it, its runs, guide and mapping,
- * and a way to remove it.
+ * One workflow: the base offered for it when it was just imported, where its source stands, the
+ * form that queues it, its runs, guide and mapping, and a way to remove it.
  */
 function OpenWorkflow({
   workflowId,
+  suggestion,
   onRemoved,
 }: {
   workflowId: number
+  suggestion: BaseSuggestion | null
   onRemoved: () => Promise<void>
 }): React.JSX.Element {
   const panel = useWorkflow(workflowId)
@@ -115,6 +136,8 @@ function OpenWorkflow({
           onRemove={removal.remove}
         />
       </div>
+
+      {suggestion && <BaseSuggestionLine workflowId={workflowId} suggestion={suggestion} />}
 
       <WorkflowSource
         status={panel.source}

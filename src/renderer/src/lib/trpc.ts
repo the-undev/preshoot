@@ -152,6 +152,9 @@ export type SlotTier = WorkflowSlot["tier"]
 /** What a slot takes. */
 export type SlotKind = WorkflowSlot["kind"]
 
+/** A workflow already in the project whose mapping one just imported could start from. */
+export type BaseSuggestion = NonNullable<RouterOutputs["workflows"]["import"]["suggestion"]>
+
 /** How a workflow's source file stands against the project's copy. */
 export type SourceStatus = RouterOutputs["workflows"]["checkSource"]
 

@@ -2,6 +2,7 @@ import { useEffect } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import {
   useTRPC,
+  type BaseSuggestion,
   type SlotTier,
   type SourceStatus,
   type WorkflowDetail,
@@ -13,7 +14,10 @@ import {
 export interface WorkflowsPanel {
   folder: WorkflowFolder | undefined
   workflows: WorkflowSummary[]
-  importFile(path: string, onImported: (workflowId: number) => void): void
+  importFile(
+    path: string,
+    onImported: (workflowId: number, suggestion: BaseSuggestion | null) => void
+  ): void
   refresh(): void
   isImporting: boolean
   errorMessage: string | null
@@ -35,7 +39,10 @@ export function useWorkflows(): WorkflowsPanel {
     folder: folder.data,
     workflows: workflows.data ?? [],
     importFile: (path, onImported) =>
-      importing.mutate({ path }, { onSuccess: (result) => onImported(result.workflow.id) }),
+      importing.mutate(
+        { path },
+        { onSuccess: (result) => onImported(result.workflow.id, result.suggestion) }
+      ),
     refresh: () => void refresh(),
     isImporting: importing.isPending,
     errorMessage: importing.error?.message ?? folder.error?.message ?? null,
@@ -137,5 +144,28 @@ export function useWorkflow(workflowId: number): WorkflowPanel {
       workflow.error?.message ??
       source.error?.message ??
       null,
+  }
+}
+
+/** The call that copies a base workflow's tiers, display names and notes onto a workflow. */
+export interface CopyMappingPanel {
+  copy(onCopied: () => void): void
+  isCopying: boolean
+  errorMessage: string | null
+}
+
+/** Copies the mapping of `fromWorkflowId` onto the matching slots of `workflowId`. */
+export function useCopyMapping(workflowId: number, fromWorkflowId: number): CopyMappingPanel {
+  const trpc = useTRPC()
+  const queryClient = useQueryClient()
+  const copying = useMutation(
+    trpc.workflows.copyMapping.mutationOptions({
+      onSuccess: () => queryClient.invalidateQueries({ queryKey: trpc.workflows.pathKey() }),
+    })
+  )
+  return {
+    copy: (onCopied) => copying.mutate({ workflowId, fromWorkflowId }, { onSuccess: onCopied }),
+    isCopying: copying.isPending,
+    errorMessage: copying.error?.message ?? null,
   }
 }
