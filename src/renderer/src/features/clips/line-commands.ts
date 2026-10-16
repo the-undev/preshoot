@@ -17,6 +17,8 @@ export interface LineMenuContext {
   onAddSavedShot: (savedShotId: number) => void
   onAddSavedSubject: (savedId: number) => void
   onAddSubject: (name: string) => void
+  /** Opens the library, to make a subject from one of its entries and add it to the cast. */
+  onAddFromLibrary: () => void
   onNewShot: () => void
   onSaveShot: () => void
   onSetShotField: (over: Partial<ShotFields>) => void
@@ -96,6 +98,12 @@ export function lineCommands({
       run: () => menu.onAddSubject(named),
     })
   }
+  commands.push({
+    id: "add-from-library",
+    label: "Add a subject from the library",
+    group: "Subjects",
+    run: menu.onAddFromLibrary,
+  })
 
   commands.push(
     { id: "add-shot", label: "Add shot", group: "Shot", run: menu.onNewShot },

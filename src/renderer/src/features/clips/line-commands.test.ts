@@ -40,6 +40,7 @@ function menuContext(over: Partial<LineMenuContext> = {}): LineMenuContext {
     onAddSavedShot: vi.fn(),
     onAddSavedSubject: vi.fn(),
     onAddSubject: vi.fn(),
+    onAddFromLibrary: vi.fn(),
     onNewShot: vi.fn(),
     onSaveShot: vi.fn(),
     onSetShotField: vi.fn(),
@@ -117,6 +118,17 @@ describe("lineCommands", () => {
 
   it("offers nothing to add when the cursor is not in a word", () => {
     expect(build({ word: "  " }).some((command) => command.id === "add-subject")).toBe(false)
+  })
+
+  it("offers to make a subject from the library, wherever the cursor is", () => {
+    const menu = menuContext()
+    const command = build({ menu }).find((entry) => entry.id === "add-from-library")
+
+    expect(command).toEqual(
+      expect.objectContaining({ label: "Add a subject from the library", group: "Subjects" })
+    )
+    command?.run()
+    expect(menu.onAddFromLibrary).toHaveBeenCalledTimes(1)
   })
 
   it("sets a word of the shot's vocabulary", () => {

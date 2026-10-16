@@ -87,23 +87,7 @@ export function LibraryFilePicker({
 function Files(props: FilesProps): React.JSX.Element {
   const { media, folder, onPick } = props
   const plural = PICKER_WORDS[media].plural
-  if (!folder) {
-    return <p className="text-sm text-muted-foreground">Reading the library folder…</p>
-  }
-  if (folder.state === "unset") {
-    return (
-      <p className="text-sm text-muted-foreground">
-        No library folder is set. Name one in settings and its {plural} are offered here.
-      </p>
-    )
-  }
-  if (folder.state === "missing") {
-    return (
-      <p className="text-sm text-muted-foreground">
-        The library folder is not there: <span className="break-all">{folder.folder}</span>
-      </p>
-    )
-  }
+  if (!folder || folder.state !== "listed") return <FolderNotice folder={folder} plural={plural} />
 
   const entries = folder.kinds
     .flatMap((kind) => kind.entries)
@@ -128,6 +112,32 @@ function Files(props: FilesProps): React.JSX.Element {
         </section>
       ))}
     </div>
+  )
+}
+
+interface FolderNoticeProps {
+  /** The folder as read, or nothing while it is read. */
+  folder: Exclude<LibraryFolder, { state: "listed" }> | undefined
+  /** What the picker offers, such as `pictures`, which a folder once set would give. */
+  plural: string
+}
+
+/** What a library picker says in place of its list until the folder is listed. */
+export function FolderNotice({ folder, plural }: FolderNoticeProps): React.JSX.Element {
+  if (!folder) {
+    return <p className="text-sm text-muted-foreground">Reading the library folder…</p>
+  }
+  if (folder.state === "unset") {
+    return (
+      <p className="text-sm text-muted-foreground">
+        No library folder is set. Name one in settings and its {plural} are offered here.
+      </p>
+    )
+  }
+  return (
+    <p className="text-sm text-muted-foreground">
+      The library folder is not there: <span className="break-all">{folder.folder}</span>
+    </p>
   )
 }
 

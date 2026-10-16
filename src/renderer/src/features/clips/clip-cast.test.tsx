@@ -26,9 +26,11 @@ function renderCast(over: Partial<React.ComponentProps<typeof ClipCast>> = {}): 
   onUpdate: ReturnType<typeof vi.fn>
   onSave: ReturnType<typeof vi.fn>
   onRemove: ReturnType<typeof vi.fn>
+  onAddFromLibrary: ReturnType<typeof vi.fn>
 } {
   const handlers = {
     onAdd: vi.fn(),
+    onAddFromLibrary: vi.fn(),
     onUpdate: vi.fn(),
     onSave: vi.fn(),
     onRemove: vi.fn(),
@@ -131,6 +133,17 @@ describe("ClipCast", () => {
     fireEvent.click(screen.getByRole("button", { name: "Lamp" }))
 
     expect(onAdd).toHaveBeenCalledWith(expect.objectContaining({ savedId: 9 }))
+  })
+
+  it("opens the library from the add chip, adding nothing itself", () => {
+    const { onAdd, onAddFromLibrary } = renderCast()
+
+    fireEvent.click(screen.getByRole("button", { name: "Add a subject" }))
+    fireEvent.click(screen.getByRole("button", { name: "From library" }))
+
+    expect(onAddFromLibrary).toHaveBeenCalledTimes(1)
+    expect(onAdd).not.toHaveBeenCalled()
+    expect(screen.queryByLabelText("Name a new subject")).not.toBeInTheDocument()
   })
 
   it("offers nothing from saved when nothing is saved", () => {

@@ -17,6 +17,7 @@ import { useClip } from "@renderer/features/clips/use-clip"
 import { useClips } from "@renderer/features/clips/use-clips"
 import { useExportPrompt } from "@renderer/features/clips/use-export-prompt"
 import { useTabs } from "@renderer/features/clips/use-tabs"
+import { useAddToProject } from "@renderer/features/library/use-library"
 import { useShortcuts } from "@renderer/features/shortcuts/use-shortcuts"
 import { useTRPC, type ClipSummary, type OpenTab } from "@renderer/lib/trpc"
 
@@ -156,6 +157,7 @@ function OpenClip({ clipId, tab, onBranched }: OpenClipProps): React.JSX.Element
   const [naming, setNaming] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const library = useAssets()
+  const addToProject = useAddToProject()
   const pictures = useAssetImages()
   const exporting = useExportPrompt(clipId)
   const trpc = useTRPC()
@@ -247,6 +249,7 @@ function OpenClip({ clipId, tab, onBranched }: OpenClipProps): React.JSX.Element
             saved={library.assets}
             speaking={speaking}
             onAddSubject={clip.addSubject}
+            onCreateFromLibrary={addToProject.add}
             onUpdateSubject={clip.updateSubject}
             onSaveSubject={clip.saveSubject}
             onRemoveSubject={clip.removeSubject}

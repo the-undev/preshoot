@@ -42,6 +42,8 @@ interface ClipCastProps {
   speaking: number[]
   saved: Asset[]
   onAdd: (fields: SubjectFields) => void
+  /** Opens the library, to make a subject from one of its entries and add it here. */
+  onAddFromLibrary: () => void
   onUpdate: (subjectId: number, fields: SubjectEdit) => void
   onSave: (subjectId: number) => void
   onRemove: (subjectId: number) => void
@@ -57,6 +59,7 @@ export function ClipCast({
   speaking,
   saved,
   onAdd,
+  onAddFromLibrary,
   onUpdate,
   onSave,
   onRemove,
@@ -76,7 +79,7 @@ export function ClipCast({
         />
       ))}
 
-      <AddCastChip saved={saved} onAdd={onAdd} />
+      <AddCastChip saved={saved} onAdd={onAdd} onAddFromLibrary={onAddFromLibrary} />
 
       {removing && (
         <ConfirmDialog
@@ -201,10 +204,11 @@ function CastChip({
 interface AddCastChipProps {
   saved: Asset[]
   onAdd: (fields: SubjectFields) => void
+  onAddFromLibrary: () => void
 }
 
-/** Adds a subject to the clip, either written here or copied from the library. */
-function AddCastChip({ saved, onAdd }: AddCastChipProps): React.JSX.Element {
+/** Adds a subject to the clip, written here, copied from saved, or made from the library. */
+function AddCastChip({ saved, onAdd, onAddFromLibrary }: AddCastChipProps): React.JSX.Element {
   const [open, setOpen] = useState(false)
   const [kind, setKind] = useState<AssetKind>("person")
   const [name, setName] = useState("")
@@ -282,6 +286,18 @@ function AddCastChip({ saved, onAdd }: AddCastChipProps): React.JSX.Element {
             </div>
           </div>
         )}
+
+        <Button
+          variant="outline"
+          size="sm"
+          className="self-start"
+          onClick={() => {
+            setOpen(false)
+            onAddFromLibrary()
+          }}
+        >
+          From library
+        </Button>
       </PopoverContent>
     </Popover>
   )

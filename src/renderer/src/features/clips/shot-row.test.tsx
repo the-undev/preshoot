@@ -41,6 +41,7 @@ const menu = {
   onAddSavedShot: vi.fn(),
   onAddSavedSubject: vi.fn(),
   onAddSubject: vi.fn(),
+  onAddFromLibrary: vi.fn(),
   onNewShot: vi.fn(),
 }
 
