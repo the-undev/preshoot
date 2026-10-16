@@ -1,4 +1,4 @@
-import { useQueries, useQuery } from "@tanstack/react-query"
+import { useQuery } from "@tanstack/react-query"
 import {
   Alert,
   AlertDescription,
@@ -10,18 +10,18 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@renderer/design-system"
-import { useTRPC, type WorkflowDetail, type WorkflowSlot } from "@renderer/lib/trpc"
+import { useTRPC, type TextSlot, type WorkflowTextSlots } from "@renderer/lib/trpc"
 import { setPromptTransfer } from "./prompt-transfer"
 import { shownName } from "./slot-labels"
 
 /** A workflow and the text slots its form shows, in the order they are offered. */
 interface SendTarget {
-  workflow: WorkflowDetail
-  slots: WorkflowSlot[]
+  workflow: WorkflowTextSlots
+  slots: TextSlot[]
 }
 
 /** Whether a slot is the prompt-sized box shown up front, which is offered first. */
-function isPromptBox(slot: WorkflowSlot): boolean {
+function isPromptBox(slot: TextSlot): boolean {
   return slot.multiline && slot.tier === "basic"
 }
 
@@ -29,10 +29,12 @@ function isPromptBox(slot: WorkflowSlot): boolean {
  * The workflows a prompt can be sent to, each with its shown text slots, prompt-sized basic ones
  * first and then the rest in graph order.
  */
-function sendTargets(workflows: WorkflowDetail[]): SendTarget[] {
+function sendTargets(workflows: WorkflowTextSlots[]): SendTarget[] {
   return workflows.flatMap((workflow) => {
-    const text = workflow.slots.filter((slot) => slot.kind === "text" && slot.tier !== "hidden")
-    const slots = [...text.filter(isPromptBox), ...text.filter((slot) => !isPromptBox(slot))]
+    const slots = [
+      ...workflow.slots.filter(isPromptBox),
+      ...workflow.slots.filter((slot) => !isPromptBox(slot)),
+    ]
     return slots.length === 0 ? [] : [{ workflow, slots }]
   })
 }
@@ -59,16 +61,9 @@ export function SendPromptDialog({
   onCancel,
 }: SendPromptDialogProps): React.JSX.Element {
   const trpc = useTRPC()
-  const list = useQuery(trpc.workflows.list.queryOptions())
-  const details = useQueries({
-    queries: (list.data ?? []).map((workflow) =>
-      trpc.workflows.get.queryOptions({ workflowId: workflow.id })
-    ),
-  })
-  const isReading = list.isPending || details.some((detail) => detail.isPending)
-  const errorMessage =
-    list.error?.message ?? details.find((detail) => detail.error)?.error?.message ?? null
-  const targets = sendTargets(details.flatMap((detail) => (detail.data ? [detail.data] : [])))
+  const list = useQuery(trpc.workflows.textSlots.queryOptions())
+  const errorMessage = list.error?.message ?? null
+  const targets = sendTargets(list.data ?? [])
 
   const send = (workflowId: number, slotId: number): void => {
     setPromptTransfer({ workflowId, slotId, text, clipName })
@@ -96,7 +91,7 @@ export function SendPromptDialog({
           </Alert>
         )}
 
-        {isReading ? (
+        {list.isPending ? (
           <p className="text-sm text-muted-foreground">Reading the workflows…</p>
         ) : targets.length > 0 ? (
           <ul className="flex max-h-[60vh] flex-col gap-1 overflow-y-auto">

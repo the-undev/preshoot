@@ -9,6 +9,7 @@ import {
   applySourceUpdate,
   checkSource,
   importWorkflow,
+  listTextSlots,
   listWorkflows,
   readWorkflow,
   setSlotLabel,
@@ -51,6 +52,9 @@ export const workflowsRouter = router({
 
   /** The workflows the project holds, by name. */
   list: publicProcedure.query(({ ctx }) => listWorkflows(requireProject(ctx))),
+
+  /** Every workflow with the text slots its form shows, read from the slots alone. */
+  textSlots: publicProcedure.query(({ ctx }) => listTextSlots(requireProject(ctx))),
 
   /** One workflow with its mapping and its guide. */
   get: publicProcedure.input(z.object({ workflowId })).query(({ ctx, input }) => {

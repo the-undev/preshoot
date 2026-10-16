@@ -146,6 +146,12 @@ export type WorkflowDetail = RouterOutputs["workflows"]["get"]
 /** One input of a workflow the app can fill. */
 export type WorkflowSlot = WorkflowDetail["slots"][number]
 
+/** A workflow with the text slots its form shows, which a prompt can be sent to. */
+export type WorkflowTextSlots = RouterOutputs["workflows"]["textSlots"][number]
+
+/** One text slot a prompt can be sent to. */
+export type TextSlot = WorkflowTextSlots["slots"][number]
+
 /** Where a slot is shown in the mapping. */
 export type SlotTier = WorkflowSlot["tier"]
 

@@ -3,6 +3,7 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
 import { ClipHistory } from "../../core/composition/history"
+import { schema } from "../../core/db"
 import { ProjectSession } from "../../core/projects/session"
 import { AppSettingsStore } from "../../core/settings/app-settings"
 import { fixtureText } from "../../core/workflows/fixtures"
@@ -309,6 +310,33 @@ describe("workflows router", () => {
     expect(await caller.workflows.checkSource({ workflowId: imported.id })).toEqual({
       state: "in-sync",
     })
+  })
+
+  it("lists each workflow's shown text slots without reading its graph", async () => {
+    await openProject()
+    settings.setWorkflowsFolder(folder)
+    const { workflow: imported } = await caller.workflows.import({ path: sourcePath })
+    const prompt = imported.slots.find((slot) => slot.name === "Prompt")
+    if (!prompt) throw new Error("no Prompt slot")
+    // A graph that cannot be read, which reading the full workflow refuses.
+    const project = session.current()
+    if (!project) throw new Error("no project open")
+    project.db.update(schema.workflows).set({ graph: "{ not json" }).run()
+    await expect(caller.workflows.get({ workflowId: imported.id })).rejects.toThrow()
+
+    expect(await caller.workflows.textSlots()).toEqual([
+      {
+        id: imported.id,
+        name: "h3-r2v-base",
+        slots: [
+          { id: prompt.id, name: "Prompt", displayName: null, multiline: true, tier: "basic" },
+        ],
+      },
+    ])
+    await caller.workflows.setTier({ slotId: prompt.id, tier: "hidden" })
+    expect(await caller.workflows.textSlots()).toEqual([
+      { id: imported.id, name: "h3-r2v-base", slots: [] },
+    ])
   })
 
   it("refuses changes that are no longer the ones shown as a conflict", async () => {

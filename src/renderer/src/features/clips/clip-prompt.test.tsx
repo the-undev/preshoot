@@ -2,7 +2,7 @@ import { fireEvent, render, screen, within } from "@testing-library/react"
 import { describe, expect, it, vi } from "vitest"
 import { takePromptTransfer } from "@renderer/features/workflows/prompt-transfer"
 import { StubTrpcProvider, type StubAnswers } from "@renderer/lib/stub-trpc"
-import type { ClipPrompt, WorkflowDetail, WorkflowSlot } from "@renderer/lib/trpc"
+import type { ClipPrompt, TextSlot, WorkflowTextSlots } from "@renderer/lib/trpc"
 import { ClipPromptPanel } from "./clip-prompt"
 
 const ready: ClipPrompt = {
@@ -23,57 +23,30 @@ const ready: ClipPrompt = {
   body: { words: 92, min: 350, max: 500 },
 }
 
-function slot(over: Partial<WorkflowSlot>): WorkflowSlot {
-  return {
-    id: 1,
-    workflowId: 3,
-    nodeId: 14,
-    nodeType: "PrimitiveStringMultiline",
-    name: "Prompt",
-    displayName: null,
-    note: "",
-    kind: "text",
-    tier: "basic",
-    startsOff: false,
-    multiline: true,
-    position: 0,
-    ...over,
-  }
+function slot(over: Partial<TextSlot>): TextSlot {
+  return { id: 1, name: "Prompt", displayName: null, tier: "basic", multiline: true, ...over }
 }
 
-function workflow(id: number, name: string, slots: WorkflowSlot[]): WorkflowDetail {
-  return {
-    id,
-    name,
-    sourcePath: `/workflows/${name}.json`,
-    contentHash: "abc",
-    importedAt: "2026-10-16T09:00:00.000Z",
-    updatedAt: "2026-10-16T09:00:00.000Z",
-    guide: [],
-    slots,
-  }
+function workflow(id: number, name: string, slots: TextSlot[]): WorkflowTextSlots {
+  return { id, name, slots }
 }
 
-const workflows: WorkflowDetail[] = [
+/** The project's workflows with the text slots their forms show, in graph order. */
+const workflows: WorkflowTextSlots[] = [
   workflow(3, "h3-r2v-base", [
-    slot({ id: 10, name: "Negative", multiline: false, nodeType: "PrimitiveString", position: 0 }),
-    slot({ id: 11, name: "Seed", kind: "seed", nodeType: "RandomNoise", position: 1 }),
-    slot({ id: 12, name: "Style", tier: "advanced", position: 2 }),
-    slot({ id: 13, name: "Prompt", position: 3 }),
-    slot({ id: 14, name: "Notes", tier: "hidden", position: 4 }),
+    slot({ id: 10, name: "Negative", multiline: false }),
+    slot({ id: 12, name: "Style", tier: "advanced" }),
+    slot({ id: 13, name: "Prompt" }),
   ]),
-  workflow(4, "qwen-image-seed", [slot({ id: 20, name: "Seed", kind: "seed" })]),
-  workflow(5, "qwen-image-hidden", [slot({ id: 30, name: "Prompt", tier: "hidden" })]),
+  // One holds only a seed and one only a hidden text slot, so neither shows a text slot.
+  workflow(4, "qwen-image-seed", []),
+  workflow(5, "qwen-image-hidden", []),
   workflow(6, "qwen-image-edit", [slot({ id: 40, name: "Instruction" })]),
 ]
 
-/** Answers the workflow calls the send dialog makes from the workflows given. */
-function workflowAnswers(shown: WorkflowDetail[]): StubAnswers {
-  return {
-    "workflows.list": shown,
-    "workflows.get": (input: { workflowId: number }) =>
-      shown.find((entry) => entry.id === input.workflowId),
-  }
+/** Answers the one workflow call the send dialog makes from the workflows given. */
+function workflowAnswers(shown: WorkflowTextSlots[]): StubAnswers {
+  return { "workflows.textSlots": shown }
 }
 
 interface Rendered {
@@ -209,8 +182,8 @@ describe("ClipPromptPanel", () => {
       ready,
       workflowAnswers([
         workflow(3, "h3-r2v-base", [
-          slot({ id: 13, name: "Prompt", displayName: "Scene", position: 0 }),
-          slot({ id: 12, name: "Style", multiline: false, position: 1 }),
+          slot({ id: 13, name: "Prompt", displayName: "Scene" }),
+          slot({ id: 12, name: "Style", multiline: false }),
         ]),
         workflow(6, "qwen-image-edit", [
           slot({ id: 40, name: "Instruction", displayName: "Edit" }),

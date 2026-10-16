@@ -50,6 +50,16 @@ export interface WorkflowDetail extends WorkflowSummary {
   guide: GuideNote[]
 }
 
+/** A text slot a prompt can be sent to, as the send dialog offers it. */
+export type TextSlot = Pick<SlotRecord, "id" | "name" | "displayName" | "multiline" | "tier">
+
+/** A workflow by name with the text slots its form shows. */
+export interface WorkflowTextSlots {
+  id: number
+  name: string
+  slots: TextSlot[]
+}
+
 /** How the source file stands against the project's copy. */
 export type SourceStatus =
   | { state: "in-sync" }
@@ -69,6 +79,27 @@ export function listWorkflows(db: ProjectDatabase): WorkflowSummary[] {
     .orderBy(asc(schema.workflows.name), asc(schema.workflows.id))
     .all()
     .map(toSummary)
+}
+
+/** Every workflow by name with its shown text slots in graph order, read without its graph. */
+export function listTextSlots(db: ProjectDb): WorkflowTextSlots[] {
+  const workflows = db
+    .select({ id: schema.workflows.id, name: schema.workflows.name })
+    .from(schema.workflows)
+    .orderBy(asc(schema.workflows.name), asc(schema.workflows.id))
+    .all()
+  return workflows.map((workflow) => ({
+    ...workflow,
+    slots: slotsOf(db, workflow.id)
+      .filter((slot) => slot.kind === "text" && slot.tier !== "hidden")
+      .map(({ id, name, displayName, multiline, tier }) => ({
+        id,
+        name,
+        displayName,
+        multiline,
+        tier,
+      })),
+  }))
 }
 
 /** One workflow with its slots in graph order and the guide its notes make. */
