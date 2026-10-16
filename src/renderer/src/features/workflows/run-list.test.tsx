@@ -199,8 +199,52 @@ describe("RunList", () => {
     expect(row(2).getByText("No seed")).toBeInTheDocument()
     expect(row(3).getByText("Failed")).toBeInTheDocument()
     expect(row(3).getByText("SamplerCustomAdvanced (node 28): Out of memory")).toBeInTheDocument()
+    expect(row(3).queryByRole("button", { name: "Show all" })).not.toBeInTheDocument()
     expect(row(4).getByText("Done")).toBeInTheDocument()
     expect(row(4).getByText("clip.mp4")).toBeInTheDocument()
+  })
+
+  it("shows the first two lines of a long failure, and the rest when asked", () => {
+    const error = [
+      "Prompt outputs failed validation:",
+      "LoadImage 10: Invalid image file: anna.png",
+      "LoadImage 11: Invalid image file: rain.png",
+    ].join("\n")
+    render(
+      <RunList
+        runs={[run({ id: 3, state: "failed", error })]}
+        positions={{}}
+        pollError={null}
+        onOpenOutput={vi.fn()}
+        {...reviewProps}
+      />
+    )
+
+    expect(row(3).queryByText(/rain\.png/)).not.toBeInTheDocument()
+    expect(row(3).getByText(/Invalid image file: anna\.png…$/)).toBeInTheDocument()
+    fireEvent.click(row(3).getByRole("button", { name: "Show all" }))
+    expect(row(3).getByText(/rain\.png$/)).toBeInTheDocument()
+    fireEvent.click(row(3).getByRole("button", { name: "Show less" }))
+    expect(row(3).queryByText(/rain\.png/)).not.toBeInTheDocument()
+  })
+
+  it("cuts a long one-line failure at a word", () => {
+    const error = `Prompt outputs failed validation: ${"value not in list ".repeat(20)}end`
+    render(
+      <RunList
+        runs={[run({ id: 3, state: "failed", error })]}
+        positions={{}}
+        pollError={null}
+        onOpenOutput={vi.fn()}
+        {...reviewProps}
+      />
+    )
+
+    const shown = row(3).getByText(/^Prompt outputs failed validation:/).textContent ?? ""
+    expect(shown.length).toBeLessThanOrEqual(201)
+    expect(shown).toMatch(/list…$/)
+    fireEvent.click(row(3).getByRole("button", { name: "Show all" }))
+    expect(row(3).getByText(/end$/)).toBeInTheDocument()
   })
 
   it("shows a queued run without a place until a poll gives one", () => {

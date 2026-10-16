@@ -10,6 +10,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@renderer/design-system"
+import { cutAtWord } from "@renderer/lib/cut-at-word"
 import { fileName } from "@renderer/lib/file-name"
 import type {
   RunOutput,
@@ -205,9 +206,7 @@ function RunRow({
           ))}
       </div>
       <RunDetails bindings={run.bindings} slots={slots} />
-      {run.state === "failed" && run.error && (
-        <p className="text-sm break-words text-destructive">{run.error}</p>
-      )}
+      {run.state === "failed" && run.error && <RunError error={run.error} />}
       {run.state === "done" &&
         (run.outputs.length === 0 ? (
           <p className="text-sm text-muted-foreground">The run wrote no files.</p>
@@ -226,6 +225,39 @@ function RunRow({
         ))}
     </li>
   )
+}
+
+/** How many lines of a failure show before the rest is folded away. */
+const ERROR_LINES = 2
+
+/** How many characters of a failure show before the rest is folded away. */
+const ERROR_LENGTH = 200
+
+/** Why a run failed: its start, with the rest behind a toggle when there is more. */
+function RunError({ error }: { error: string }): React.JSX.Element {
+  const [open, setOpen] = useState(false)
+  const whole = error.trim()
+  const start = errorStart(whole)
+  const folded = start !== whole
+  return (
+    <div className="flex flex-col items-start gap-0.5">
+      <p className="text-sm break-words whitespace-pre-wrap text-destructive">
+        {open || !folded ? whole : start}
+      </p>
+      {folded && (
+        <Button variant="link" size="xs" className="px-0" onClick={() => setOpen(!open)}>
+          {open ? "Show less" : "Show all"}
+        </Button>
+      )}
+    </div>
+  )
+}
+
+/** The first lines of a failure, cut at a word when they run long, marked when cut. */
+function errorStart(error: string): string {
+  const firstLines = error.split("\n").slice(0, ERROR_LINES).join("\n")
+  const cut = cutAtWord(firstLines, ERROR_LENGTH)
+  return cut === firstLines && firstLines !== error ? `${firstLines.trimEnd()}…` : cut
 }
 
 /** What each slot of a run was sent, behind a fold. */
