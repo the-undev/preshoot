@@ -62,6 +62,8 @@ export function useWorkflow(workflowId: number): WorkflowPanel {
 
   const refresh = async (): Promise<void> => {
     await queryClient.invalidateQueries({ queryKey: trpc.workflows.pathKey() })
+    // The run form starts from the graph's values, which an applied update changes.
+    await queryClient.invalidateQueries({ queryKey: trpc.runs.values.pathKey() })
   }
   const setTier = useMutation(trpc.workflows.setTier.mutationOptions({ onSuccess: refresh }))
   const apply = useMutation(trpc.workflows.applyUpdate.mutationOptions({ onSuccess: refresh }))

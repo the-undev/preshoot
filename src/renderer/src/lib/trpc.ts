@@ -133,3 +133,18 @@ export type SourceStatus = RouterOutputs["workflows"]["checkSource"]
 
 /** How a changed source file would change the slots. */
 export type SlotDiff = Extract<SourceStatus, { state: "changed" }>["diff"]
+
+/** The value a slot holds as saved in the workflow, which the run form starts from. */
+export type SavedSlotValue = RouterOutputs["runs"]["values"][number]
+
+/** One slot of a run as the form sends it: whether its node runs, and what fills it. */
+export type RunBinding = RouterInputs["runs"]["queue"]["bindings"][number]
+
+/** One time a workflow was queued, with how it went and what it wrote. */
+export type RunRecord = RouterOutputs["runs"]["list"][number]
+
+/** Where a run stands. */
+export type RunState = RunRecord["state"]
+
+/** What a poll of a run found, with its place in the queue while it waits. */
+export type RunStatus = RouterOutputs["runs"]["poll"]

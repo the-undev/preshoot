@@ -1,9 +1,19 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router"
-import { Alert, AlertDescription } from "@renderer/design-system"
+import { ChevronRight } from "lucide-react"
+import { useState } from "react"
+import {
+  Alert,
+  AlertDescription,
+  Button,
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@renderer/design-system"
 import { useOpenSettings } from "@renderer/features/settings/settings-dialog-context"
 import { useWorkflow, useWorkflows } from "@renderer/features/workflows/use-workflows"
 import { WorkflowList } from "@renderer/features/workflows/workflow-list"
 import { WorkflowGuide, WorkflowMapping } from "@renderer/features/workflows/workflow-mapping"
+import { WorkflowRun } from "@renderer/features/workflows/workflow-run"
 import { WorkflowSource } from "@renderer/features/workflows/workflow-source"
 
 /** Which workflow is open beside the list, when one is. */
@@ -46,7 +56,7 @@ function Workflows(): React.JSX.Element {
 
       {workflowId === undefined ? (
         <p className="text-sm text-muted-foreground">
-          Open a workflow to see its inputs and the tier each one is shown at.
+          Open a workflow to fill its inputs and queue it.
         </p>
       ) : (
         <OpenWorkflow key={workflowId} workflowId={workflowId} />
@@ -55,10 +65,11 @@ function Workflows(): React.JSX.Element {
   )
 }
 
-/** One workflow: where its source stands, its mapping, and its guide. */
+/** One workflow: where its source stands, the form that queues it, its runs, guide and mapping. */
 function OpenWorkflow({ workflowId }: { workflowId: number }): React.JSX.Element {
   const panel = useWorkflow(workflowId)
   const workflow = panel.workflow
+  const [mappingOpen, setMappingOpen] = useState(false)
 
   if (!workflow) {
     return panel.errorMessage ? (
@@ -91,16 +102,29 @@ function OpenWorkflow({ workflowId }: { workflowId: number }): React.JSX.Element
         </Alert>
       )}
 
-      {/* The mapping is worked in and the guide is read, so on a wide screen they sit side by side. */}
+      {/* The form is worked in and the guide is read, so on a wide screen they sit side by side. */}
       <div className="grid min-w-0 gap-8 xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
-        <section className="flex min-w-0 flex-col gap-3">
-          <h2 className="font-heading text-sm font-semibold text-muted-foreground">Mapping</h2>
-          <WorkflowMapping slots={workflow.slots} onSetTier={panel.setTier} />
-        </section>
-        <section className="flex min-w-0 flex-col gap-3">
-          <h2 className="font-heading text-sm font-semibold text-muted-foreground">Guide</h2>
-          <WorkflowGuide guide={workflow.guide} />
-        </section>
+        <WorkflowRun workflow={workflow} />
+        <div className="flex min-w-0 flex-col gap-6">
+          <section className="flex min-w-0 flex-col gap-3">
+            <h2 className="font-heading text-sm font-semibold text-muted-foreground">Guide</h2>
+            <WorkflowGuide guide={workflow.guide} />
+          </section>
+          {/* Tiers are set once per workflow, so the mapping waits behind a fold. */}
+          <Collapsible open={mappingOpen} onOpenChange={setMappingOpen}>
+            <CollapsibleTrigger asChild>
+              <Button variant="ghost" size="sm" className="-ml-2 gap-1 text-muted-foreground">
+                <ChevronRight
+                  className={mappingOpen ? "size-4 rotate-90 transition-transform" : "size-4"}
+                />
+                Mapping
+              </Button>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="pt-3">
+              <WorkflowMapping slots={workflow.slots} onSetTier={panel.setTier} />
+            </CollapsibleContent>
+          </Collapsible>
+        </div>
       </div>
     </div>
   )
