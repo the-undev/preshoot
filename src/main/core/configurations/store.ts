@@ -295,6 +295,28 @@ export function inputsNamedByRun(directory: string, bindings: RecordedBinding[])
   )
 }
 
+/** The files in the project's inputs folder that a workflow's configurations and runs name. */
+export function inputsNamedByWorkflow(
+  db: ProjectDb,
+  directory: string,
+  workflowId: number
+): string[] {
+  const configurations = db
+    .select()
+    .from(schema.configurations)
+    .where(eq(schema.configurations.workflowId, workflowId))
+    .all()
+  const runs = db
+    .select({ bindings: schema.runs.bindings })
+    .from(schema.runs)
+    .where(eq(schema.runs.workflowId, workflowId))
+    .all()
+  return [
+    ...configurations.flatMap((row) => filesOf(bindingsOf(row))),
+    ...runs.flatMap((run) => inputsNamedByRun(directory, run.bindings as RecordedBinding[])),
+  ]
+}
+
 /** Where a file under the project folder sits, with forward slashes. */
 function projectPath(directory: string, path: string): string {
   return relative(directory, path).split(sep).join("/")

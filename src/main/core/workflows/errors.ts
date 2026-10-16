@@ -1,8 +1,8 @@
-/** Why a workflow could not be read, imported or updated. */
+/** Why a workflow could not be read, imported, updated or removed. */
 export type WorkflowErrorCode =
-  "not-found" | "unreadable" | "already-imported" | "outside-folder" | "stale"
+  "not-found" | "unreadable" | "already-imported" | "outside-folder" | "stale" | "runs-unfinished"
 
-/** A refusal the renderer can show, raised by the workflow scan and store. */
+/** A refusal the renderer can show, raised by the workflow scan, store and removal. */
 export class WorkflowError extends Error {
   readonly code: WorkflowErrorCode
 
@@ -35,6 +35,14 @@ export class WorkflowError extends Error {
     return new WorkflowError(
       "outside-folder",
       `${path} is not in the workflows folder named in settings.`
+    )
+  }
+
+  /** A workflow whose runs ComfyUI may still write files for is kept until they are cancelled. */
+  static runsUnfinished(name: string): WorkflowError {
+    return new WorkflowError(
+      "runs-unfinished",
+      `${name} has runs still queued or running. Cancel them before removing it.`
     )
   }
 

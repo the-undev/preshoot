@@ -29,6 +29,7 @@ const WORKFLOW_CODES = {
   "already-imported": "CONFLICT",
   "outside-folder": "BAD_REQUEST",
   stale: "CONFLICT",
+  "runs-unfinished": "CONFLICT",
 } as const
 
 /** How a failure talking to ComfyUI reaches the renderer. */

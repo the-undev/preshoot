@@ -107,6 +107,27 @@ describe("workflows router", () => {
     ])
   })
 
+  it("removes a workflow and lists its source as importable again", async () => {
+    await openProject()
+    settings.setWorkflowsFolder(folder)
+    const imported = await caller.workflows.import({ path: sourcePath })
+
+    await caller.workflows.remove({ workflowId: imported.id })
+
+    expect(await caller.workflows.list()).toEqual([])
+    const files = await caller.workflows.files()
+    if (files.state !== "listed") throw new Error("the folder was not listed")
+    expect(files.files.map((file) => file.importedWorkflowId)).toEqual([null])
+  })
+
+  it("reports removing a workflow that is not there as not found", async () => {
+    await openProject()
+
+    await expect(caller.workflows.remove({ workflowId: 99 })).rejects.toThrow(
+      expect.objectContaining({ code: "NOT_FOUND" })
+    )
+  })
+
   it("refuses the same file twice as a conflict", async () => {
     await openProject()
     settings.setWorkflowsFolder(folder)

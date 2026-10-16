@@ -42,6 +42,45 @@ export function useWorkflows(): WorkflowsPanel {
   }
 }
 
+/** What removing a workflow takes with it, and the call that removes it. */
+export interface WorkflowRemovalPanel {
+  configurationCount: number
+  runCount: number
+  remove(): void
+  isRemoving: boolean
+  errorMessage: string | null
+}
+
+/**
+ * Counts a workflow's configurations and runs and removes it. `onRemoved` moves off the workflow
+ * before the lists are read again, so nothing asks for the one that has gone.
+ */
+export function useWorkflowRemoval(
+  workflowId: number,
+  onRemoved: () => Promise<void>
+): WorkflowRemovalPanel {
+  const trpc = useTRPC()
+  const queryClient = useQueryClient()
+  const configurations = useQuery(trpc.configurations.list.queryOptions({ workflowId }))
+  const runs = useQuery(trpc.runs.list.queryOptions({ workflowId }))
+  const remove = useMutation(
+    trpc.workflows.remove.mutationOptions({
+      onSuccess: async () => {
+        await onRemoved()
+        await queryClient.invalidateQueries({ queryKey: trpc.workflows.pathKey() })
+      },
+    })
+  )
+
+  return {
+    configurationCount: configurations.data?.length ?? 0,
+    runCount: runs.data?.length ?? 0,
+    remove: () => remove.mutate({ workflowId }),
+    isRemoving: remove.isPending,
+    errorMessage: remove.error?.message ?? null,
+  }
+}
+
 /** One workflow, how its source stands, and the calls that change its mapping. */
 export interface WorkflowPanel {
   workflow: WorkflowDetail | undefined

@@ -10,9 +10,14 @@ import {
   CollapsibleTrigger,
 } from "@renderer/design-system"
 import { useOpenSettings } from "@renderer/features/settings/settings-dialog-context"
-import { useWorkflow, useWorkflows } from "@renderer/features/workflows/use-workflows"
+import {
+  useWorkflow,
+  useWorkflowRemoval,
+  useWorkflows,
+} from "@renderer/features/workflows/use-workflows"
 import { WorkflowList } from "@renderer/features/workflows/workflow-list"
 import { WorkflowGuide, WorkflowMapping } from "@renderer/features/workflows/workflow-mapping"
+import { WorkflowRemoval } from "@renderer/features/workflows/workflow-removal"
 import { WorkflowRun } from "@renderer/features/workflows/workflow-run"
 import { WorkflowSource } from "@renderer/features/workflows/workflow-source"
 
@@ -59,15 +64,29 @@ function Workflows(): React.JSX.Element {
           Open a workflow to fill its inputs and queue it.
         </p>
       ) : (
-        <OpenWorkflow key={workflowId} workflowId={workflowId} />
+        <OpenWorkflow
+          key={workflowId}
+          workflowId={workflowId}
+          onRemoved={() => navigate({ search: {} })}
+        />
       )}
     </main>
   )
 }
 
-/** One workflow: where its source stands, the form that queues it, its runs, guide and mapping. */
-function OpenWorkflow({ workflowId }: { workflowId: number }): React.JSX.Element {
+/**
+ * One workflow: where its source stands, the form that queues it, its runs, guide and mapping,
+ * and a way to remove it.
+ */
+function OpenWorkflow({
+  workflowId,
+  onRemoved,
+}: {
+  workflowId: number
+  onRemoved: () => Promise<void>
+}): React.JSX.Element {
   const panel = useWorkflow(workflowId)
+  const removal = useWorkflowRemoval(workflowId, onRemoved)
   const workflow = panel.workflow
   const [mappingOpen, setMappingOpen] = useState(false)
 
@@ -83,9 +102,18 @@ function OpenWorkflow({ workflowId }: { workflowId: number }): React.JSX.Element
 
   return (
     <div className="flex min-w-0 flex-col gap-6">
-      <div className="flex min-w-0 flex-col">
-        <h2 className="font-heading text-lg font-semibold">{workflow.name}</h2>
-        <p className="truncate text-xs text-muted-foreground">{workflow.sourcePath}</p>
+      <div className="flex min-w-0 items-start justify-between gap-4">
+        <div className="flex min-w-0 flex-col">
+          <h2 className="font-heading text-lg font-semibold">{workflow.name}</h2>
+          <p className="truncate text-xs text-muted-foreground">{workflow.sourcePath}</p>
+        </div>
+        <WorkflowRemoval
+          name={workflow.name}
+          configurationCount={removal.configurationCount}
+          runCount={removal.runCount}
+          isRemoving={removal.isRemoving}
+          onRemove={removal.remove}
+        />
       </div>
 
       <WorkflowSource
@@ -96,9 +124,9 @@ function OpenWorkflow({ workflowId }: { workflowId: number }): React.JSX.Element
         onApply={panel.applyUpdate}
       />
 
-      {panel.errorMessage && (
+      {(panel.errorMessage ?? removal.errorMessage) && (
         <Alert variant="destructive">
-          <AlertDescription>{panel.errorMessage}</AlertDescription>
+          <AlertDescription>{panel.errorMessage ?? removal.errorMessage}</AlertDescription>
         </Alert>
       )}
 

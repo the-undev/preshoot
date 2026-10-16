@@ -2,6 +2,7 @@ import { TRPCError } from "@trpc/server"
 import { z } from "zod"
 import { configurationNamesBinding } from "../../core/configurations/store"
 import { listWorkflowFolder } from "../../core/workflows/folder"
+import { removeWorkflow } from "../../core/workflows/remove"
 import { SLOT_TIERS } from "../../core/workflows/scan"
 import {
   applySourceUpdate,
@@ -12,7 +13,7 @@ import {
   setSlotTier,
 } from "../../core/workflows/store"
 import { asClientError } from "../client-errors"
-import { requireProject } from "../project"
+import { requireOpenProject, requireProject } from "../project"
 import { publicProcedure, router } from "../trpc"
 
 const workflowId = z.number().int()
@@ -82,6 +83,19 @@ export const workflowsRouter = router({
           status.diff.removed
         ),
       }
+    } catch (error) {
+      asClientError(error)
+    }
+  }),
+
+  /**
+   * Removes a workflow's copy from the project with its configurations, runs and their files. The
+   * source file stays, so the folder lists it as importable again.
+   */
+  remove: publicProcedure.input(z.object({ workflowId })).mutation(({ ctx, input }) => {
+    const project = requireOpenProject(ctx)
+    try {
+      removeWorkflow({ db: project.db, directory: project.directory, workflowId: input.workflowId })
     } catch (error) {
       asClientError(error)
     }
