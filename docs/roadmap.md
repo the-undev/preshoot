@@ -343,8 +343,9 @@ describes reference pictures. Nothing else in the app calls a model.
     chosen folder.
 14. The run form filled from outside itself: pictures, sounds and saved
     prompt files picked from the library, a file dropped straight onto a
-    slot, and a clip's prompt sent into a chosen workflow's text slot,
-    arriving as typed text to edit, save or queue.
+    slot, and a clip's prompt, duration and frame pictures sent onto the
+    slots of a chosen workflow, each slot confirmed in the send dialog,
+    arriving as typed values and chosen files to edit, save or queue.
 
 ## Milestones
 
