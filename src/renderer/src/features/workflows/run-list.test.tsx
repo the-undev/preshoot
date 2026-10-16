@@ -83,6 +83,20 @@ const reviewProps = {
   onShowFolder: vi.fn(),
 }
 
+/** The ids of the runs listed, top to bottom. */
+function listedRunIds(): number[] {
+  return screen
+    .getAllByRole("listitem", { name: /^Run \d+$/ })
+    .map((item) => Number(item.getAttribute("aria-label")?.replace("Run ", "")))
+}
+
+/** Finished runs with ids from `newest` down to `oldest`, newest first. */
+function doneRuns(newest: number, oldest: number): RunRecord[] {
+  return Array.from({ length: newest - oldest + 1 }, (_, index) =>
+    run({ id: newest - index, state: "done" })
+  )
+}
+
 function row(runId: number): ReturnType<typeof within> {
   return within(screen.getByRole("listitem", { name: `Run ${runId}` }))
 }
@@ -402,6 +416,57 @@ describe("RunList", () => {
         "Run 2 is neither waiting nor running in ComfyUI, so there was nothing to cancel."
       )
     ).toBeInTheDocument()
+  })
+
+  it("shows the latest 15 runs until all are asked for, and fewer again when asked", () => {
+    render(
+      <RunList
+        runs={doneRuns(16, 1)}
+        positions={{}}
+        pollError={null}
+        onOpenOutput={vi.fn()}
+        {...reviewProps}
+      />
+    )
+
+    expect(listedRunIds()).toEqual(doneRuns(16, 2).map((entry) => entry.id))
+
+    fireEvent.click(screen.getByRole("button", { name: "Show all (16)" }))
+    expect(listedRunIds()).toHaveLength(16)
+
+    fireEvent.click(screen.getByRole("button", { name: "Show fewer" }))
+    expect(listedRunIds()).toHaveLength(15)
+  })
+
+  it("offers nothing more when 15 runs or fewer show", () => {
+    render(
+      <RunList
+        runs={doneRuns(15, 1)}
+        positions={{}}
+        pollError={null}
+        onOpenOutput={vi.fn()}
+        {...reviewProps}
+      />
+    )
+
+    expect(listedRunIds()).toHaveLength(15)
+    expect(screen.queryByRole("button", { name: /Show all/ })).not.toBeInTheDocument()
+  })
+
+  it("keeps every unfinished run among the 15, newest first", () => {
+    const listed = [...doneRuns(18, 3), run({ id: 2, state: "running" }), run({ id: 1 })]
+    render(
+      <RunList
+        runs={listed}
+        positions={{}}
+        pollError={null}
+        onOpenOutput={vi.fn()}
+        {...reviewProps}
+      />
+    )
+
+    expect(listedRunIds()).toEqual([...doneRuns(18, 6).map((entry) => entry.id), 2, 1])
+    expect(screen.getByRole("button", { name: "Show all (18)" })).toBeInTheDocument()
   })
 
   it("says when nothing has been queued, and when ComfyUI could not be asked", () => {

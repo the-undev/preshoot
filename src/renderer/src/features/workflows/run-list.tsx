@@ -34,6 +34,9 @@ const STATE_CHIPS: Record<RunState, { label: string; className: string }> = {
 /** The states of a run ComfyUI has not finished with. */
 const UNFINISHED_STATES: ReadonlySet<RunState> = new Set(["queued", "running"])
 
+/** How many runs the list shows until it is asked for all of them. */
+const LATEST_RUN_LIMIT = 15
+
 /** How a run filled one slot, as its record keeps it. */
 type RunBindingRecord = RunRecord["bindings"][number]
 
@@ -60,7 +63,10 @@ interface RunListProps {
   onDelete: (runId: number) => void
 }
 
-/** A workflow's runs, newest first, each as one slim row with its outputs. */
+/**
+ * A workflow's runs, newest first, each as one slim row with its outputs. The latest show until
+ * every run is asked for, which holds while the screen is open.
+ */
 export function RunList({
   runs,
   slots,
@@ -77,7 +83,10 @@ export function RunList({
   onCancel,
   onDelete,
 }: RunListProps): React.JSX.Element {
+  const [showingAll, setShowingAll] = useState(false)
   const shown = filter === "all" ? runs : runs.flatMap((run) => withOutputsKept(run, filter))
+  const latest = latestRuns(shown, LATEST_RUN_LIMIT)
+  const listed = showingAll ? shown : latest
   // Counted before the filter, since a delete takes every file whatever shows.
   const fileCounts = new Map(runs.map((run) => [run.id, run.outputs.length]))
   return (
@@ -95,7 +104,7 @@ export function RunList({
       )}
       {shown.length > 0 && (
         <ul className="flex flex-col">
-          {shown.map((run) => (
+          {listed.map((run) => (
             <RunRow
               key={run.id}
               run={run}
@@ -113,8 +122,34 @@ export function RunList({
           ))}
         </ul>
       )}
+      {latest.length < shown.length && (
+        <Button
+          variant="ghost"
+          size="sm"
+          className="self-start text-muted-foreground"
+          onClick={() => setShowingAll(!showingAll)}
+        >
+          {showingAll ? "Show fewer" : `Show all (${shown.length})`}
+        </Button>
+      )}
     </div>
   )
+}
+
+/**
+ * The newest runs up to `limit`, in the order given. Every unfinished run is kept and counts
+ * towards the limit, so the finished ones fill what room is left.
+ */
+function latestRuns(runs: RunRecord[], limit: number): RunRecord[] {
+  const isUnfinished = (run: RunRecord): boolean => UNFINISHED_STATES.has(run.state)
+  const unfinishedCount = runs.filter(isUnfinished).length
+  const keptFinishedIds = new Set(
+    runs
+      .filter((run) => !isUnfinished(run))
+      .slice(0, Math.max(limit - unfinishedCount, 0))
+      .map((run) => run.id)
+  )
+  return runs.filter((run) => isUnfinished(run) || keptFinishedIds.has(run.id))
 }
 
 interface RunRowProps {
