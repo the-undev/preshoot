@@ -106,3 +106,30 @@ export type LineKind = LineInput["kind"]
 
 /** The words the clip's target accepts, for the pickers in the editor. */
 export type Vocabularies = RouterOutputs["clips"]["vocabularies"]
+
+/** What the workflows folder holds, or why nothing can be listed. */
+export type WorkflowFolder = RouterOutputs["workflows"]["files"]
+
+/** One workflow file in the workflows folder. */
+export type WorkflowFile = Extract<WorkflowFolder, { state: "listed" }>["files"][number]
+
+/** A workflow the project holds, without its mapping. */
+export type WorkflowSummary = RouterOutputs["workflows"]["list"][number]
+
+/** A workflow with its mapping and its guide. */
+export type WorkflowDetail = RouterOutputs["workflows"]["get"]
+
+/** One input of a workflow the app can fill. */
+export type WorkflowSlot = WorkflowDetail["slots"][number]
+
+/** Where a slot is shown in the mapping. */
+export type SlotTier = WorkflowSlot["tier"]
+
+/** What a slot takes. */
+export type SlotKind = WorkflowSlot["kind"]
+
+/** How a workflow's source file stands against the project's copy. */
+export type SourceStatus = RouterOutputs["workflows"]["checkSource"]
+
+/** How a changed source file would change the slots. */
+export type SlotDiff = Extract<SourceStatus, { state: "changed" }>["diff"]
