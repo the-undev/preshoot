@@ -12,7 +12,13 @@ import {
 } from "@renderer/design-system"
 import { LibraryImagePicker } from "@renderer/features/library/library-image-picker"
 import { fileName } from "@renderer/lib/file-name"
-import type { LibraryFolder, RunBinding, SavedSlotValue, WorkflowSlot } from "@renderer/lib/trpc"
+import {
+  libraryFileUrl,
+  type LibraryFolder,
+  type RunBinding,
+  type SavedSlotValue,
+  type WorkflowSlot,
+} from "@renderer/lib/trpc"
 import { SaveConfigurationDialog } from "./save-configuration-dialog"
 import { BATCH_LIMIT, randomSeed } from "../../../../main/core/dispatch/batch"
 import { KIND_LABELS } from "./slot-labels"
@@ -20,11 +26,14 @@ import { KIND_LABELS } from "./slot-labels"
 /** The kinds of slot filled from a file on disk. */
 export type FileKind = "image" | "audio"
 
-/** What the form holds for one slot, by what the slot takes. */
+/**
+ * What the form holds for one slot, by what the slot takes. A file picked from the library also
+ * holds its path in the library, which its thumbnail is read by.
+ */
 type Field =
   | { type: "typed"; text: string }
   | { type: "switch"; checked: boolean }
-  | { type: "file"; saved: string | null; path: string | null }
+  | { type: "file"; saved: string | null; path: string | null; libraryPath: string | null }
   | { type: "as-saved" }
 
 /** The fields whose control the slot's label names. */
@@ -293,7 +302,7 @@ function FieldControl({
           aria-label={`Choose file for ${slot.name}`}
           onClick={async () => {
             const path = await onPickFile(kind)
-            if (path) onChange({ ...field, path })
+            if (path) onChange({ ...field, path, libraryPath: null })
           }}
         >
           Choose file
@@ -309,6 +318,13 @@ function FieldControl({
             From library
           </Button>
         )}
+        {field.libraryPath !== null && (
+          <img
+            src={libraryFileUrl(field.libraryPath, 80)}
+            alt=""
+            className="size-12 shrink-0 rounded object-cover"
+          />
+        )}
         <span className="truncate text-sm">
           {field.path ? fileName(field.path) : (field.saved ?? "Nothing chosen")}
         </span>
@@ -319,7 +335,7 @@ function FieldControl({
           <LibraryImagePicker
             folder={library}
             onPick={(file) => {
-              onChange({ ...field, path: file.path })
+              onChange({ ...field, path: file.path, libraryPath: file.relativePath })
               setPickingFromLibrary(false)
             }}
             onCancel={() => setPickingFromLibrary(false)}
@@ -417,7 +433,12 @@ function boundField(
 ): Field {
   if (value === null) return initialField(slot, saved)
   if (value.type === "value") return initialField(slot, value.value)
-  return { type: "file", saved: typeof saved === "string" ? saved : null, path: value.path }
+  return {
+    type: "file",
+    saved: typeof saved === "string" ? saved : null,
+    path: value.path,
+    libraryPath: null,
+  }
 }
 
 function initialField(slot: WorkflowSlot, saved: SavedSlotValue["value"]): Field {
@@ -431,7 +452,12 @@ function initialField(slot: WorkflowSlot, saved: SavedSlotValue["value"]): Field
       return { type: "switch", checked: saved === true }
     case "image":
     case "audio":
-      return { type: "file", saved: typeof saved === "string" ? saved : null, path: null }
+      return {
+        type: "file",
+        saved: typeof saved === "string" ? saved : null,
+        path: null,
+        libraryPath: null,
+      }
     case "lora":
     case "toggle":
       return { type: "as-saved" }

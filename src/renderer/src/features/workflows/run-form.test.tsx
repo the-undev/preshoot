@@ -323,6 +323,36 @@ describe("RunForm", () => {
     })
   })
 
+  it("shows a thumbnail beside a picture picked from the library", () => {
+    renderForm()
+
+    fireEvent.click(screen.getByRole("button", { name: "Choose Picture 1 from the library" }))
+    fireEvent.click(screen.getByRole("button", { name: "Rainy Street: rainy-street-dusk.png" }))
+
+    const slotRow = screen.getByText("Picture 1").closest("li")
+    const thumbnails = slotRow?.querySelectorAll("img") ?? []
+    expect(thumbnails).toHaveLength(1)
+    expect(thumbnails[0]).toHaveAttribute(
+      "src",
+      `library://file/${encodeURIComponent("scenes/Rainy Street/rainy-street-dusk.png")}?width=80`
+    )
+  })
+
+  it("shows no thumbnail for a file picked from disk, or for the one saved in the workflow", async () => {
+    renderForm({ onPickFile: async () => "/home/me/pictures/anna.png" })
+    const slotRow = screen.getByText("Picture 1").closest("li")
+    expect(slotRow?.querySelector("img")).toBeNull()
+
+    fireEvent.click(screen.getByRole("button", { name: "Choose Picture 1 from the library" }))
+    fireEvent.click(screen.getByRole("button", { name: "Rainy Street: rainy-street-dusk.png" }))
+    await act(async () =>
+      fireEvent.click(screen.getByRole("button", { name: "Choose file for Picture 1" }))
+    )
+
+    expect(screen.getByText("anna.png")).toBeInTheDocument()
+    expect(slotRow?.querySelector("img")).toBeNull()
+  })
+
   it("offers the library's pictures by entry, and only pictures", () => {
     renderForm()
 
