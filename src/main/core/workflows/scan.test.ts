@@ -13,7 +13,7 @@ function rows(slots: ScannedSlot[]): SlotRow[] {
     slot.name,
     slot.kind,
     slot.tier,
-    slot.bypassed,
+    slot.startsOff,
   ])
 }
 

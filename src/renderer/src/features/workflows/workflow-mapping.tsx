@@ -72,7 +72,7 @@ function SlotRow({ slot, onSetTier, onSetLabel }: SlotRowProps): React.JSX.Eleme
           <span className="truncate text-sm">{slot.name}</span>
           <span className="text-xs text-muted-foreground">
             {KIND_LABELS[slot.kind]}
-            {slot.bypassed ? " · bypassed in the workflow" : ""}
+            {slot.startsOff ? " · off in the workflow" : ""}
             {slot.displayName === null ? "" : ` · shown as ${slot.displayName}`}
           </span>
           {slot.note !== "" && (

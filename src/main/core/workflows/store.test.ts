@@ -78,7 +78,7 @@ describe("workflow store", () => {
         name: slot.name,
         kind: slot.kind,
         tier: slot.tier,
-        bypassed: slot.bypassed,
+        startsOff: slot.startsOff,
         multiline: slot.multiline,
         position: slot.position,
       }))

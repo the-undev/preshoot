@@ -205,7 +205,7 @@ function withFreshSeeds(
 ): SlotBinding[] {
   const bySlot = new Map(bindings.map((binding) => [binding.slotId, binding]))
   for (const slot of seedSlots) {
-    const on = bySlot.get(slot.id)?.on ?? !slot.bypassed
+    const on = bySlot.get(slot.id)?.on ?? !slot.startsOff
     bySlot.set(slot.id, { slotId: slot.id, on, value: { type: "value", value: random() } })
   }
   return [...bySlot.values()]
@@ -389,7 +389,7 @@ function seedOf(
   for (const slot of slots) {
     if (slot.kind !== "seed") continue
     const binding = recorded.find((entry) => entry.slotId === slot.id)
-    if (!(binding?.on ?? !slot.bypassed)) continue
+    if (!(binding?.on ?? !slot.startsOff)) continue
     const value = binding?.value ?? saved.find((entry) => entry.slotId === slot.id)?.value
     return typeof value === "number" ? value : null
   }

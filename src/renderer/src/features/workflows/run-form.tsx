@@ -251,8 +251,8 @@ function SlotField({
   onReadText,
 }: SlotFieldProps): React.JSX.Element {
   const id = `slot-${slot.id}`
-  // A slot bypassed in the workflow, or one that only switches a node, can be turned on and off.
-  const switchable = slot.bypassed || slot.kind === "toggle"
+  // A slot that starts off, or one that only switches a node, can be turned on and off.
+  const switchable = slot.startsOff || slot.kind === "toggle"
   const [dropProblem, setDropProblem] = useState<string | null>(null)
   const [isDraggingFile, setIsDraggingFile] = useState(false)
   const setField = (field: Field): void => {
@@ -533,7 +533,7 @@ function savedValueOf(savedValues: SavedSlotValue[], slotId: number): SavedSlotV
 
 /**
  * Where a slot starts: as a loaded configuration binds it, or else on unless the workflow has it
- * bypassed and holding the value it was saved with.
+ * switched off, and holding the value it was saved with.
  */
 function initialState(
   slot: WorkflowSlot,
@@ -542,7 +542,7 @@ function initialState(
 ): SlotState {
   const saved = savedValueOf(savedValues, slot.id)
   const binding = initialBindings.find((entry) => entry.slotId === slot.id)
-  if (!binding) return { on: !slot.bypassed, field: initialField(slot, saved) }
+  if (!binding) return { on: !slot.startsOff, field: initialField(slot, saved) }
   return { on: binding.on, field: boundField(slot, saved, binding.value) }
 }
 

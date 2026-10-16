@@ -71,7 +71,7 @@ export interface ScannedSlot {
   kind: SlotKind
   tier: SlotTier
   /** Whether the node is muted or bypassed as saved, so its slot starts off. */
-  bypassed: boolean
+  startsOff: boolean
   /** Whether a text slot's value runs over several lines, so it is typed into a box. */
   multiline: boolean
   position: number
@@ -123,21 +123,21 @@ export function scanGraph(graph: WorkflowGraph): WorkflowScan {
 /** The slot a node offers, or nothing when it is not one the app can fill or switch. */
 function slotOf(node: GraphNode): Omit<ScannedSlot, "position"> | null {
   const title = titleOf(node)
-  const bypassed = OFF_MODES.includes(node.mode)
+  const startsOff = OFF_MODES.includes(node.mode)
   const input = INPUT_NODE_KINDS[node.type]
   const base = {
     nodeId: node.id,
     nodeType: node.type,
     name: title ?? `${node.type} ${node.id}`,
-    bypassed,
+    startsOff,
   }
 
   if (input) {
-    const tier: SlotTier = bypassed || title === null ? "advanced" : "basic"
+    const tier: SlotTier = startsOff || title === null ? "advanced" : "basic"
     return { ...base, kind: input.kind, multiline: input.multiline, tier }
   }
   // A switched-off node someone named is one they meant to be switched on; an unnamed one is not.
-  if (bypassed && title !== null) {
+  if (startsOff && title !== null) {
     return { ...base, kind: "toggle", multiline: false, tier: "advanced" }
   }
   return null

@@ -161,8 +161,8 @@ export const workflowSlots = sqliteTable("workflow_slots", {
   kind: text("kind").notNull(),
   // Basic, advanced or hidden. Set by the scan and changed by the user, and kept across updates.
   tier: text("tier").notNull(),
-  // Whether the node was bypassed in the graph, so the slot is off until it is used.
-  bypassed: integer("bypassed", { mode: "boolean" }).notNull(),
+  // Whether the node is muted or bypassed in the graph, so the slot starts off until it is used.
+  startsOff: integer("starts_off", { mode: "boolean" }).notNull(),
   // Whether a text slot's value runs over several lines. Read from the node type by the scan.
   multiline: integer("multiline", { mode: "boolean" }).notNull().default(false),
   position: integer("position").notNull(),

@@ -39,7 +39,7 @@ export interface SlotRecord {
   note: string
   kind: SlotKind
   tier: SlotTier
-  bypassed: boolean
+  startsOff: boolean
   multiline: boolean
   position: number
 }
@@ -235,7 +235,7 @@ function applyScan(
         .set({
           name: fresh.name,
           kind: fresh.kind,
-          bypassed: fresh.bypassed,
+          startsOff: fresh.startsOff,
           multiline: fresh.multiline,
           position: fresh.position,
         })
@@ -291,7 +291,7 @@ function insertSlots(tx: ProjectDb, workflowId: number, slots: ScannedSlot[]): v
         name: slot.name,
         kind: slot.kind,
         tier: slot.tier,
-        bypassed: slot.bypassed,
+        startsOff: slot.startsOff,
         multiline: slot.multiline,
         position: slot.position,
       })

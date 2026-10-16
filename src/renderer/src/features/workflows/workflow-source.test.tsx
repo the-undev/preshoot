@@ -15,7 +15,7 @@ const diff: SlotDiff = {
       name: "Voice",
       kind: "audio",
       tier: "basic",
-      bypassed: false,
+      startsOff: false,
       multiline: false,
       position: 3,
     },

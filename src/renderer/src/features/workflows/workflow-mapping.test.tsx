@@ -14,7 +14,7 @@ function slot(over: Partial<WorkflowSlot>): WorkflowSlot {
     note: "",
     kind: "text",
     tier: "basic",
-    bypassed: false,
+    startsOff: false,
     multiline: true,
     position: 0,
     ...over,
@@ -30,7 +30,7 @@ const slots: WorkflowSlot[] = [
     name: "Picture 3 (bypassed: Ctrl+B to use)",
     kind: "image",
     tier: "advanced",
-    bypassed: true,
+    startsOff: true,
     position: 1,
   }),
   slot({ id: 3, nodeId: 23, nodeType: "RandomNoise", name: "Seed", kind: "seed", position: 2 }),
@@ -49,11 +49,11 @@ describe("WorkflowMapping", () => {
     expect(hidden.getByText("Nothing here.")).toBeInTheDocument()
   })
 
-  it("says what each slot takes, and when it is bypassed in the workflow", () => {
+  it("says what each slot takes, and when it is off in the workflow", () => {
     render(<WorkflowMapping slots={slots} onSetTier={vi.fn()} onSetLabel={vi.fn()} />)
 
     expect(screen.getByText("Text")).toBeInTheDocument()
-    expect(screen.getByText("Image · bypassed in the workflow")).toBeInTheDocument()
+    expect(screen.getByText("Image · off in the workflow")).toBeInTheDocument()
   })
 
   it("marks the tier each slot is at", () => {

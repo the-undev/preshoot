@@ -62,7 +62,7 @@ function slot(over: Partial<WorkflowSlot>): WorkflowSlot {
     note: "",
     kind: "text",
     tier: "basic",
-    bypassed: false,
+    startsOff: false,
     multiline: true,
     position: 0,
     ...over,
