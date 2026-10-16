@@ -122,6 +122,25 @@ describe("scanGraph", () => {
     ])
   })
 
+  it("marks a multiline string's slot as multiline and a one-line string's as not", () => {
+    const { slots } = scanGraph(
+      readGraph(
+        "x.json",
+        graphOf([
+          { id: 1, type: "PrimitiveStringMultiline", title: "Prompt" },
+          { id: 2, type: "PrimitiveString", title: "File prefix" },
+          { id: 3, type: "PrimitiveInt", title: "Steps" },
+        ])
+      )
+    )
+
+    expect(slots.map((slot) => [slot.name, slot.multiline])).toEqual([
+      ["Prompt", true],
+      ["File prefix", false],
+      ["Steps", false],
+    ])
+  })
+
   it("passes over a bypassed node nobody named, and every node that takes no input", () => {
     const { slots } = scanGraph(
       readGraph(

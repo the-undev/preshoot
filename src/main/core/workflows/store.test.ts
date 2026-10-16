@@ -78,6 +78,7 @@ describe("workflow store", () => {
         kind: slot.kind,
         tier: slot.tier,
         bypassed: slot.bypassed,
+        multiline: slot.multiline,
         position: slot.position,
       }))
     ).toEqual(scan.slots)

@@ -158,6 +158,8 @@ export const workflowSlots = sqliteTable("workflow_slots", {
   tier: text("tier").notNull(),
   // Whether the node was bypassed in the graph, so the slot is off until it is used.
   bypassed: integer("bypassed", { mode: "boolean" }).notNull(),
+  // Whether a text slot's value runs over several lines. Read from the node type by the scan.
+  multiline: integer("multiline", { mode: "boolean" }).notNull().default(false),
   position: integer("position").notNull(),
 })
 

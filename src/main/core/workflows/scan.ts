@@ -21,17 +21,24 @@ export const SLOT_TIERS = ["basic", "advanced", "hidden"] as const
 
 export type SlotTier = (typeof SLOT_TIERS)[number]
 
+/** What an input node takes, and whether its text runs over several lines. */
+interface InputNodeKind {
+  kind: Exclude<SlotKind, "toggle">
+  /** Read for text slots only; every other kind ignores it. */
+  multiline: boolean
+}
+
 /** The node types that take an input, and what each takes. A new input node is a row here. */
-export const INPUT_NODE_KINDS: Readonly<Record<string, Exclude<SlotKind, "toggle">>> = {
-  PrimitiveStringMultiline: "text",
-  PrimitiveString: "text",
-  PrimitiveInt: "integer",
-  PrimitiveFloat: "number",
-  PrimitiveBoolean: "boolean",
-  LoadImage: "image",
-  LoadAudio: "audio",
-  RandomNoise: "seed",
-  "Lora Loader (LoraManager)": "lora",
+export const INPUT_NODE_KINDS: Readonly<Record<string, InputNodeKind>> = {
+  PrimitiveStringMultiline: { kind: "text", multiline: true },
+  PrimitiveString: { kind: "text", multiline: false },
+  PrimitiveInt: { kind: "integer", multiline: false },
+  PrimitiveFloat: { kind: "number", multiline: false },
+  PrimitiveBoolean: { kind: "boolean", multiline: false },
+  LoadImage: { kind: "image", multiline: false },
+  LoadAudio: { kind: "audio", multiline: false },
+  RandomNoise: { kind: "seed", multiline: false },
+  "Lora Loader (LoraManager)": { kind: "lora", multiline: false },
 }
 
 /** The node types whose text is the workflow's guide rather than part of the graph. */
@@ -65,6 +72,8 @@ export interface ScannedSlot {
   tier: SlotTier
   /** Whether the node is muted or bypassed as saved, so its slot starts off. */
   bypassed: boolean
+  /** Whether a text slot's value runs over several lines, so it is typed into a box. */
+  multiline: boolean
   position: number
 }
 
@@ -115,7 +124,7 @@ export function scanGraph(graph: WorkflowGraph): WorkflowScan {
 function slotOf(node: GraphNode): Omit<ScannedSlot, "position"> | null {
   const title = titleOf(node)
   const bypassed = OFF_MODES.includes(node.mode)
-  const inputKind = INPUT_NODE_KINDS[node.type]
+  const input = INPUT_NODE_KINDS[node.type]
   const base = {
     nodeId: node.id,
     nodeType: node.type,
@@ -123,13 +132,13 @@ function slotOf(node: GraphNode): Omit<ScannedSlot, "position"> | null {
     bypassed,
   }
 
-  if (inputKind) {
+  if (input) {
     const tier: SlotTier = bypassed || title === null ? "advanced" : "basic"
-    return { ...base, kind: inputKind, tier }
+    return { ...base, kind: input.kind, multiline: input.multiline, tier }
   }
   // A switched-off node someone named is one they meant to be switched on; an unnamed one is not.
   if (bypassed && title !== null) {
-    return { ...base, kind: "toggle", tier: "advanced" }
+    return { ...base, kind: "toggle", multiline: false, tier: "advanced" }
   }
   return null
 }

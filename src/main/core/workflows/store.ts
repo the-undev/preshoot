@@ -35,6 +35,7 @@ export interface SlotRecord {
   kind: SlotKind
   tier: SlotTier
   bypassed: boolean
+  multiline: boolean
   position: number
 }
 
@@ -209,6 +210,7 @@ function applyScan(
           name: fresh.name,
           kind: fresh.kind,
           bypassed: fresh.bypassed,
+          multiline: fresh.multiline,
           position: fresh.position,
         })
         .where(eq(schema.workflowSlots.id, slot.id))
@@ -264,6 +266,7 @@ function insertSlots(tx: ProjectDb, workflowId: number, slots: ScannedSlot[]): v
         kind: slot.kind,
         tier: slot.tier,
         bypassed: slot.bypassed,
+        multiline: slot.multiline,
         position: slot.position,
       })
       .run()

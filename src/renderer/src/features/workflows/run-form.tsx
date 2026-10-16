@@ -345,13 +345,21 @@ function FieldControl({
     )
   }
   if (slot.kind === "text") {
-    return (
+    const typed = (text: string): void => onChange({ type: "typed", text })
+    return slot.multiline ? (
       <Textarea
         id={id}
         className="min-h-40"
         disabled={disabled}
         value={field.text}
-        onChange={(event) => onChange({ type: "typed", text: event.target.value })}
+        onChange={(event) => typed(event.target.value)}
+      />
+    ) : (
+      <Input
+        id={id}
+        disabled={disabled}
+        value={field.text}
+        onChange={(event) => typed(event.target.value)}
       />
     )
   }

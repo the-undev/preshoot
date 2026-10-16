@@ -14,6 +14,7 @@ function slot(over: Partial<WorkflowSlot>): WorkflowSlot {
     kind: "text",
     tier: "basic",
     bypassed: false,
+    multiline: true,
     position: 0,
     ...over,
   }
@@ -113,6 +114,29 @@ describe("RunForm", () => {
     expect(screen.getByLabelText("Turbo")).toHaveAttribute("aria-checked", "false")
     expect(screen.getByText("Qwen-Image-2512_00003_.png")).toBeInTheDocument()
     expect(screen.getByText("As saved in the workflow.")).toBeInTheDocument()
+  })
+
+  it("gives a multiline text slot a box and a one-line text slot a single line", () => {
+    renderForm({
+      slots: [
+        slot({}),
+        slot({
+          id: 9,
+          nodeId: 30,
+          nodeType: "PrimitiveString",
+          name: "File prefix",
+          multiline: false,
+        }),
+      ],
+      savedValues: [
+        { slotId: 1, value: "A man at a window." },
+        { slotId: 9, value: "anna" },
+      ],
+    })
+
+    expect(screen.getByLabelText("Prompt").tagName).toBe("TEXTAREA")
+    expect(screen.getByLabelText("File prefix").tagName).toBe("INPUT")
+    expect(screen.getByLabelText("File prefix")).toHaveValue("anna")
   })
 
   it("keeps advanced slots behind a fold and leaves hidden ones out", () => {
