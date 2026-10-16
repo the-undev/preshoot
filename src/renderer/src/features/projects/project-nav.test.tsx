@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react"
+import { fireEvent, render, screen, waitFor } from "@testing-library/react"
 import {
   createMemoryHistory,
   createRootRoute,
@@ -51,6 +51,23 @@ describe("ProjectNav", () => {
       "Saved",
       "Workflows",
     ])
+  })
+
+  it("goes to each screen with Alt and its place in the nav", async () => {
+    renderAt("/project")
+    await screen.findByRole("link", { name: "Clips" })
+
+    for (const [key, name] of [
+      ["2", "Library"],
+      ["3", "Saved"],
+      ["4", "Workflows"],
+      ["1", "Clips"],
+    ]) {
+      fireEvent.keyDown(window, { key, altKey: true })
+      await waitFor(() =>
+        expect(screen.getByRole("link", { name })).toHaveAttribute("aria-current", "page")
+      )
+    }
   })
 
   it("marks the screen being shown", async () => {

@@ -44,6 +44,8 @@ says so.
   it.
 - Keyboard shortcuts are fixed. They are one list in the code, which a settings
   screen could write to, but nothing does.
+- The pages are Alt and 1 to 4. On a Mac, Option and a digit types a
+  character, so the pages would need other keys there.
 - Ctrl and Space opens the command menu. It is also the default key for
   switching input method under IBus and fcitx, so setting one of those up for
   another language would take the chord away from the app.

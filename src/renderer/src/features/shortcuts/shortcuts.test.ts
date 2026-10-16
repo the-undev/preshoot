@@ -50,6 +50,12 @@ describe("matchesShortcut", () => {
     expect(matchesShortcut(press("?"), shortcut("showShortcuts"))).toBe(true)
   })
 
+  it("tells a page shortcut apart from a tab shortcut on the same digit", () => {
+    expect(matchesShortcut(press("1", { altKey: true }), shortcut("clipsPage"))).toBe(true)
+    expect(matchesShortcut(press("1", { altKey: true }), shortcut("firstTab"))).toBe(false)
+    expect(matchesShortcut(press("1", { ctrlKey: true }), shortcut("clipsPage"))).toBe(false)
+  })
+
   it("does not match a bare character with a modifier held", () => {
     expect(matchesShortcut(press("?", { ctrlKey: true }), shortcut("showShortcuts"))).toBe(false)
   })
@@ -59,13 +65,14 @@ describe("the list the user reads", () => {
   it("gives every shortcut a group and keeps them in the order written", () => {
     const groups = shortcutGroups()
 
-    expect(groups.map((group) => group.group)).toEqual(["Tabs", "Clips", "Help"])
+    expect(groups.map((group) => group.group)).toEqual(["Pages", "Tabs", "Clips", "Help"])
     expect(groups.flatMap((group) => group.shortcuts)).toHaveLength(SHORTCUTS.length)
   })
 
   it("writes the keys as they are pressed", () => {
     expect(shortcutKeys(shortcut("previousTab"))).toEqual(["Ctrl", "Shift", "Tab"])
     expect(shortcutKeys(shortcut("showShortcuts"))).toEqual(["?"])
+    expect(shortcutKeys(shortcut("workflowsPage"))).toEqual(["Alt", "4"])
   })
 
   it("gives every shortcut a unique set of keys", () => {
