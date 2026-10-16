@@ -153,6 +153,40 @@ describe("resolvePrompt", () => {
     expect(prompt["13"].inputs).not.toHaveProperty("input")
   })
 
+  it("includes a muted picture once it is switched on", () => {
+    const graph = editedFixture("h3-r2v-base", (node) => {
+      if (node.id === 12) node.mode = 2
+    })
+
+    const prompt = resolvePrompt(graph, objectInfo, [{ nodeId: 12, on: true, value: null }], now)
+
+    expect(prompt["12"]).toEqual({
+      class_type: "LoadImage",
+      inputs: { image: "Qwen-Image-2512_00003_.png" },
+    })
+    expect(prompt["25"].inputs["ref_images.ref_image_2"]).toEqual(["12", 0])
+  })
+
+  it("keeps a muted node dropped when its slot is off", () => {
+    const graph = editedFixture("qwen-edit-2511-edit-base", (node) => {
+      if (node.id === 11) node.mode = 2
+    })
+
+    const prompt = resolvePrompt(graph, objectInfo, [{ nodeId: 11, on: false, value: null }], now)
+
+    expect(Object.keys(prompt)).not.toContain("11")
+    expect(prompt["13"].inputs).not.toHaveProperty("input")
+  })
+
+  it("keeps a bypassed node wired through when its slot is off", () => {
+    const prompt = resolveFixture("qwen-edit-2511-edit-base", [
+      { nodeId: 11, on: false, value: null },
+    ])
+
+    expect(Object.keys(prompt)).not.toContain("11")
+    expect(prompt["13"].inputs.input).toEqual(["10", 0])
+  })
+
   it("names the node whose saved widget values do not match its inputs", () => {
     const graph = editedFixture("h3-r2v-base", (node) => {
       if (node.id === 24) node.widgets_values = ["res_multistep", "extra"]

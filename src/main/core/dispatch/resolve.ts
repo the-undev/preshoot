@@ -117,7 +117,7 @@ export function resolvePrompt(
   for (const patch of patches) {
     const node = nodes.get(patch.nodeId)
     if (!node) throw DispatchError.unresolvable(`node ${patch.nodeId} is not in the graph.`)
-    node.mode = patch.on ? MODE_ALWAYS : MODE_BYPASSED
+    node.mode = patchedMode(node.mode, patch.on)
     patchByNode.set(patch.nodeId, patch)
   }
 
@@ -153,6 +153,12 @@ export function resolvePrompt(
   }
   fillFilenamePrefixes(prompt, nodes, now)
   return prompt
+}
+
+/** The mode a patch leaves a node in: on runs it, off keeps a saved mute and bypasses the rest. */
+function patchedMode(saved: number, on: boolean): number {
+  if (on) return MODE_ALWAYS
+  return saved === MODE_MUTED ? MODE_MUTED : MODE_BYPASSED
 }
 
 /** Fills the markers of every `filename_prefix`, from the values the prompt now holds. */

@@ -37,8 +37,8 @@ export const INPUT_NODE_KINDS: Readonly<Record<string, Exclude<SlotKind, "toggle
 /** The node types whose text is the workflow's guide rather than part of the graph. */
 export const NOTE_NODE_TYPES: readonly string[] = ["MarkdownNote", "Note"]
 
-/** ComfyUI's mode for a node that is passed over when the graph runs. */
-const BYPASSED_MODE = 4
+/** ComfyUI's modes for a node that does not run as saved: muted (2) and bypassed (4). */
+const OFF_MODES: readonly number[] = [2, 4]
 
 /** The parts of a graph-format node the scan reads. Everything else is carried untouched. */
 const graphNodeSchema = z.looseObject({
@@ -63,6 +63,7 @@ export interface ScannedSlot {
   name: string
   kind: SlotKind
   tier: SlotTier
+  /** Whether the node is muted or bypassed as saved, so its slot starts off. */
   bypassed: boolean
   position: number
 }
@@ -113,7 +114,7 @@ export function scanGraph(graph: WorkflowGraph): WorkflowScan {
 /** The slot a node offers, or nothing when it is not one the app can fill or switch. */
 function slotOf(node: GraphNode): Omit<ScannedSlot, "position"> | null {
   const title = titleOf(node)
-  const bypassed = node.mode === BYPASSED_MODE
+  const bypassed = OFF_MODES.includes(node.mode)
   const inputKind = INPUT_NODE_KINDS[node.type]
   const base = {
     nodeId: node.id,
@@ -126,7 +127,7 @@ function slotOf(node: GraphNode): Omit<ScannedSlot, "position"> | null {
     const tier: SlotTier = bypassed || title === null ? "advanced" : "basic"
     return { ...base, kind: inputKind, tier }
   }
-  // A bypassed node someone named is one they meant to be switched on; an unnamed one is not.
+  // A switched-off node someone named is one they meant to be switched on; an unnamed one is not.
   if (bypassed && title !== null) {
     return { ...base, kind: "toggle", tier: "advanced" }
   }

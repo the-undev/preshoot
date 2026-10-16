@@ -137,6 +137,24 @@ describe("scanGraph", () => {
     expect(slots).toEqual([])
   })
 
+  it("starts a muted input off, and makes a named muted node a toggle as a bypassed one is", () => {
+    const { slots } = scanGraph(
+      readGraph(
+        "x.json",
+        graphOf([
+          { id: 1, type: "LoadImage", title: "Picture", mode: 2 },
+          { id: 2, type: "ImageCropV2", title: "Crop", mode: 2 },
+          { id: 3, type: "ImageCropV2", mode: 2 },
+        ])
+      )
+    )
+
+    expect(rows(slots)).toEqual([
+      [1, "LoadImage", "Picture", "image", "advanced", true],
+      [2, "ImageCropV2", "Crop", "toggle", "advanced", true],
+    ])
+  })
+
   it("collects plain notes as well as markdown ones, in node order, and makes no slot of them", () => {
     const graph = JSON.stringify({
       nodes: [
