@@ -10,7 +10,7 @@ import {
   Switch,
   Textarea,
 } from "@renderer/design-system"
-import { LibraryImagePicker } from "@renderer/features/library/library-image-picker"
+import { LibraryFilePicker } from "@renderer/features/library/library-file-picker"
 import { fileName } from "@renderer/lib/file-name"
 import {
   libraryFileUrl,
@@ -68,7 +68,7 @@ interface RunFormProps {
   onSaveNew: (name: string, bindings: RunBinding[]) => Promise<void>
   onUpdate: (bindings: RunBinding[]) => Promise<void>
   onPickFile: (kind: FileKind) => Promise<string | null>
-  /** The library folder, whose pictures an image slot can be filled from. */
+  /** The library folder, whose pictures and sounds a file slot can be filled from. */
   library: LibraryFolder | undefined
 }
 
@@ -307,18 +307,16 @@ function FieldControl({
         >
           Choose file
         </Button>
-        {kind === "image" && (
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={disabled}
-            aria-label={`Choose ${slot.name} from the library`}
-            onClick={() => setPickingFromLibrary(true)}
-          >
-            From library
-          </Button>
-        )}
-        {field.libraryPath !== null && (
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={disabled}
+          aria-label={`Choose ${slot.name} from the library`}
+          onClick={() => setPickingFromLibrary(true)}
+        >
+          From library
+        </Button>
+        {kind === "image" && field.libraryPath !== null && (
           <img
             src={libraryFileUrl(field.libraryPath, 80)}
             alt=""
@@ -332,7 +330,8 @@ function FieldControl({
           <span className="shrink-0 text-xs text-muted-foreground">as saved</span>
         )}
         {pickingFromLibrary && (
-          <LibraryImagePicker
+          <LibraryFilePicker
+            media={kind}
             folder={library}
             onPick={(file) => {
               onChange({ ...field, path: file.path, libraryPath: file.relativePath })

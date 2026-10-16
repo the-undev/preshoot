@@ -398,15 +398,28 @@ describe("RunForm", () => {
     expect(screen.getByText(/No library folder is set/)).toBeInTheDocument()
   })
 
-  it("offers the library only for picture slots", () => {
-    renderForm({
+  it("offers the library's sounds to an audio slot and binds the one picked", () => {
+    const { onQueue } = renderForm({
       slots: [slot({ id: 9, nodeId: 30, nodeType: "LoadAudio", name: "Voice", kind: "audio" })],
-      savedValues: [],
+      savedValues: [{ slotId: 9, value: "take-1.wav" }],
     })
 
-    expect(screen.getByRole("button", { name: "Choose file for Voice" })).toBeInTheDocument()
-    expect(
-      screen.queryByRole("button", { name: "Choose Voice from the library" })
-    ).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole("button", { name: "Choose Voice from the library" }))
+    const dialog = screen.getByRole("dialog")
+    expect(within(dialog).queryByRole("button", { name: /daniel-cafe\.png/ })).toBeNull()
+    expect(within(dialog).getByLabelText("Play voice.wav")).toHaveAttribute(
+      "src",
+      `library://file/${encodeURIComponent("characters/Daniel/voice.wav")}`
+    )
+    fireEvent.click(within(dialog).getByRole("button", { name: "Daniel: voice.wav" }))
+    fireEvent.click(screen.getByRole("button", { name: "Queue" }))
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+    expect(screen.getByText("voice.wav")).toBeInTheDocument()
+    expect(onQueue.mock.calls[0][0][0]).toEqual({
+      slotId: 9,
+      on: true,
+      value: { type: "file", path: "/l/characters/Daniel/voice.wav" },
+    })
   })
 })

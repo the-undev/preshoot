@@ -1,8 +1,7 @@
 import { createReadStream, readFileSync, statSync } from "node:fs"
-import { extname } from "node:path"
 import { Readable } from "node:stream"
 import { nativeImage, protocol } from "electron"
-import { IMAGE_MEDIA_TYPES, readImage } from "../core/composition/image-store"
+import { readImage } from "../core/composition/image-store"
 import { byteRange, outputMediaType } from "../core/dispatch/serving"
 import { resolveLibraryFile, resolveOutputFile } from "../core/library-folder/guard"
 import { ASSET_SCHEME, LIBRARY_SCHEME, OUTPUT_SCHEME } from "../schemes"
@@ -68,8 +67,9 @@ export function handleAssetRequests(projects: ProjectSession): void {
 
 /**
  * Serves a file out of the library folder named in settings, read-only. A URL is
- * `library://file/<relative path>`, with `?width=` for a thumbnail. The path is resolved and
- * refused when it leads anywhere outside the folder, links included, or when no folder is set.
+ * `library://file/<relative path>`, with `?width=` for a picture's thumbnail. The path is resolved
+ * and refused when it leads anywhere outside the folder, links included, or when no folder is set.
+ * Anything but a thumbnail is streamed and answers range requests, so a sound can be played.
  */
 export function handleLibraryRequests(settings: AppSettingsStore): void {
   protocol.handle(LIBRARY_SCHEME, async (request) => {
@@ -83,9 +83,12 @@ export function handleLibraryRequests(settings: AppSettingsStore): void {
         return new Response(null, { status: 404 })
       }
 
+      const mediaType = outputMediaType(path)
       const width = Number(url.searchParams.get("width"))
-      const mediaType = IMAGE_MEDIA_TYPES[extname(path).toLowerCase()] ?? "application/octet-stream"
-      return pictureResponse(path, mediaType, THUMBNAIL_WIDTHS.includes(width) ? width : null)
+      if (mediaType.startsWith("image/") && THUMBNAIL_WIDTHS.includes(width)) {
+        return pictureResponse(path, mediaType, width)
+      }
+      return streamedResponse(path, mediaType, request.headers.get("range"))
     } catch {
       // A malformed URL or a file that went between the check and the read.
       return new Response(null, { status: 404 })
