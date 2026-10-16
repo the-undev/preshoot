@@ -41,7 +41,7 @@ export const INPUT_NODE_KINDS: Readonly<Record<string, InputNodeKind>> = {
   "Lora Loader (LoraManager)": { kind: "lora", multiline: false },
 }
 
-/** The node types whose text is the workflow's guide rather than part of the graph. */
+/** The editor's note types, whose text is the workflow's guide and which never reach ComfyUI. */
 export const NOTE_NODE_TYPES: readonly string[] = ["MarkdownNote", "Note"]
 
 /** ComfyUI's modes for a node that does not run as saved: muted (2) and bypassed (4). */

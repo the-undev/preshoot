@@ -1,5 +1,6 @@
 import { z } from "zod"
 import type { ObjectInfo } from "../backend/comfyui-client"
+import { NOTE_NODE_TYPES } from "../workflows/scan"
 import { DispatchError } from "./errors"
 import { fillFilenamePrefix } from "./filename-prefix"
 
@@ -102,7 +103,8 @@ interface SpecEntry {
 /**
  * Turns a saved graph into the prompt ComfyUI runs, against the classes the instance offers.
  * Patches switch their nodes on or off and set their values first; bypassed nodes are wired
- * through, muted ones and the editor's own nodes are left out. `now` dates the file names.
+ * through, muted ones and the editor's notes are left out. Any other node whose class the
+ * instance does not offer is refused. `now` dates the file names.
  */
 export function resolvePrompt(
   graphText: string,
@@ -120,6 +122,7 @@ export function resolvePrompt(
     node.mode = patchedMode(node.mode, patch.on)
     patchByNode.set(patch.nodeId, patch)
   }
+  for (const node of nodes.values()) requireClass(node, objectInfo)
 
   const runs = (node: GraphNode): boolean =>
     node.mode !== MODE_MUTED && node.mode !== MODE_BYPASSED && node.type in objectInfo
@@ -153,6 +156,15 @@ export function resolvePrompt(
   }
   fillFilenamePrefixes(prompt, nodes, now)
   return prompt
+}
+
+/** Refuses a node that would run but whose class the instance does not offer, unless it is a note. */
+function requireClass(node: GraphNode, objectInfo: ObjectInfo): void {
+  if (node.mode === MODE_MUTED || node.mode === MODE_BYPASSED) return
+  if (node.type in objectInfo || NOTE_NODE_TYPES.includes(node.type)) return
+  throw DispatchError.unresolvable(
+    `${label(node)} is not available on the connected ComfyUI. Install the node there, or bypass it.`
+  )
 }
 
 /** The mode a patch leaves a node in: on runs it, off keeps a saved mute and bypasses the rest. */
@@ -209,7 +221,12 @@ function widgetInputs(
   const quirk = NODE_QUIRKS[node.type]
   const widgets = quirk ? quirkWidgets(node, quirk) : readWidgets(node, entries)
   if (patch?.value != null) {
-    if (quirk || widgets.length !== 1) {
+    if (quirk) {
+      throw DispatchError.unresolvable(
+        `the values of ${label(node)} are mapped as a whole, so a slot cannot set one of them.`
+      )
+    }
+    if (widgets.length !== 1) {
       throw DispatchError.unresolvable(
         `${label(node)} has ${widgets.length} widget values, so a slot cannot set one of them.`
       )

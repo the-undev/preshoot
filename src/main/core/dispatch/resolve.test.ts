@@ -29,6 +29,13 @@ function editedFixture(
   return JSON.stringify(graph)
 }
 
+/** A fixture graph with nodes added, unlinked. */
+function withNodes(name: FixtureName, added: { id: number; type: string; mode: number }[]): string {
+  const graph = JSON.parse(fixtureText(name))
+  graph.nodes.push(...added)
+  return JSON.stringify(graph)
+}
+
 describe("resolvePrompt", () => {
   it("resolves the reference-to-video workflow as saved", () => {
     const prompt = resolveFixture("h3-r2v-base")
@@ -248,9 +255,39 @@ describe("resolvePrompt", () => {
   })
 
   it("refuses a value for a node that has no single widget", () => {
+    expect(() => resolveFixture("h3-r2v-base", [{ nodeId: 26, on: true, value: 8 }])).toThrow(
+      /BasicScheduler \(node 26\) has 3 widget values, so a slot cannot set one of them/
+    )
+  })
+
+  it("refuses a value for a quirk node, whose values are mapped as a whole", () => {
     expect(() =>
       resolveFixture("h3-r2v-base", [{ nodeId: 2, on: true, value: "<lora:x:1>" }])
-    ).toThrow(/Lora Loader \(LoraManager\) \(node 2\) has 2 widget values/)
+    ).toThrow(
+      /the values of Lora Loader \(LoraManager\) \(node 2\) are mapped as a whole, so a slot cannot set one of them/
+    )
+  })
+
+  it("refuses a node whose class the instance does not offer, by its class", () => {
+    const graph = withNodes("h3-r2v-base", [{ id: 90, type: "FancyUpscale", mode: 0 }])
+
+    expect(() => resolvePrompt(graph, objectInfo, [], now)).toThrow(
+      /FancyUpscale \(node 90\) is not available on the connected ComfyUI/
+    )
+  })
+
+  it("leaves out a note, and a bypassed or muted node whose class the instance does not offer", () => {
+    const graph = withNodes("h3-r2v-base", [
+      { id: 90, type: "Note", mode: 0 },
+      { id: 91, type: "FancyUpscale", mode: 4 },
+      { id: 92, type: "FancyUpscale", mode: 2 },
+    ])
+
+    const prompt = resolvePrompt(graph, objectInfo, [], now)
+
+    expect(Object.keys(prompt)).not.toContain("90")
+    expect(Object.keys(prompt)).not.toContain("91")
+    expect(Object.keys(prompt)).not.toContain("92")
   })
 
   it("refuses a patch for a node the graph does not have", () => {
