@@ -53,7 +53,10 @@ interface RunRowProps {
   onOpenOutput: (outputId: number) => void
 }
 
-/** One run: its state, its seed, when it was queued, and its error or its files. */
+/**
+ * One run: its state, its seed, when it was queued, the configuration it came from, and its error
+ * or its files.
+ */
 function RunRow({ run, position, onOpenOutput }: RunRowProps): React.JSX.Element {
   const chip = STATE_CHIPS[run.state]
   const label =
@@ -73,6 +76,7 @@ function RunRow({ run, position, onOpenOutput }: RunRowProps): React.JSX.Element
         <time dateTime={run.createdAt} className="text-muted-foreground">
           {startedAt(run.createdAt)}
         </time>
+        {run.configurationName && <span>{run.configurationName}</span>}
       </div>
       {run.state === "failed" && run.error && (
         <p className="text-sm break-words text-destructive">{run.error}</p>

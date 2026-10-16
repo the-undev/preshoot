@@ -24,6 +24,13 @@ export {
   DialogTitle,
   DialogTrigger,
 } from "./ui/dialog"
+export {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "./ui/dropdown-menu"
 export { Input } from "./ui/input"
 export { Label } from "./ui/label"
 export { Popover, PopoverAnchor, PopoverContent, PopoverTrigger } from "./ui/popover"

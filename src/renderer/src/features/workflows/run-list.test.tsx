@@ -37,6 +37,20 @@ function row(runId: number): ReturnType<typeof within> {
 }
 
 describe("RunList", () => {
+  it("names the configuration a run was queued from", () => {
+    render(
+      <RunList
+        runs={[run({ id: 6, configurationId: 2, configurationName: "Anna" }), run({ id: 5 })]}
+        positions={{}}
+        pollError={null}
+        onOpenOutput={vi.fn()}
+      />
+    )
+
+    expect(row(6).getByText("Anna")).toBeInTheDocument()
+    expect(row(5).queryByText("Anna")).not.toBeInTheDocument()
+  })
+
   it("shows each run's state, seed and outcome", () => {
     render(<RunList runs={runs} positions={{ 1: 2 }} pollError={null} onOpenOutput={vi.fn()} />)
 

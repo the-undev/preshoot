@@ -21,7 +21,7 @@ export interface RunFormPanel {
   savedValues: SavedSlotValue[] | undefined
   blockedReason: string | null
   isQueueing: boolean
-  queue(bindings: RunBinding[]): void
+  queue(bindings: RunBinding[], count: number, configurationId: number | null): void
   pickFile(kind: FileKind): Promise<string | null>
   library: LibraryFolder | undefined
   errorMessage: string | null
@@ -54,7 +54,8 @@ export function useRunForm(workflowId: number): RunFormPanel {
     savedValues: values.data,
     blockedReason: blockedReason(status.data?.state, settings.data?.comfyUiUrl),
     isQueueing: queue.isPending,
-    queue: (bindings) => queue.mutate({ workflowId, bindings }),
+    queue: (bindings, count, configurationId) =>
+      queue.mutate({ workflowId, bindings, count, configurationId }),
     pickFile: (kind) => pickFile.mutateAsync({ kind }),
     library: library.data,
     errorMessage: queue.error?.message ?? pickFile.error?.message ?? values.error?.message ?? null,

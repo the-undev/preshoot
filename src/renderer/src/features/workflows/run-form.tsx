@@ -12,6 +12,7 @@ import {
 } from "@renderer/design-system"
 import { LibraryImagePicker } from "@renderer/features/library/library-image-picker"
 import type { LibraryFolder, RunBinding, SavedSlotValue, WorkflowSlot } from "@renderer/lib/trpc"
+import { SaveConfigurationDialog } from "./save-configuration-dialog"
 import { KIND_LABELS } from "./slot-labels"
 
 /** The kinds of slot filled from a file on disk. */
@@ -33,12 +34,21 @@ interface SlotState {
   field: Field
 }
 
+/** The most runs one click queues, which the router holds to as well. */
+const BATCH_LIMIT = 20
+
 interface RunFormProps {
   slots: WorkflowSlot[]
   savedValues: SavedSlotValue[]
+  /** Values a loaded configuration gives some slots, which they start from instead. */
+  initialBindings: RunBinding[]
+  /** The name of the configuration loaded into the form, which saving can update. */
+  configurationName: string | null
   blockedReason: string | null
   isQueueing: boolean
-  onQueue: (bindings: RunBinding[]) => void
+  onQueue: (bindings: RunBinding[], count: number) => void
+  onSaveNew: (name: string, bindings: RunBinding[]) => Promise<void>
+  onUpdate: (bindings: RunBinding[]) => Promise<void>
   onPickFile: (kind: FileKind) => Promise<string | null>
   /** The library folder, whose pictures an image slot can be filled from. */
   library: LibraryFolder | undefined
@@ -51,22 +61,36 @@ interface RunFormProps {
 export function RunForm({
   slots,
   savedValues,
+  initialBindings,
+  configurationName,
   blockedReason,
   isQueueing,
   onQueue,
+  onSaveNew,
+  onUpdate,
   onPickFile,
   library,
 }: RunFormProps): React.JSX.Element {
   const [states, setStates] = useState<Record<number, SlotState>>(() =>
-    Object.fromEntries(slots.map((slot) => [slot.id, initialState(slot, savedValues)]))
+    Object.fromEntries(
+      slots.map((slot) => [slot.id, initialState(slot, savedValues, initialBindings)])
+    )
   )
   const [advancedOpen, setAdvancedOpen] = useState(false)
+  const [countText, setCountText] = useState("1")
+  const [saving, setSaving] = useState(false)
   const setState = (slotId: number, state: SlotState): void =>
     setStates((current) => ({ ...current, [slotId]: state }))
 
   const bindings = slots.map((slot) => bindingOf(slot, states[slot.id]))
   const problem = bindings.find((entry) => "problem" in entry)
-  const reason = blockedReason ?? (problem && "problem" in problem ? problem.problem : null)
+  const bindingProblem = problem && "problem" in problem ? problem.problem : null
+  const count = readCount(countText)
+  const countProblem =
+    count === null ? `The number of runs is a whole number from 1 to ${BATCH_LIMIT}.` : null
+  const reason = blockedReason ?? bindingProblem ?? countProblem
+  const sent = (): RunBinding[] =>
+    bindings.flatMap((entry) => ("binding" in entry ? [entry.binding] : []))
   const basic = slots.filter((slot) => slot.tier === "basic")
   const advanced = slots.filter((slot) => slot.tier === "advanced")
 
@@ -107,19 +131,57 @@ export function RunForm({
         </Collapsible>
       )}
 
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         <Button
           disabled={reason !== null || isQueueing}
-          onClick={() =>
-            onQueue(bindings.flatMap((entry) => ("binding" in entry ? [entry.binding] : [])))
-          }
+          onClick={() => count !== null && onQueue(sent(), count)}
         >
           {isQueueing ? "Queueing…" : "Queue"}
         </Button>
+        <Label className="gap-1.5 text-sm font-normal text-muted-foreground">
+          <span aria-hidden>×</span>
+          <Input
+            aria-label="Number of runs"
+            className="h-8 w-14"
+            inputMode="numeric"
+            value={countText}
+            onChange={(event) => setCountText(event.target.value)}
+          />
+        </Label>
+        <Button
+          variant="outline"
+          disabled={bindingProblem !== null}
+          onClick={() => setSaving(true)}
+        >
+          Save as configuration
+        </Button>
         {reason && <p className="text-sm text-muted-foreground">{reason}</p>}
       </div>
+
+      {saving && (
+        <SaveConfigurationDialog
+          configurationName={configurationName}
+          onSaveNew={async (name) => {
+            await onSaveNew(name, sent())
+            setSaving(false)
+          }}
+          onUpdate={async () => {
+            await onUpdate(sent())
+            setSaving(false)
+          }}
+          onCancel={() => setSaving(false)}
+        />
+      )}
     </div>
   )
+}
+
+/** The number of runs typed beside Queue, or nothing when it is not one a batch takes. */
+function readCount(text: string): number | null {
+  const trimmed = text.trim()
+  if (!/^\d+$/.test(trimmed)) return null
+  const count = Number(trimmed)
+  return count >= 1 && count <= BATCH_LIMIT ? count : null
 }
 
 interface SlotFieldProps {
@@ -292,10 +354,30 @@ function FieldControl({
   )
 }
 
-/** Where a slot starts: on unless the workflow has it bypassed, holding the value it was saved with. */
-function initialState(slot: WorkflowSlot, savedValues: SavedSlotValue[]): SlotState {
+/**
+ * Where a slot starts: as a loaded configuration binds it, or else on unless the workflow has it
+ * bypassed and holding the value it was saved with.
+ */
+function initialState(
+  slot: WorkflowSlot,
+  savedValues: SavedSlotValue[],
+  initialBindings: RunBinding[]
+): SlotState {
   const saved = savedValues.find((entry) => entry.slotId === slot.id)?.value ?? null
-  return { on: !slot.bypassed, field: initialField(slot, saved) }
+  const binding = initialBindings.find((entry) => entry.slotId === slot.id)
+  if (!binding) return { on: !slot.bypassed, field: initialField(slot, saved) }
+  return { on: binding.on, field: boundField(slot, saved, binding.value) }
+}
+
+/** The field a bound value fills, keeping what the workflow saved for a file slot's fallback. */
+function boundField(
+  slot: WorkflowSlot,
+  saved: SavedSlotValue["value"],
+  value: RunBinding["value"]
+): Field {
+  if (value === null) return initialField(slot, saved)
+  if (value.type === "value") return initialField(slot, value.value)
+  return { type: "file", saved: typeof saved === "string" ? saved : null, path: value.path }
 }
 
 function initialField(slot: WorkflowSlot, saved: SavedSlotValue["value"]): Field {

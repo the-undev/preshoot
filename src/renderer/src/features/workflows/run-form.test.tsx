@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen, within } from "@testing-library/react"
 import { describe, expect, it, vi } from "vitest"
-import type { LibraryFolder, SavedSlotValue, WorkflowSlot } from "@renderer/lib/trpc"
+import type { LibraryFolder, RunBinding, SavedSlotValue, WorkflowSlot } from "@renderer/lib/trpc"
 import { listedLibrary } from "@renderer/features/library/fixtures"
 import { RunForm } from "./run-form"
 
@@ -64,22 +64,42 @@ const savedValues: SavedSlotValue[] = [
 
 function renderForm(over: Partial<Parameters<typeof RunForm>[0]> = {}): {
   onQueue: ReturnType<typeof vi.fn>
+  onSaveNew: ReturnType<typeof vi.fn>
+  onUpdate: ReturnType<typeof vi.fn>
 } {
   const onQueue = vi.fn()
+  const onSaveNew = vi.fn(async () => {})
+  const onUpdate = vi.fn(async () => {})
   render(
     <RunForm
       slots={slots}
       savedValues={savedValues}
+      initialBindings={[]}
+      configurationName={null}
       blockedReason={null}
       isQueueing={false}
       onQueue={onQueue}
+      onSaveNew={onSaveNew}
+      onUpdate={onUpdate}
       onPickFile={async () => null}
       library={listedLibrary}
       {...over}
     />
   )
-  return { onQueue }
+  return { onQueue, onSaveNew, onUpdate }
 }
+
+/** What the form sends for the saved values, unchanged. */
+const unchangedBindings: RunBinding[] = [
+  { slotId: 1, on: true, value: { type: "value", value: "A man at a window." } },
+  { slotId: 2, on: true, value: null },
+  { slotId: 3, on: true, value: { type: "value", value: false } },
+  { slotId: 4, on: true, value: { type: "value", value: "Qwen-Image-2512_00003_.png" } },
+  { slotId: 5, on: false, value: { type: "value", value: "Qwen-Image-2512_00004_.png" } },
+  { slotId: 6, on: true, value: { type: "value", value: 20 } },
+  { slotId: 7, on: true, value: { type: "value", value: 757358688076805 } },
+  { slotId: 8, on: true, value: { type: "value", value: 5 } },
+]
 
 describe("RunForm", () => {
   it("starts from the values saved in the graph", () => {
@@ -111,16 +131,7 @@ describe("RunForm", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Queue" }))
 
-    expect(onQueue).toHaveBeenCalledWith([
-      { slotId: 1, on: true, value: { type: "value", value: "A man at a window." } },
-      { slotId: 2, on: true, value: null },
-      { slotId: 3, on: true, value: { type: "value", value: false } },
-      { slotId: 4, on: true, value: { type: "value", value: "Qwen-Image-2512_00003_.png" } },
-      { slotId: 5, on: false, value: { type: "value", value: "Qwen-Image-2512_00004_.png" } },
-      { slotId: 6, on: true, value: { type: "value", value: 20 } },
-      { slotId: 7, on: true, value: { type: "value", value: 757358688076805 } },
-      { slotId: 8, on: true, value: { type: "value", value: 5 } },
-    ])
+    expect(onQueue).toHaveBeenCalledWith(unchangedBindings, 1)
   })
 
   it("sends what was typed, switched and chosen", async () => {
@@ -152,6 +163,118 @@ describe("RunForm", () => {
       value: { type: "file", path: "/home/me/pictures/anna.png" },
     })
     expect(bindings[5]).toEqual({ slotId: 6, on: true, value: { type: "value", value: 8 } })
+  })
+
+  it("queues as many runs as the number beside Queue says", () => {
+    const { onQueue } = renderForm()
+
+    fireEvent.change(screen.getByLabelText("Number of runs"), { target: { value: "5" } })
+    fireEvent.click(screen.getByRole("button", { name: "Queue" }))
+
+    expect(onQueue).toHaveBeenCalledWith(unchangedBindings, 5)
+  })
+
+  it("will not queue a number of runs outside one to twenty, and says why", () => {
+    renderForm()
+
+    fireEvent.change(screen.getByLabelText("Number of runs"), { target: { value: "21" } })
+
+    expect(screen.getByRole("button", { name: "Queue" })).toBeDisabled()
+    expect(
+      screen.getByText("The number of runs is a whole number from 1 to 20.")
+    ).toBeInTheDocument()
+  })
+
+  it("starts from a loaded configuration's values where it gives them", () => {
+    const { onQueue } = renderForm({
+      initialBindings: [
+        { slotId: 1, on: true, value: { type: "value", value: "From the configuration." } },
+        { slotId: 3, on: true, value: { type: "value", value: true } },
+        { slotId: 4, on: true, value: { type: "file", path: "/film/inputs/anna.png" } },
+        { slotId: 5, on: true, value: { type: "value", value: "Qwen-Image-2512_00004_.png" } },
+      ],
+    })
+
+    expect(screen.getByLabelText("Prompt")).toHaveValue("From the configuration.")
+    expect(screen.getByLabelText("Turbo")).toHaveAttribute("aria-checked", "true")
+    expect(screen.getByText("anna.png")).toBeInTheDocument()
+    expect(screen.getByLabelText("Steps")).toHaveValue("20")
+    fireEvent.click(screen.getByRole("button", { name: "Queue" }))
+    const bindings = onQueue.mock.calls[0][0]
+    expect(bindings[3]).toEqual({
+      slotId: 4,
+      on: true,
+      value: { type: "file", path: "/film/inputs/anna.png" },
+    })
+    expect(bindings[4]).toEqual({
+      slotId: 5,
+      on: true,
+      value: { type: "value", value: "Qwen-Image-2512_00004_.png" },
+    })
+  })
+
+  it("saves the form's values under the name given", async () => {
+    const { onSaveNew } = renderForm()
+
+    fireEvent.change(screen.getByLabelText("Prompt"), { target: { value: "She turns." } })
+    fireEvent.click(screen.getByRole("button", { name: "Save as configuration" }))
+    const dialog = screen.getByRole("dialog")
+    expect(within(dialog).queryByRole("button", { name: /Update/ })).not.toBeInTheDocument()
+    expect(within(dialog).getByRole("button", { name: "Save" })).toBeDisabled()
+    fireEvent.change(within(dialog).getByLabelText("Name"), { target: { value: " Anna " } })
+    await act(async () => fireEvent.click(within(dialog).getByRole("button", { name: "Save" })))
+
+    expect(onSaveNew).toHaveBeenCalledWith("Anna", [
+      { slotId: 1, on: true, value: { type: "value", value: "She turns." } },
+      ...unchangedBindings.slice(1),
+    ])
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+  })
+
+  it("offers to update the loaded configuration as well as to save a new one", async () => {
+    const { onSaveNew, onUpdate } = renderForm({ configurationName: "Anna" })
+
+    fireEvent.click(screen.getByRole("button", { name: "Save as configuration" }))
+    await act(async () =>
+      fireEvent.click(
+        within(screen.getByRole("dialog")).getByRole("button", { name: "Update Anna" })
+      )
+    )
+    expect(onUpdate).toHaveBeenCalledWith(unchangedBindings)
+    expect(onSaveNew).not.toHaveBeenCalled()
+
+    fireEvent.click(screen.getByRole("button", { name: "Save as configuration" }))
+    const dialog = screen.getByRole("dialog")
+    fireEvent.change(within(dialog).getByLabelText("Name"), { target: { value: "Anna, dusk" } })
+    await act(async () =>
+      fireEvent.click(within(dialog).getByRole("button", { name: "Save as new" }))
+    )
+    expect(onSaveNew).toHaveBeenCalledWith("Anna, dusk", unchangedBindings)
+  })
+
+  it("keeps the dialog open with the reason when saving fails", async () => {
+    renderForm({
+      onSaveNew: async () => {
+        throw new Error("/pictures/anna.png could not be copied in.")
+      },
+    })
+
+    fireEvent.click(screen.getByRole("button", { name: "Save as configuration" }))
+    const dialog = screen.getByRole("dialog")
+    fireEvent.change(within(dialog).getByLabelText("Name"), { target: { value: "Anna" } })
+    await act(async () => fireEvent.click(within(dialog).getByRole("button", { name: "Save" })))
+
+    expect(
+      within(screen.getByRole("dialog")).getByText("/pictures/anna.png could not be copied in.")
+    ).toBeInTheDocument()
+  })
+
+  it("will not save a form holding a value its slot does not take", () => {
+    renderForm()
+
+    fireEvent.change(screen.getByLabelText("Steps"), { target: { value: "eight" } })
+
+    expect(screen.getByRole("button", { name: "Save as configuration" })).toBeDisabled()
   })
 
   it("puts a new seed in the field when asked to randomise", () => {
