@@ -22,6 +22,7 @@ import { WorkflowRemoval } from "@renderer/features/workflows/workflow-removal"
 import { WorkflowRun } from "@renderer/features/workflows/workflow-run"
 import { WorkflowSource } from "@renderer/features/workflows/workflow-source"
 import type { BaseSuggestion } from "@renderer/lib/trpc"
+import { useRereadFoldersOnFocus } from "@renderer/lib/use-reread-folders-on-focus"
 
 /** A workflow just imported, with the one whose mapping it could start from. */
 interface ImportedWorkflow {
@@ -45,6 +46,7 @@ function Workflows(): React.JSX.Element {
   const navigate = useNavigate({ from: Route.fullPath })
   const openSettings = useOpenSettings()
   const panel = useWorkflows()
+  useRereadFoldersOnFocus()
   const open = (id: number): void => void navigate({ search: { workflow: id } })
   // Offered only on the workflow just imported, and gone once another is opened.
   const [imported, setImported] = useState<ImportedWorkflow | null>(null)

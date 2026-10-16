@@ -74,11 +74,10 @@ says so.
   hold none.
 - Seeking in a video preview relies on hand-written Range handling that is
   unit-tested but has not been tried in the running app.
-- The library and workflows folders are read again when their screen is
-  shown, from the refresh control, and on the page's `visibilitychange`,
-  which is the only event TanStack Query refetches on. Whether Electron fires
-  it when focus moves to another window and back is TBD. A change on disk
-  while the screen is open waits for one of those.
+- The library and workflows folders, and the open workflow's source, are
+  read again when their screen is shown, from the refresh control, and when
+  the window gains focus. A change on disk while the window keeps focus waits
+  for one of those.
 
 ## What the prompt still gets wrong
 

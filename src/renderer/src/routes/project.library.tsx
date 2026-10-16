@@ -6,14 +6,19 @@ import { LibraryBrowser } from "@renderer/features/library/library-browser"
 import { useLibrary } from "@renderer/features/library/use-library"
 import { useOpenSettings } from "@renderer/features/settings/settings-dialog-context"
 import type { LibraryEntry } from "@renderer/lib/trpc"
+import { useRereadFoldersOnFocus } from "@renderer/lib/use-reread-folders-on-focus"
 
 export const Route = createFileRoute("/project/library")({
   component: Library,
 })
 
-/** The user's library folder, read each time it is shown, and the copies made from it. */
+/**
+ * The user's library folder, read each time it is shown or the window gains focus, and the copies
+ * made from it.
+ */
 function Library(): React.JSX.Element {
   const library = useLibrary()
+  useRereadFoldersOnFocus()
   const openSettings = useOpenSettings()
   const navigate = useNavigate()
   const [adding, setAdding] = useState<LibraryEntry | null>(null)
