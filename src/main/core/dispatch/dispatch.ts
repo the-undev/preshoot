@@ -69,25 +69,9 @@ export function savedSlotValues(db: ProjectDatabase, workflowId: number): SavedV
 }
 
 /**
- * Resolves a workflow with its slots filled, sends any picked files, queues it, and records the
- * run. Slots without a binding run as saved. A refusal names the slots at fault.
- */
-export async function queueRun(input: {
-  db: ProjectDatabase
-  directory: string
-  client: ComfyUiClient
-  workflowId: number
-  configurationId: number | null
-  bindings: SlotBinding[]
-  now: Date
-}): Promise<RunRecord> {
-  return queueOne(await openBatch(input), input.bindings)
-}
-
-/**
- * Queues `count` runs of a workflow one after another. The first runs with the bindings as given
- * and each one after it with a fresh seed in every seed slot, so a batch tries one set of values
- * over several seeds. Runs queued before a refusal stay queued and recorded.
+ * Queues and records `count` runs of a workflow one after another, sending any picked files, with
+ * unbound slots as saved. The first run takes the bindings as given and each after it a fresh
+ * seed in every seed slot. A refusal names the slots at fault; runs queued before it stay recorded.
  */
 export async function queueBatch(input: {
   db: ProjectDatabase

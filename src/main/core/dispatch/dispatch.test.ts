@@ -7,16 +7,9 @@ import { ComfyUiClient } from "../backend/comfyui-client"
 import { openProjectDatabase, schema, type ProjectDatabaseHandle } from "../db"
 import { fixtureText } from "../workflows/fixtures"
 import { importWorkflow, type WorkflowDetail } from "../workflows/store"
-import {
-  cancelRun,
-  pollRuns,
-  queueBatch,
-  queueRun,
-  savedSlotValues,
-  type RunStatus,
-} from "./dispatch"
+import { cancelRun, pollRuns, queueBatch, savedSlotValues, type RunStatus } from "./dispatch"
 import { objectInfoFixture } from "./fixtures"
-import { readRun, readRunPrompt } from "./run-store"
+import { readRun, readRunPrompt, type RunRecord } from "./run-store"
 
 const migrationsFolder = join(__dirname, "../../../../resources/migrations")
 const baseUrl = "http://127.0.0.1:8188"
@@ -92,6 +85,14 @@ describe("dispatch", () => {
     }
   }
 
+  /** Queues one run through the batch path, which is the only way in. */
+  async function queueOneRun(
+    input: Omit<Parameters<typeof queueBatch>[0], "count" | "randomSeed">
+  ): Promise<RunRecord> {
+    const [run] = await queueBatch({ ...input, count: 1, randomSeed: () => 1 })
+    return run
+  }
+
   /** Polls the workflow's unfinished runs and gives what the poll found for `runId`. */
   async function polled(client: ComfyUiClient, runId: number): Promise<RunStatus> {
     const statuses = await pollRuns({
@@ -109,7 +110,7 @@ describe("dispatch", () => {
   async function queued(): Promise<number> {
     const { routes } = accepting()
     const { client } = fakeComfyUi(routes)
-    const run = await queueRun({
+    const run = await queueOneRun({
       db: handle.db,
       directory: dir,
       client,
@@ -137,7 +138,7 @@ describe("dispatch", () => {
     const { routes, posted } = accepting()
     const { client } = fakeComfyUi(routes)
 
-    const run = await queueRun({
+    const run = await queueOneRun({
       db: handle.db,
       directory: dir,
       client,
@@ -172,7 +173,7 @@ describe("dispatch", () => {
     const { routes } = accepting()
     const { client } = fakeComfyUi(routes)
 
-    const run = await queueRun({
+    const run = await queueOneRun({
       db: handle.db,
       directory: dir,
       client,
@@ -189,7 +190,7 @@ describe("dispatch", () => {
     const { routes } = accepting()
     const { client } = fakeComfyUi(routes)
 
-    const run = await queueRun({
+    const run = await queueOneRun({
       db: handle.db,
       directory: dir,
       client,
@@ -207,7 +208,7 @@ describe("dispatch", () => {
     const { client, calls } = fakeComfyUi(routes)
     const gone = join(dir, "gone.png")
 
-    const run = await queueRun({
+    const run = await queueOneRun({
       db: handle.db,
       directory: dir,
       client,
@@ -233,7 +234,7 @@ describe("dispatch", () => {
     const { routes, posted } = accepting()
     const { client, calls } = fakeComfyUi(routes)
 
-    const run = await queueRun({
+    const run = await queueOneRun({
       db: handle.db,
       directory: dir,
       client,
@@ -268,7 +269,7 @@ describe("dispatch", () => {
     const { client, calls } = fakeComfyUi(routes)
 
     try {
-      const run = await queueRun({
+      const run = await queueOneRun({
         db: handle.db,
         directory: dir,
         client,
@@ -297,7 +298,7 @@ describe("dispatch", () => {
     const { client, calls } = fakeComfyUi(routes)
 
     await expect(
-      queueRun({
+      queueOneRun({
         db: handle.db,
         directory: dir,
         client,
@@ -342,7 +343,7 @@ describe("dispatch", () => {
     })
 
     await expect(
-      queueRun({
+      queueOneRun({
         db: handle.db,
         directory: dir,
         client,
@@ -361,7 +362,7 @@ describe("dispatch", () => {
     const { client } = fakeComfyUi(routes)
 
     await expect(
-      queueRun({
+      queueOneRun({
         db: handle.db,
         directory: dir,
         client,
