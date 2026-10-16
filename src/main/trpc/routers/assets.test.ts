@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest"
 import type { DescribeRequest, LlamaServerClient } from "../../core/prompting/llama-server-client"
 import { ClipHistory } from "../../core/composition/history"
 import { ProjectSession } from "../../core/projects/session"
-import { AppSettingsStore } from "../../core/settings/app-settings"
+import { AppSettingsStore, DEFAULT_COMFYUI_URL } from "../../core/settings/app-settings"
 import type { Context } from "../context"
 import { appRouter } from "../router"
 
@@ -45,6 +45,9 @@ describe("assets router", () => {
             return { content: "An elderly man in oilskins.", model: "qwen" }
           },
         }) as unknown as LlamaServerClient,
+      comfyUiClient: () => {
+        throw new Error("the assets router does not talk to ComfyUI")
+      },
     }
     caller = appRouter.createCaller(ctx)
   })
@@ -173,6 +176,7 @@ describe("assets router", () => {
     await caller.settings.update({
       llamaServerUrl: "http://127.0.0.1:8080",
       llamaModel: "qwen",
+      comfyUiUrl: DEFAULT_COMFYUI_URL,
     })
 
     const drafted = await caller.assets.draft({ assetId: keeper.id })

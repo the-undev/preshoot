@@ -64,7 +64,7 @@ export function SettingsDialog({ onClose }: SettingsDialogProps): React.JSX.Elem
             }
             onCheck={(url) => check.mutate({ url })}
             onUnload={(modelId) => unload.mutate({ url: settings.data.llamaServerUrl, modelId })}
-            onSave={(fields) => save.mutate(fields)}
+            onSave={(fields) => save.mutate({ ...fields, comfyUiUrl: settings.data.comfyUiUrl })}
             onCancel={onClose}
           />
         ) : (

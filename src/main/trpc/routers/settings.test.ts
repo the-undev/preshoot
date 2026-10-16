@@ -2,11 +2,16 @@ import { mkdtempSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import type { ComfyUiClient, ComfyUiStatus } from "../../core/backend/comfyui-client"
 import { PromptServiceError } from "../../core/prompting/errors"
 import type { LlamaServerClient, ServerModel } from "../../core/prompting/llama-server-client"
 import { ClipHistory } from "../../core/composition/history"
 import { ProjectSession } from "../../core/projects/session"
-import { AppSettingsStore, DEFAULT_LLAMA_SERVER_URL } from "../../core/settings/app-settings"
+import {
+  AppSettingsStore,
+  DEFAULT_COMFYUI_URL,
+  DEFAULT_LLAMA_SERVER_URL,
+} from "../../core/settings/app-settings"
 import type { Context } from "../context"
 import { appRouter } from "../router"
 
@@ -19,6 +24,8 @@ describe("settings router", () => {
   let models: () => Promise<ServerModel[]>
   let unloaded: string[]
   let checkedUrl: string
+  let comfyUiStatus: () => Promise<ComfyUiStatus>
+  let checkedComfyUiUrl: string
   let caller: ReturnType<typeof appRouter.createCaller>
 
   beforeEach(() => {
@@ -31,6 +38,8 @@ describe("settings router", () => {
     ])
     unloaded = []
     checkedUrl = ""
+    comfyUiStatus = vi.fn(async () => ({ state: "reachable" as const, version: "0.39.2" }))
+    checkedComfyUiUrl = ""
     const ctx: Context = {
       versions: { app: "0.0.0", electron: "0", chrome: "0", node: "0" },
       projects: session,
@@ -53,6 +62,10 @@ describe("settings router", () => {
           },
         } as unknown as LlamaServerClient
       },
+      comfyUiClient: (baseUrl) => {
+        checkedComfyUiUrl = baseUrl
+        return { status: () => comfyUiStatus() } as unknown as ComfyUiClient
+      },
     }
     caller = appRouter.createCaller(ctx)
   })
@@ -62,29 +75,69 @@ describe("settings router", () => {
     rmSync(dir, { recursive: true, force: true })
   })
 
-  it("starts on the default server URL and no model", async () => {
+  it("starts on the default server URLs and no model", async () => {
     expect(await caller.settings.get()).toEqual({
       llamaServerUrl: DEFAULT_LLAMA_SERVER_URL,
       llamaModel: "",
+      comfyUiUrl: DEFAULT_COMFYUI_URL,
     })
   })
 
-  it("saves a server URL and a model and reads them back", async () => {
+  it("saves the server URLs and a model and reads them back", async () => {
     await caller.settings.update({
       llamaServerUrl: "http://192.168.1.20:9000",
       llamaModel: "qwen",
+      comfyUiUrl: "http://127.0.0.1:8190",
     })
 
     expect(await caller.settings.get()).toEqual({
       llamaServerUrl: "http://192.168.1.20:9000",
       llamaModel: "qwen",
+      comfyUiUrl: "http://127.0.0.1:8190",
     })
   })
 
   it("rejects something that is not a URL", async () => {
     await expect(
-      caller.settings.update({ llamaServerUrl: "localhost:8080", llamaModel: "" })
+      caller.settings.update({
+        llamaServerUrl: "localhost:8080",
+        llamaModel: "",
+        comfyUiUrl: DEFAULT_COMFYUI_URL,
+      })
     ).rejects.toThrow(expect.objectContaining({ code: "BAD_REQUEST" }))
+  })
+
+  it("rejects a ComfyUI URL without a scheme", async () => {
+    await expect(
+      caller.settings.update({
+        llamaServerUrl: DEFAULT_LLAMA_SERVER_URL,
+        llamaModel: "",
+        comfyUiUrl: "localhost:8188",
+      })
+    ).rejects.toThrow(expect.objectContaining({ code: "BAD_REQUEST" }))
+  })
+
+  it("asks the saved ComfyUI for its status", async () => {
+    await caller.settings.update({
+      llamaServerUrl: DEFAULT_LLAMA_SERVER_URL,
+      llamaModel: "",
+      comfyUiUrl: "http://127.0.0.1:8190",
+    })
+
+    expect(await caller.settings.comfyUiStatus()).toEqual({
+      state: "reachable",
+      version: "0.39.2",
+    })
+    expect(checkedComfyUiUrl).toBe("http://127.0.0.1:8190")
+  })
+
+  it("checks the ComfyUI URL it was given rather than the saved one", async () => {
+    comfyUiStatus = vi.fn(async () => ({ state: "unreachable" as const }))
+
+    expect(await caller.settings.checkComfyUi({ url: "http://192.168.1.30:8188" })).toEqual({
+      state: "unreachable",
+    })
+    expect(checkedComfyUiUrl).toBe("http://192.168.1.30:8188")
   })
 
   it("checks the URL it was given rather than the saved one", async () => {

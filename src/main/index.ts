@@ -2,6 +2,7 @@ import { app, protocol, shell, BrowserWindow, Menu, nativeTheme } from "electron
 import { join } from "path"
 import { electronApp, optimizer, is } from "@electron-toolkit/utils"
 import icon from "../../resources/icon.png?asset"
+import { ComfyUiClient } from "./core/backend/comfyui-client"
 import { LlamaServerClient } from "./core/prompting/llama-server-client"
 import { ClipHistory } from "./core/composition/history"
 import { ProjectSession } from "./core/projects/session"
@@ -47,6 +48,7 @@ function createContext(window: BrowserWindow): () => Context {
     dialogs: createDialogs(window),
     // Built per request, so a URL saved in settings applies to the next generation without a restart.
     promptClient: (baseUrl) => new LlamaServerClient({ baseUrl, fetch: globalThis.fetch }),
+    comfyUiClient: (baseUrl) => new ComfyUiClient({ baseUrl, fetch: globalThis.fetch }),
     openPath: async (path) => {
       await shell.openPath(path)
     },

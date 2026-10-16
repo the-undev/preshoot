@@ -1,7 +1,8 @@
 import { z } from "zod"
+import type { ComfyUiStatus } from "../../core/backend/comfyui-client"
 import { PromptServiceError } from "../../core/prompting/errors"
 import type { ServerModel } from "../../core/prompting/llama-server-client"
-import { llamaServerUrlSchema } from "../../core/settings/app-settings"
+import { comfyUiUrlSchema, llamaServerUrlSchema } from "../../core/settings/app-settings"
 import { publicProcedure, router } from "../trpc"
 
 /** What a server had to say when it was asked, models included when it answered. */
@@ -15,17 +16,26 @@ export const settingsRouter = router({
   get: publicProcedure.query(({ ctx }) => ({
     llamaServerUrl: ctx.settings.llamaServerUrl(),
     llamaModel: ctx.settings.llamaModel(),
+    comfyUiUrl: ctx.settings.comfyUiUrl(),
   })),
 
-  /** Points the app at a different llama-server, or a different model on it. */
+  /** Points the app at a different llama-server, a different model on it, or a different ComfyUI. */
   update: publicProcedure
-    .input(z.object({ llamaServerUrl: llamaServerUrlSchema, llamaModel: z.string() }))
+    .input(
+      z.object({
+        llamaServerUrl: llamaServerUrlSchema,
+        llamaModel: z.string(),
+        comfyUiUrl: comfyUiUrlSchema,
+      })
+    )
     .mutation(({ ctx, input }) => {
       ctx.settings.setLlamaServerUrl(input.llamaServerUrl)
       ctx.settings.setLlamaModel(input.llamaModel)
+      ctx.settings.setComfyUiUrl(input.comfyUiUrl)
       return {
         llamaServerUrl: ctx.settings.llamaServerUrl(),
         llamaModel: ctx.settings.llamaModel(),
+        comfyUiUrl: ctx.settings.comfyUiUrl(),
       }
     }),
 
@@ -62,6 +72,16 @@ export const settingsRouter = router({
         throw error
       }
     }),
+
+  /** Whether the saved ComfyUI answers, asked for whenever the dialog is opened. */
+  comfyUiStatus: publicProcedure.query(({ ctx }): Promise<ComfyUiStatus> =>
+    ctx.comfyUiClient(ctx.settings.comfyUiUrl()).status()
+  ),
+
+  /** Whether a ComfyUI answers at `url`, so the dialog can look before saving. */
+  checkComfyUi: publicProcedure
+    .input(z.object({ url: comfyUiUrlSchema }))
+    .mutation(({ ctx, input }): Promise<ComfyUiStatus> => ctx.comfyUiClient(input.url).status()),
 
   /** Frees a loaded model, which hands the card back without stopping the server. */
   unloadModel: publicProcedure

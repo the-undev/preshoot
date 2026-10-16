@@ -52,6 +52,9 @@ describe("clips router", () => {
       promptClient: () => {
         throw new Error("the clips router does not generate prompts")
       },
+      comfyUiClient: () => {
+        throw new Error("the clips router does not talk to ComfyUI")
+      },
     }
     caller = appRouter.createCaller(ctx)
     await caller.projects.create({
