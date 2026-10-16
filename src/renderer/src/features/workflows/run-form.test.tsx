@@ -75,6 +75,8 @@ function renderForm(over: Partial<Parameters<typeof RunForm>[0]> = {}): {
       slots={slots}
       savedValues={savedValues}
       initialBindings={[]}
+      keptFields={null}
+      onFieldsChange={() => {}}
       configurationName={null}
       blockedReason={null}
       isQueueing={false}

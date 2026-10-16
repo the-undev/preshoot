@@ -176,6 +176,96 @@ describe("WorkflowRunView", () => {
     )
   })
 
+  it("keeps what was typed when a source change starts the form again", () => {
+    const form = formPanel()
+    const view = (shown: WorkflowDetail, panel: RunFormPanel): React.JSX.Element => (
+      <WorkflowRunView
+        workflow={shown}
+        form={panel}
+        configurations={configurationsPanel()}
+        runs={runsPanel}
+        review={reviewPanel()}
+      />
+    )
+    const { rerender } = render(view(workflow, form))
+    fireEvent.change(screen.getByLabelText("Prompt"), { target: { value: "She turns." } })
+    fireEvent.change(screen.getByLabelText("Seed"), { target: { value: "9" } })
+
+    rerender(view({ ...workflow, contentHash: "def" }, form))
+
+    expect(screen.getByLabelText("Prompt")).toHaveValue("She turns.")
+    expect(screen.getByLabelText("Seed")).toHaveValue("9")
+  })
+
+  it("gives a slot the new saved value when the source change altered it", () => {
+    const form = formPanel()
+    const view = (shown: WorkflowDetail, panel: RunFormPanel): React.JSX.Element => (
+      <WorkflowRunView
+        workflow={shown}
+        form={panel}
+        configurations={configurationsPanel()}
+        runs={runsPanel}
+        review={reviewPanel()}
+      />
+    )
+    const { rerender } = render(view(workflow, form))
+    fireEvent.change(screen.getByLabelText("Prompt"), { target: { value: "She turns." } })
+    fireEvent.change(screen.getByLabelText("Seed"), { target: { value: "9" } })
+    const changed = { ...workflow, contentHash: "def" }
+
+    // The snapshot lands before the values read from it.
+    rerender(view(changed, form))
+    rerender(
+      view(changed, {
+        ...form,
+        savedValues: [
+          { slotId: 1, value: "A man at a window." },
+          { slotId: 7, value: 77 },
+        ],
+      })
+    )
+
+    expect(screen.getByLabelText("Prompt")).toHaveValue("She turns.")
+    expect(screen.getByLabelText("Seed")).toHaveValue("77")
+  })
+
+  it("replaces what was typed when a configuration is loaded, and keeps that over a source change", async () => {
+    const anna = configuration({})
+    const form = formPanel()
+    const configurations = configurationsPanel({
+      configurations: [anna],
+      load: vi.fn(async () => ({
+        configuration: anna,
+        bindings: [{ slotId: 1, on: true, value: { type: "value" as const, value: "From Anna." } }],
+      })),
+    })
+    const view = (shown: WorkflowDetail): React.JSX.Element => (
+      <WorkflowRunView
+        workflow={shown}
+        form={form}
+        configurations={configurations}
+        runs={runsPanel}
+        review={reviewPanel()}
+      />
+    )
+    const { rerender } = render(view(workflow))
+    fireEvent.change(screen.getByLabelText("Prompt"), { target: { value: "She turns." } })
+    fireEvent.change(screen.getByLabelText("Seed"), { target: { value: "9" } })
+
+    await act(async () =>
+      fireEvent.click(
+        within(screen.getByRole("listitem", { name: "Anna" })).getByRole("button", {
+          name: "Load",
+        })
+      )
+    )
+
+    expect(screen.getByLabelText("Prompt")).toHaveValue("From Anna.")
+    expect(screen.getByLabelText("Seed")).toHaveValue("42")
+    rerender(view({ ...workflow, contentHash: "def" }))
+    expect(screen.getByLabelText("Prompt")).toHaveValue("From Anna.")
+  })
+
   it("queues a form filled by hand with no configuration", () => {
     const form = formPanel()
     render(

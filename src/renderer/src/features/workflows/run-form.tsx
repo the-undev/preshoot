@@ -1,5 +1,5 @@
 import { ChevronRight, Dices } from "lucide-react"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import {
   Button,
   Collapsible,
@@ -36,11 +36,21 @@ interface SlotState {
   field: Field
 }
 
+/** The form's slots as they stand, with the saved values the form started from. */
+export interface FormFields {
+  savedValues: SavedSlotValue[]
+  states: Record<number, SlotState>
+}
+
 interface RunFormProps {
   slots: WorkflowSlot[]
   savedValues: SavedSlotValue[]
   /** Values a loaded configuration gives some slots, which they start from instead. */
   initialBindings: RunBinding[]
+  /** The fields the last form held, kept by each slot whose saved value is the same. */
+  keptFields: FormFields | null
+  /** Hands the form's fields up each time they change, for the next form to keep. */
+  onFieldsChange: (fields: FormFields) => void
   /** The name of the configuration loaded into the form, which saving can update. */
   configurationName: string | null
   blockedReason: string | null
@@ -61,6 +71,8 @@ export function RunForm({
   slots,
   savedValues,
   initialBindings,
+  keptFields,
+  onFieldsChange,
   configurationName,
   blockedReason,
   isQueueing,
@@ -71,10 +83,9 @@ export function RunForm({
   library,
 }: RunFormProps): React.JSX.Element {
   const [states, setStates] = useState<Record<number, SlotState>>(() =>
-    Object.fromEntries(
-      slots.map((slot) => [slot.id, initialState(slot, savedValues, initialBindings)])
-    )
+    startingStates(slots, savedValues, initialBindings, keptFields)
   )
+  useEffect(() => onFieldsChange({ savedValues, states }), [onFieldsChange, savedValues, states])
   const [advancedOpen, setAdvancedOpen] = useState(false)
   const [countText, setCountText] = useState("1")
   const [saving, setSaving] = useState(false)
@@ -354,6 +365,36 @@ function FieldControl({
 }
 
 /**
+ * Where each slot starts: as the form kept it when its saved value is the same as when it was
+ * kept, as the workflow now saves it when that value changed, or else from the bindings and the
+ * saved values.
+ */
+function startingStates(
+  slots: WorkflowSlot[],
+  savedValues: SavedSlotValue[],
+  initialBindings: RunBinding[],
+  kept: FormFields | null
+): Record<number, SlotState> {
+  return Object.fromEntries(
+    slots.map((slot) => {
+      const fresh = initialState(slot, savedValues, initialBindings)
+      const before = kept?.states[slot.id]
+      // A slot that now takes another kind of value cannot keep what it held.
+      if (!kept || !before || before.field.type !== fresh.field.type) return [slot.id, fresh]
+      const savedBefore = savedValueOf(kept.savedValues, slot.id)
+      if (savedBefore !== savedValueOf(savedValues, slot.id)) {
+        return [slot.id, initialState(slot, savedValues, [])]
+      }
+      return [slot.id, before]
+    })
+  )
+}
+
+function savedValueOf(savedValues: SavedSlotValue[], slotId: number): SavedSlotValue["value"] {
+  return savedValues.find((entry) => entry.slotId === slotId)?.value ?? null
+}
+
+/**
  * Where a slot starts: as a loaded configuration binds it, or else on unless the workflow has it
  * bypassed and holding the value it was saved with.
  */
@@ -362,7 +403,7 @@ function initialState(
   savedValues: SavedSlotValue[],
   initialBindings: RunBinding[]
 ): SlotState {
-  const saved = savedValues.find((entry) => entry.slotId === slot.id)?.value ?? null
+  const saved = savedValueOf(savedValues, slot.id)
   const binding = initialBindings.find((entry) => entry.slotId === slot.id)
   if (!binding) return { on: !slot.bypassed, field: initialField(slot, saved) }
   return { on: binding.on, field: boundField(slot, saved, binding.value) }

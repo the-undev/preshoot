@@ -3,7 +3,7 @@ import { Alert, AlertDescription } from "@renderer/design-system"
 import type { Configuration, RunBinding, VerdictFilter, WorkflowDetail } from "@renderer/lib/trpc"
 import { ConfigurationStrip } from "./configuration-strip"
 import { ReviewBar } from "./review-bar"
-import { RunForm } from "./run-form"
+import { RunForm, type FormFields } from "./run-form"
 import { RunList } from "./run-list"
 import { useConfigurations, type ConfigurationsPanel } from "./use-configurations"
 import {
@@ -59,6 +59,8 @@ export function WorkflowRunView({
   // Counts loads, so loading the same configuration again starts the form again from it.
   const [loadCount, setLoadCount] = useState(0)
   const [loadError, setLoadError] = useState<string | null>(null)
+  // The form's fields as they last stood, which a form started again after a source change keeps.
+  const [keptFields, setKeptFields] = useState<FormFields | null>(null)
   // Looked up in the list, so a rename shows and a deleted one is no longer loaded.
   const loadedConfiguration: Configuration | null =
     configurations.configurations.find((entry) => entry.id === loaded?.configurationId) ?? null
@@ -67,6 +69,8 @@ export function WorkflowRunView({
     setLoadError(null)
     try {
       const result = await configurations.load(configurationId)
+      // A load starts the form from the configuration, so nothing typed before it is kept.
+      setKeptFields(null)
       setLoaded({
         configurationId,
         bindings: result.bindings,
@@ -103,13 +107,16 @@ export function WorkflowRunView({
           </Alert>
         )}
         {form.savedValues ? (
-          // Keyed on the snapshot and on each load, so taking the source's changes or loading a
-          // configuration starts the form again.
+          // Keyed on the snapshot, its saved values and each load, so taking the source's changes or
+          // loading a configuration starts the form again. The saved values are in the key since
+          // they are read apart from the snapshot and may land after it.
           <RunForm
-            key={`${workflow.contentHash}:${loadCount}`}
+            key={`${workflow.contentHash}:${JSON.stringify(form.savedValues)}:${loadCount}`}
             slots={workflow.slots}
             savedValues={form.savedValues}
             initialBindings={loaded?.bindings ?? []}
+            keptFields={keptFields}
+            onFieldsChange={setKeptFields}
             configurationName={loadedConfiguration?.name ?? null}
             blockedReason={form.blockedReason}
             isQueueing={form.isQueueing}
