@@ -127,7 +127,7 @@ export function useRuns(workflowId: number): RunsPanel {
 
   // A string, so the effect restarts only when the set of unfinished runs changes.
   const unfinished = (runs.data ?? [])
-    .filter((run) => run.state === "queued" || run.state === "running")
+    .filter(isUnfinished)
     .map((run) => run.id)
     .join(",")
 
@@ -142,10 +142,7 @@ export function useRuns(workflowId: number): RunsPanel {
       let changed = true
       try {
         const statuses = await client.runs.poll.mutate({ workflowId })
-        setPositions((current) => ({
-          ...current,
-          ...Object.fromEntries(statuses.map((status) => [status.run.id, status.position])),
-        }))
+        setPositions(positionsOf(statuses))
         setPollError(null)
         changed = changesState(statuses, queryClient.getQueryData(listKey) ?? [])
       } catch (error) {
@@ -190,6 +187,20 @@ export function useRuns(workflowId: number): RunsPanel {
     remove: (runId) => remove.mutate({ runId }),
     deleteError: remove.error?.message ?? null,
   }
+}
+
+/** Whether ComfyUI has yet to finish with a run. */
+function isUnfinished(run: RunRecord): boolean {
+  return run.state === "queued" || run.state === "running"
+}
+
+/** Where each run a poll found unfinished stands in the queue; a finished run has no entry. */
+export function positionsOf(statuses: RunStatus[]): Record<number, number | null> {
+  return Object.fromEntries(
+    statuses
+      .filter((status) => isUnfinished(status.run))
+      .map((status) => [status.run.id, status.position])
+  )
 }
 
 /** Whether a poll moved any run to a state other than the one the list shows. */

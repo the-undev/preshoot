@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 import type { RunRecord, RunStatus } from "@renderer/lib/trpc"
-import { changesState } from "./use-runs"
+import { changesState, positionsOf } from "./use-runs"
 
 function run(id: number, state: RunRecord["state"]): RunRecord {
   return {
@@ -18,6 +18,21 @@ function run(id: number, state: RunRecord["state"]): RunRecord {
     outputs: [],
   }
 }
+
+describe("positionsOf", () => {
+  it("keeps the places of the runs still waiting or running, and none for a finished run", () => {
+    const statuses: RunStatus[] = [
+      { run: run(1, "queued"), position: 2 },
+      { run: run(2, "running"), position: null },
+      { run: run(3, "done"), position: null },
+    ]
+
+    const positions = positionsOf(statuses)
+
+    expect(positions).toEqual({ 1: 2, 2: null })
+    expect(3 in positions).toBe(false)
+  })
+})
 
 describe("changesState", () => {
   it("says nothing changed when every run polled is in the state the list shows", () => {
