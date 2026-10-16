@@ -36,6 +36,8 @@ export const appSettingsSchema = z.object({
   comfyUiUrl: comfyUiUrlSchema.default(DEFAULT_COMFYUI_URL),
   // The folder ComfyUI saves workflows into. Nothing until the user names one.
   workflowsFolder: z.string().min(1).nullable().default(null),
+  // The folder the user keeps their library in. Nothing until the user names one.
+  libraryFolder: z.string().min(1).nullable().default(null),
 })
 
 export type AppSettings = z.infer<typeof appSettingsSchema>
@@ -108,6 +110,16 @@ export class AppSettingsStore {
   /** Imports workflows from a different folder, or from none. */
   setWorkflowsFolder(folder: string | null): void {
     this.update({ workflowsFolder: folder })
+  }
+
+  /** The folder the library is read from, which the app writes to only on an explicit copy. */
+  libraryFolder(): string | null {
+    return this.read().libraryFolder
+  }
+
+  /** Reads the library from a different folder, or from none. */
+  setLibraryFolder(folder: string | null): void {
+    this.update({ libraryFolder: folder })
   }
 
   /** Replaces the settings file, writing beside it first so a failed write leaves the old file intact. */

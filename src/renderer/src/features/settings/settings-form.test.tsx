@@ -13,12 +13,14 @@ function renderForm(over: Partial<React.ComponentProps<typeof SettingsForm>> = {
   onCheck: ReturnType<typeof vi.fn>
   onCheckComfyUi: ReturnType<typeof vi.fn>
   onPickWorkflowsFolder: ReturnType<typeof vi.fn>
+  onPickLibraryFolder: ReturnType<typeof vi.fn>
   onUnload: ReturnType<typeof vi.fn>
 } {
   const onSave = vi.fn()
   const onCheck = vi.fn()
   const onCheckComfyUi = vi.fn()
   const onPickWorkflowsFolder = vi.fn(async () => null)
+  const onPickLibraryFolder = vi.fn(async () => null)
   const onUnload = vi.fn()
   render(
     <SettingsForm
@@ -26,6 +28,7 @@ function renderForm(over: Partial<React.ComponentProps<typeof SettingsForm>> = {
       llamaModel=""
       comfyUiUrl="http://127.0.0.1:8188"
       workflowsFolder={null}
+      libraryFolder={null}
       models={models}
       checkState={null}
       isChecking={false}
@@ -38,13 +41,14 @@ function renderForm(over: Partial<React.ComponentProps<typeof SettingsForm>> = {
       onCheck={onCheck}
       onCheckComfyUi={onCheckComfyUi}
       onPickWorkflowsFolder={onPickWorkflowsFolder}
+      onPickLibraryFolder={onPickLibraryFolder}
       onUnload={onUnload}
       onSave={onSave}
       onCancel={vi.fn()}
       {...over}
     />
   )
-  return { onSave, onCheck, onCheckComfyUi, onPickWorkflowsFolder, onUnload }
+  return { onSave, onCheck, onCheckComfyUi, onPickWorkflowsFolder, onPickLibraryFolder, onUnload }
 }
 
 describe("SettingsForm", () => {
@@ -77,6 +81,7 @@ describe("SettingsForm", () => {
       llamaModel: "qwen",
       comfyUiUrl: "http://127.0.0.1:8188",
       workflowsFolder: null,
+      libraryFolder: null,
     })
   })
 
@@ -91,6 +96,7 @@ describe("SettingsForm", () => {
       llamaModel: "other",
       comfyUiUrl: "http://127.0.0.1:8188",
       workflowsFolder: null,
+      libraryFolder: null,
     })
   })
 
@@ -206,6 +212,36 @@ describe("SettingsForm", () => {
     fireEvent.click(screen.getByRole("button", { name: "Save" }))
 
     expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ workflowsFolder: null }))
+  })
+
+  it("shows the saved library folder", () => {
+    renderForm({ libraryFolder: "/home/someone/library" })
+
+    expect(screen.getByLabelText("Library folder")).toHaveValue("/home/someone/library")
+  })
+
+  it("fills the library folder from the picker and saves it", async () => {
+    const { onSave, onPickLibraryFolder } = renderForm()
+    onPickLibraryFolder.mockResolvedValue("/home/someone/library")
+
+    fireEvent.click(screen.getByRole("button", { name: "Browse for the library folder" }))
+
+    await waitFor(() =>
+      expect(screen.getByLabelText("Library folder")).toHaveValue("/home/someone/library")
+    )
+    fireEvent.click(screen.getByRole("button", { name: "Save" }))
+    expect(onSave).toHaveBeenCalledWith(
+      expect.objectContaining({ libraryFolder: "/home/someone/library" })
+    )
+  })
+
+  it("saves an emptied library folder as none", () => {
+    const { onSave } = renderForm({ libraryFolder: "/home/someone/library" })
+
+    fireEvent.change(screen.getByLabelText("Library folder"), { target: { value: "  " } })
+    fireEvent.click(screen.getByRole("button", { name: "Save" }))
+
+    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ libraryFolder: null }))
   })
 
   it("asks for a check when it has no models to show", () => {

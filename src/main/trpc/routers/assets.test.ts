@@ -178,6 +178,7 @@ describe("assets router", () => {
       llamaModel: "qwen",
       comfyUiUrl: DEFAULT_COMFYUI_URL,
       workflowsFolder: null,
+      libraryFolder: null,
     })
 
     const drafted = await caller.assets.draft({ assetId: keeper.id })

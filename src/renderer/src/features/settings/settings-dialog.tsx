@@ -14,8 +14,8 @@ interface SettingsDialogProps {
 }
 
 /**
- * App settings: where llama-server and ComfyUI are, which model llama-server is asked for, and
- * where workflows are imported from.
+ * App settings: where llama-server and ComfyUI are, which model llama-server is asked for, where
+ * workflows are imported from, and where the library is.
  */
 export function SettingsDialog({ onClose }: SettingsDialogProps): React.JSX.Element {
   const trpc = useTRPC()
@@ -29,6 +29,7 @@ export function SettingsDialog({ onClose }: SettingsDialogProps): React.JSX.Elem
   const check = useMutation(trpc.settings.checkLlamaServer.mutationOptions())
   const checkComfyUi = useMutation(trpc.settings.checkComfyUi.mutationOptions())
   const pickWorkflowsFolder = useMutation(trpc.settings.pickWorkflowsFolder.mutationOptions())
+  const pickLibraryFolder = useMutation(trpc.settings.pickLibraryFolder.mutationOptions())
   // What unload answers with is newer than what the last check saw, so it wins below.
   const unload = useMutation(trpc.settings.unloadModel.mutationOptions())
   const save = useMutation(
@@ -53,8 +54,8 @@ export function SettingsDialog({ onClose }: SettingsDialogProps): React.JSX.Elem
         <DialogHeader>
           <DialogTitle>App settings</DialogTitle>
           <DialogDescription>
-            Where llama-server and ComfyUI are, which model the app asks llama-server for, and where
-            workflows come from. These apply to every project.
+            Where llama-server and ComfyUI are, which model the app asks llama-server for, where
+            workflows come from and where the library is. These apply to every project.
           </DialogDescription>
         </DialogHeader>
         {settings.data ? (
@@ -63,6 +64,7 @@ export function SettingsDialog({ onClose }: SettingsDialogProps): React.JSX.Elem
             llamaModel={settings.data.llamaModel}
             comfyUiUrl={settings.data.comfyUiUrl}
             workflowsFolder={settings.data.workflowsFolder}
+            libraryFolder={settings.data.libraryFolder}
             models={models}
             checkState={check.data?.state ?? saved.data?.state ?? null}
             isChecking={check.isPending || saved.isLoading}
@@ -77,6 +79,7 @@ export function SettingsDialog({ onClose }: SettingsDialogProps): React.JSX.Elem
             onCheck={(url) => check.mutate({ url })}
             onCheckComfyUi={(url) => checkComfyUi.mutate({ url })}
             onPickWorkflowsFolder={() => pickWorkflowsFolder.mutateAsync()}
+            onPickLibraryFolder={() => pickLibraryFolder.mutateAsync()}
             onUnload={(modelId) => unload.mutate({ url: settings.data.llamaServerUrl, modelId })}
             onSave={(fields) => save.mutate(fields)}
             onCancel={onClose}

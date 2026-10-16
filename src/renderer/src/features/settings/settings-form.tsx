@@ -22,6 +22,7 @@ interface SettingsFormProps {
   llamaModel: string
   comfyUiUrl: string
   workflowsFolder: string | null
+  libraryFolder: string | null
   models: ServerModel[]
   checkState: ServerReport["state"] | null
   isChecking: boolean
@@ -35,25 +36,29 @@ interface SettingsFormProps {
   onCheckComfyUi: (url: string) => void
   /** Asks for a folder, answering with the one chosen or nothing when the picker was cancelled. */
   onPickWorkflowsFolder: () => Promise<string | null>
+  /** Asks for the library folder, answering the same way as the workflows one. */
+  onPickLibraryFolder: () => Promise<string | null>
   onUnload: (modelId: string) => void
   onSave: (fields: {
     llamaServerUrl: string
     llamaModel: string
     comfyUiUrl: string
     workflowsFolder: string | null
+    libraryFolder: string | null
   }) => void
   onCancel: () => void
 }
 
 /**
- * Where llama-server is, which model it is asked for and what it is holding, where ComfyUI is, and
- * which folder workflows are imported from.
+ * Where llama-server is, which model it is asked for and what it is holding, where ComfyUI is,
+ * which folder workflows are imported from, and which folder holds the library.
  */
 export function SettingsForm({
   llamaServerUrl,
   llamaModel,
   comfyUiUrl,
   workflowsFolder,
+  libraryFolder,
   models,
   checkState,
   isChecking,
@@ -66,6 +71,7 @@ export function SettingsForm({
   onCheck,
   onCheckComfyUi,
   onPickWorkflowsFolder,
+  onPickLibraryFolder,
   onUnload,
   onSave,
   onCancel,
@@ -74,12 +80,14 @@ export function SettingsForm({
   const [model, setModel] = useState(llamaModel)
   const [typedComfyUiUrl, setTypedComfyUiUrl] = useState(comfyUiUrl)
   const [typedWorkflowsFolder, setTypedWorkflowsFolder] = useState(workflowsFolder ?? "")
+  const [typedLibraryFolder, setTypedLibraryFolder] = useState(libraryFolder ?? "")
 
   // Nothing saved yet means the first model the server offers, so a check is enough to get going.
   const chosen = model.length > 0 ? model : (models[0]?.id ?? "")
   const trimmedUrl = url.trim()
   const trimmedComfyUiUrl = typedComfyUiUrl.trim()
   const trimmedWorkflowsFolder = typedWorkflowsFolder.trim()
+  const trimmedLibraryFolder = typedLibraryFolder.trim()
 
   return (
     <form
@@ -91,6 +99,7 @@ export function SettingsForm({
           llamaModel: chosen,
           comfyUiUrl: trimmedComfyUiUrl,
           workflowsFolder: trimmedWorkflowsFolder.length > 0 ? trimmedWorkflowsFolder : null,
+          libraryFolder: trimmedLibraryFolder.length > 0 ? trimmedLibraryFolder : null,
         })
       }}
     >
@@ -209,6 +218,33 @@ export function SettingsForm({
         </div>
         <p className="text-xs text-muted-foreground">
           Where ComfyUI saves workflows. The app copies from it and never writes to it.
+        </p>
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="library-folder">Library folder</Label>
+        <div className="flex gap-2">
+          <Input
+            id="library-folder"
+            value={typedLibraryFolder}
+            onChange={(event) => setTypedLibraryFolder(event.target.value)}
+          />
+          <Button
+            type="button"
+            variant="outline"
+            aria-label="Browse for the library folder"
+            onClick={() => {
+              void onPickLibraryFolder().then((picked) => {
+                if (picked !== null) setTypedLibraryFolder(picked)
+              })
+            }}
+          >
+            Browse
+          </Button>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          A folder per kind, such as characters or scenes, and a folder per entry inside it. The app
+          copies from it, and writes to it only when a subject is copied to the library.
         </p>
       </div>
 

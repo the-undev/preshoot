@@ -18,11 +18,12 @@ export const settingsRouter = router({
     llamaModel: ctx.settings.llamaModel(),
     comfyUiUrl: ctx.settings.comfyUiUrl(),
     workflowsFolder: ctx.settings.workflowsFolder(),
+    libraryFolder: ctx.settings.libraryFolder(),
   })),
 
   /**
-   * Points the app at a different llama-server, a different model on it, a different ComfyUI, or a
-   * different workflows folder.
+   * Points the app at a different llama-server, a different model on it, a different ComfyUI, a
+   * different workflows folder or a different library folder.
    */
   update: publicProcedure
     .input(
@@ -31,6 +32,7 @@ export const settingsRouter = router({
         llamaModel: z.string(),
         comfyUiUrl: comfyUiUrlSchema,
         workflowsFolder: z.string().trim().min(1).nullable(),
+        libraryFolder: z.string().trim().min(1).nullable(),
       })
     )
     .mutation(({ ctx, input }) => {
@@ -38,17 +40,24 @@ export const settingsRouter = router({
       ctx.settings.setLlamaModel(input.llamaModel)
       ctx.settings.setComfyUiUrl(input.comfyUiUrl)
       ctx.settings.setWorkflowsFolder(input.workflowsFolder)
+      ctx.settings.setLibraryFolder(input.libraryFolder)
       return {
         llamaServerUrl: ctx.settings.llamaServerUrl(),
         llamaModel: ctx.settings.llamaModel(),
         comfyUiUrl: ctx.settings.comfyUiUrl(),
         workflowsFolder: ctx.settings.workflowsFolder(),
+        libraryFolder: ctx.settings.libraryFolder(),
       }
     }),
 
   /** Asks for a workflows folder and hands it back without saving it, for the form to show. */
   pickWorkflowsFolder: publicProcedure.mutation(({ ctx }) =>
     ctx.dialogs.pickDirectory({ title: "Choose the workflows folder", allowCreate: false })
+  ),
+
+  /** Asks for a library folder and hands it back without saving it, for the form to show. */
+  pickLibraryFolder: publicProcedure.mutation(({ ctx }) =>
+    ctx.dialogs.pickDirectory({ title: "Choose the library folder", allowCreate: true })
   ),
 
   /** What the saved server can serve, asked for whenever the dialog is opened. */

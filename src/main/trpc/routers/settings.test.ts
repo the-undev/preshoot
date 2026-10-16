@@ -88,15 +88,17 @@ describe("settings router", () => {
       llamaModel: "",
       comfyUiUrl: DEFAULT_COMFYUI_URL,
       workflowsFolder: null,
+      libraryFolder: null,
     })
   })
 
-  it("saves the server URLs, a model and the workflows folder and reads them back", async () => {
+  it("saves the server URLs, a model and both folders and reads them back", async () => {
     await caller.settings.update({
       llamaServerUrl: "http://192.168.1.20:9000",
       llamaModel: "qwen",
       comfyUiUrl: "http://127.0.0.1:8190",
       workflowsFolder: "/home/someone/workflows",
+      libraryFolder: "/home/someone/library",
     })
 
     expect(await caller.settings.get()).toEqual({
@@ -104,6 +106,7 @@ describe("settings router", () => {
       llamaModel: "qwen",
       comfyUiUrl: "http://127.0.0.1:8190",
       workflowsFolder: "/home/someone/workflows",
+      libraryFolder: "/home/someone/library",
     })
   })
 
@@ -114,6 +117,7 @@ describe("settings router", () => {
         llamaModel: "",
         comfyUiUrl: DEFAULT_COMFYUI_URL,
         workflowsFolder: null,
+        libraryFolder: null,
       })
     ).rejects.toThrow(expect.objectContaining({ code: "BAD_REQUEST" }))
   })
@@ -125,6 +129,7 @@ describe("settings router", () => {
         llamaModel: "",
         comfyUiUrl: "localhost:8188",
         workflowsFolder: null,
+        libraryFolder: null,
       })
     ).rejects.toThrow(expect.objectContaining({ code: "BAD_REQUEST" }))
   })
@@ -135,12 +140,14 @@ describe("settings router", () => {
       llamaModel: "",
       comfyUiUrl: DEFAULT_COMFYUI_URL,
       workflowsFolder: "/home/someone/workflows",
+      libraryFolder: null,
     })
     await caller.settings.update({
       llamaServerUrl: DEFAULT_LLAMA_SERVER_URL,
       llamaModel: "",
       comfyUiUrl: DEFAULT_COMFYUI_URL,
       workflowsFolder: null,
+      libraryFolder: null,
     })
 
     expect((await caller.settings.get()).workflowsFolder).toBeNull()
@@ -154,12 +161,34 @@ describe("settings router", () => {
     expect((await caller.settings.get()).workflowsFolder).toBeNull()
   })
 
+  it("forgets the library folder when it is saved as none", async () => {
+    const fields = {
+      llamaServerUrl: DEFAULT_LLAMA_SERVER_URL,
+      llamaModel: "",
+      comfyUiUrl: DEFAULT_COMFYUI_URL,
+      workflowsFolder: null,
+    }
+    await caller.settings.update({ ...fields, libraryFolder: "/home/someone/library" })
+    await caller.settings.update({ ...fields, libraryFolder: null })
+
+    expect((await caller.settings.get()).libraryFolder).toBeNull()
+  })
+
+  it("hands back the folder picked for the library without saving it", async () => {
+    pickedFolder = "/home/someone/library"
+
+    expect(await caller.settings.pickLibraryFolder()).toBe("/home/someone/library")
+    expect(pickTitles).toEqual(["Choose the library folder"])
+    expect((await caller.settings.get()).libraryFolder).toBeNull()
+  })
+
   it("asks the saved ComfyUI for its status", async () => {
     await caller.settings.update({
       llamaServerUrl: DEFAULT_LLAMA_SERVER_URL,
       llamaModel: "",
       comfyUiUrl: "http://127.0.0.1:8190",
       workflowsFolder: null,
+      libraryFolder: null,
     })
 
     expect(await caller.settings.comfyUiStatus()).toEqual({
