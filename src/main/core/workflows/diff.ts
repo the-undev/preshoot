@@ -54,6 +54,7 @@ export function changesNoSlots(diff: SlotDiff): boolean {
   return diff.renamed.length === 0 && diff.added.length === 0 && diff.removed.length === 0
 }
 
-function slotKey(slot: { nodeId: number; nodeType: string }): string {
+/** What makes two slots the same slot: the node they fill, and its type. */
+export function slotKey(slot: { nodeId: number; nodeType: string }): string {
   return `${slot.nodeId}\u0000${slot.nodeType}`
 }
