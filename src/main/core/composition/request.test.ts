@@ -102,6 +102,7 @@ describe("buildRequest", () => {
         role: "keyframe",
         at: "first frame",
         fileName: "3-aaa.png",
+        imageId: 3,
         fromAsset: "Keeper",
       },
       {
@@ -109,6 +110,7 @@ describe("buildRequest", () => {
         role: "keyframe",
         at: "last frame",
         fileName: "4-bbb.png",
+        imageId: 4,
         fromAsset: "Keeper",
       },
     ])
