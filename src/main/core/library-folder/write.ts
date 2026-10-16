@@ -1,4 +1,15 @@
-import { constants, copyFileSync, lstatSync, mkdirSync, statSync, writeFileSync } from "node:fs"
+import {
+  constants,
+  copyFileSync,
+  lstatSync,
+  mkdirSync,
+  mkdtempSync,
+  renameSync,
+  rmdirSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from "node:fs"
 import { extname, join } from "node:path"
 import { LibraryError } from "./errors"
 import { NOTES_FILE } from "./scan"
@@ -16,6 +27,8 @@ export interface NewLibraryEntry {
  * Writes a new entry folder under `kind`, making the kind folder when it is new, with the pictures
  * copied in and the notes as its entry.md. This is the only code in the app that writes inside the
  * library folder. An entry of that name already there is refused and nothing is overwritten.
+ * The entry is written in a hidden folder beside it and moved into place last, so a failure
+ * leaves nothing behind and a retry starts clean.
  */
 export function writeLibraryEntry(entry: NewLibraryEntry): { path: string } {
   if (entry.folder === null) throw LibraryError.unset()
@@ -35,19 +48,38 @@ export function writeLibraryEntry(entry: NewLibraryEntry): { path: string } {
   if (lstatSync(entryPath, { throwIfNoEntry: false })) throw LibraryError.exists(kind, name)
 
   mkdirSync(kindPath, { recursive: true })
+  // Hidden, so a scan never lists it, and unique, so it never meets one left by a crash.
+  const partialPath = mkdtempSync(join(kindPath, `.${name}.partial-`))
   try {
-    mkdirSync(entryPath)
+    entry.pictures.forEach((picture, index) => {
+      const fileName = `${name}-${index + 1}${extname(picture).toLowerCase()}`
+      copyFileSync(picture, join(partialPath, fileName), constants.COPYFILE_EXCL)
+    })
+    writeFileSync(join(partialPath, NOTES_FILE), `${entry.notes.trim()}\n`, { flag: "wx" })
+    // Checked again, since a rename onto an empty folder made in the meantime would replace it.
+    if (lstatSync(entryPath, { throwIfNoEntry: false })) throw LibraryError.exists(kind, name)
+    renameSync(partialPath, entryPath)
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "EEXIST") throw LibraryError.exists(kind, name)
+    rmSync(partialPath, { recursive: true, force: true })
+    if (!kindStat) removeIfEmpty(kindPath)
+    if (RENAME_REFUSALS.includes(String((error as NodeJS.ErrnoException).code))) {
+      throw LibraryError.exists(kind, name)
+    }
     throw error
   }
-
-  entry.pictures.forEach((picture, index) => {
-    const fileName = `${name}-${index + 1}${extname(picture).toLowerCase()}`
-    copyFileSync(picture, join(entryPath, fileName), constants.COPYFILE_EXCL)
-  })
-  writeFileSync(join(entryPath, NOTES_FILE), `${entry.notes.trim()}\n`, { flag: "wx" })
   return { path: entryPath }
+}
+
+/** The codes a rename gives when something already holds the entry's name. */
+const RENAME_REFUSALS = ["EEXIST", "ENOTEMPTY", "ENOTDIR"]
+
+/** Removes a folder this write made, when nothing else has been put in it. */
+function removeIfEmpty(path: string): void {
+  try {
+    rmdirSync(path)
+  } catch {
+    // Something else is in it now, so it stays.
+  }
 }
 
 /** `name` trimmed, when it can be one folder inside another and nothing else. */

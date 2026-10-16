@@ -11,6 +11,7 @@ import {
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
+import { scanLibraryFolder } from "./scan"
 import { writeLibraryEntry } from "./write"
 
 describe("writeLibraryEntry", () => {
@@ -57,6 +58,54 @@ describe("writeLibraryEntry", () => {
     })
 
     expect(readdirSync(join(library, "props", "Lamp"))).toEqual(["entry.md"])
+  })
+
+  it("leaves nothing behind when a picture cannot be copied, so a retry succeeds", () => {
+    const entry = {
+      folder: library,
+      kind: "characters",
+      name: "Anna",
+      notes: "A woman in a red coat.",
+      pictures: [pictures[0], join(dir, "gone.png")],
+    }
+
+    expect(() => writeLibraryEntry(entry)).toThrow()
+    expect(readdirSync(join(library, "characters"))).toEqual([])
+
+    writeFileSync(join(dir, "gone.png"), "back")
+    writeLibraryEntry(entry)
+    expect(readdirSync(join(library, "characters"))).toEqual(["Anna"])
+    expect(readdirSync(join(library, "characters", "Anna")).sort()).toEqual([
+      "Anna-1.png",
+      "Anna-2.png",
+      "entry.md",
+    ])
+  })
+
+  it("removes a kind folder it made when the entry cannot be written", () => {
+    expect(() =>
+      writeLibraryEntry({
+        folder: library,
+        kind: "props",
+        name: "Lamp",
+        notes: "A lamp.",
+        pictures: [join(dir, "gone.png")],
+      })
+    ).toThrow()
+
+    expect(readdirSync(library)).toEqual(["characters"])
+  })
+
+  it("never lists a half-written entry, and writes beside one left by a crash", () => {
+    const leftover = join(library, "characters", ".Anna.partial-abc123")
+    mkdirSync(leftover)
+    writeFileSync(join(leftover, "Anna-1.png"), "half")
+
+    writeLibraryEntry({ folder: library, kind: "characters", name: "Anna", notes: "", pictures })
+
+    const listing = scanLibraryFolder(library)
+    if (listing.state !== "listed") throw new Error("the library is not listed")
+    expect(listing.kinds[0].entries.map((entry) => entry.name)).toEqual(["Anna"])
   })
 
   it("refuses an entry that is already there and leaves it as it was", () => {

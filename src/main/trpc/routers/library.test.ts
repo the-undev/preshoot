@@ -1,4 +1,12 @@
-import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
+import {
+  chmodSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs"
 import { tmpdir } from "node:os"
 import { dirname, join } from "node:path"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
@@ -140,6 +148,29 @@ describe("library router", () => {
       "daniel-cafe.png",
       "entry.md",
     ])
+  })
+
+  it("makes no subject and copies nothing when a picture cannot be copied, so a retry starts clean", async () => {
+    const directory = await openProject()
+    put("characters/Daniel/daniel-street.png", "street")
+    const unreadable = join(library, "characters", "Daniel", "daniel-street.png")
+    chmodSync(unreadable, 0o000)
+    const input = {
+      entryPath: join(library, "characters", "Daniel"),
+      kind: "person" as const,
+      description: "A man in his late thirties.",
+    }
+
+    await expect(caller.library.addToProject(input)).rejects.toThrow()
+    expect(await caller.assets.list()).toEqual([])
+    expect(await caller.assets.images()).toEqual([])
+    expect(readdirSync(join(directory, "assets", "images"))).toEqual([])
+
+    chmodSync(unreadable, 0o644)
+    await caller.library.addToProject(input)
+    expect((await caller.assets.list()).map((asset) => asset.name)).toEqual(["Daniel"])
+    expect(await caller.assets.images()).toHaveLength(2)
+    expect(readdirSync(join(directory, "assets", "images"))).toHaveLength(2)
   })
 
   it("refuses an entry the library does not hold", async () => {

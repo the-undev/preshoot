@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs"
 import { z } from "zod"
 import { ASSET_KINDS, insertAsset, readAsset } from "../../core/composition/asset-store"
 import { CompositionError } from "../../core/composition/errors"
-import { importImage, listImages, readImage } from "../../core/composition/image-store"
+import { importImages, listImages, readImage } from "../../core/composition/image-store"
 import { LibraryError } from "../../core/library-folder/errors"
 import { resolveLibraryFile } from "../../core/library-folder/guard"
 import { mediaOf } from "../../core/library-folder/media"
@@ -32,7 +32,8 @@ export const libraryRouter = router({
 
   /**
    * Makes a saved subject in the open project from a library entry, named after it, with its
-   * pictures copied in. The entry is read again first, so only what is in the library now is used.
+   * pictures copied in, all at once or not at all. The entry is read again first, so only what is
+   * in the library now is used.
    */
   addToProject: publicProcedure
     .input(
@@ -50,20 +51,21 @@ export const libraryRouter = router({
         const entry = findEntry(scanLibraryFolder(folder), input.entryPath)
         if (!entry) throw LibraryError.notFound(input.entryPath)
 
-        const subject = insertAsset(project.db, {
-          clipId: null,
-          kind: input.kind,
-          name: entry.name,
-          description: input.description,
-        })
-        for (const file of entry.files.filter((candidate) => candidate.media === "image")) {
-          importImage(project.db, {
+        const pictures = entry.files.filter((candidate) => candidate.media === "image")
+        return project.db.transaction((tx) => {
+          const subject = insertAsset(tx, {
+            clipId: null,
+            kind: input.kind,
+            name: entry.name,
+            description: input.description,
+          })
+          importImages(tx, {
             directory: project.directory,
             assetId: subject.id,
-            sourcePath: file.path,
+            sourcePaths: pictures.map((file) => file.path),
           })
-        }
-        return subject
+          return subject
+        })
       } catch (error) {
         asClientError(error)
       }

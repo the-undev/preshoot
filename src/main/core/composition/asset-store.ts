@@ -1,5 +1,5 @@
 import { asc, eq, isNull } from "drizzle-orm"
-import { schema, type ProjectDatabase } from "../db"
+import { schema, type ProjectDatabase, type ProjectDb } from "../db"
 import { CompositionError } from "./errors"
 import { deleteImagesOfAsset } from "./image-store"
 
@@ -52,7 +52,7 @@ export function listCast(db: ProjectDatabase, clipId: number): AssetRecord[] {
 
 /** Adds a subject, to a clip or to the library when no clip is named. */
 export function insertAsset(
-  db: ProjectDatabase,
+  db: ProjectDb,
   input: { clipId: number | null; kind: string; name: string; description: string }
 ): AssetRecord {
   const [row] = db
