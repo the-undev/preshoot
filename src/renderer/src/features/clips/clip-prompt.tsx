@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react"
 import { Check, Copy } from "lucide-react"
 import { Alert, AlertDescription, Button } from "@renderer/design-system"
-import { SendPromptDialog } from "@renderer/features/workflows/send-prompt-dialog"
+import { SendClipDialog } from "@renderer/features/workflows/send-clip-dialog"
 import type { ClipPrompt, GenerationRequest } from "@renderer/lib/trpc"
 
 /** How long a copy button says it has copied. */
@@ -56,7 +56,7 @@ interface ClipPromptPanelProps {
 
 /**
  * The prompt this clip makes, rewritten on every change, with each field to copy, the whole to
- * write into the project, and the prompt to send to a workflow's text slot.
+ * write into the project, and the prompt, duration and pictures to send to a workflow's slots.
  */
 export function ClipPromptPanel({
   prompt,
@@ -186,8 +186,9 @@ export function ClipPromptPanel({
       )}
 
       {sending && (
-        <SendPromptDialog
+        <SendClipDialog
           text={prompt.rendered}
+          request={prompt.request}
           clipName={clipName}
           onOpenWorkflow={onOpenWorkflow}
           onOpenWorkflows={onOpenWorkflows}
