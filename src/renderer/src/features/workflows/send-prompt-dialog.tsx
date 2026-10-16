@@ -10,18 +10,18 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@renderer/design-system"
-import { useTRPC, type TextSlot, type WorkflowTextSlots } from "@renderer/lib/trpc"
+import { useTRPC, type ShownSlot, type WorkflowShownSlots } from "@renderer/lib/trpc"
 import { setPromptTransfer } from "./prompt-transfer"
 import { shownName } from "./slot-labels"
 
 /** A workflow and the text slots its form shows, in the order they are offered. */
 interface SendTarget {
-  workflow: WorkflowTextSlots
-  slots: TextSlot[]
+  workflow: WorkflowShownSlots
+  slots: ShownSlot[]
 }
 
 /** Whether a slot is the prompt-sized box shown up front, which is offered first. */
-function isPromptBox(slot: TextSlot): boolean {
+function isPromptBox(slot: ShownSlot): boolean {
   return slot.multiline && slot.tier === "basic"
 }
 
@@ -29,11 +29,12 @@ function isPromptBox(slot: TextSlot): boolean {
  * The workflows a prompt can be sent to, each with its shown text slots, prompt-sized basic ones
  * first and then the rest in graph order.
  */
-function sendTargets(workflows: WorkflowTextSlots[]): SendTarget[] {
+function sendTargets(workflows: WorkflowShownSlots[]): SendTarget[] {
   return workflows.flatMap((workflow) => {
+    const textSlots = workflow.slots.filter((slot) => slot.kind === "text")
     const slots = [
-      ...workflow.slots.filter(isPromptBox),
-      ...workflow.slots.filter((slot) => !isPromptBox(slot)),
+      ...textSlots.filter(isPromptBox),
+      ...textSlots.filter((slot) => !isPromptBox(slot)),
     ]
     return slots.length === 0 ? [] : [{ workflow, slots }]
   })
@@ -61,7 +62,7 @@ export function SendPromptDialog({
   onCancel,
 }: SendPromptDialogProps): React.JSX.Element {
   const trpc = useTRPC()
-  const list = useQuery(trpc.workflows.textSlots.queryOptions())
+  const list = useQuery(trpc.workflows.shownSlots.queryOptions())
   const errorMessage = list.error?.message ?? null
   const targets = sendTargets(list.data ?? [])
 

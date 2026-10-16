@@ -50,14 +50,17 @@ export interface WorkflowDetail extends WorkflowSummary {
   guide: GuideNote[]
 }
 
-/** A text slot a prompt can be sent to, as the send dialog offers it. */
-export type TextSlot = Pick<SlotRecord, "id" | "name" | "displayName" | "multiline" | "tier">
+/** A slot a workflow's form shows, as the send dialog offers it. */
+export type ShownSlot = Pick<
+  SlotRecord,
+  "id" | "name" | "displayName" | "kind" | "multiline" | "tier"
+>
 
-/** A workflow by name with the text slots its form shows. */
-export interface WorkflowTextSlots {
+/** A workflow by name with the slots its form shows. */
+export interface WorkflowShownSlots {
   id: number
   name: string
-  slots: TextSlot[]
+  slots: ShownSlot[]
 }
 
 /** How the source file stands against the project's copy. */
@@ -81,8 +84,8 @@ export function listWorkflows(db: ProjectDatabase): WorkflowSummary[] {
     .map(toSummary)
 }
 
-/** Every workflow by name with its shown text slots in graph order, read without its graph. */
-export function listTextSlots(db: ProjectDb): WorkflowTextSlots[] {
+/** Every workflow by name with its shown slots in graph order, read without its graph. */
+export function listShownSlots(db: ProjectDb): WorkflowShownSlots[] {
   const workflows = db
     .select({ id: schema.workflows.id, name: schema.workflows.name })
     .from(schema.workflows)
@@ -91,11 +94,12 @@ export function listTextSlots(db: ProjectDb): WorkflowTextSlots[] {
   return workflows.map((workflow) => ({
     ...workflow,
     slots: slotsOf(db, workflow.id)
-      .filter((slot) => slot.kind === "text" && slot.tier !== "hidden")
-      .map(({ id, name, displayName, multiline, tier }) => ({
+      .filter((slot) => slot.tier !== "hidden")
+      .map(({ id, name, displayName, kind, multiline, tier }) => ({
         id,
         name,
         displayName,
+        kind,
         multiline,
         tier,
       })),

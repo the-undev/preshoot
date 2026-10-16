@@ -312,31 +312,50 @@ describe("workflows router", () => {
     })
   })
 
-  it("lists each workflow's shown text slots without reading its graph", async () => {
+  it("lists each workflow's shown slots of every kind without reading its graph", async () => {
     await openProject()
     settings.update({ workflowsFolder: folder })
     const { workflow: imported } = await caller.workflows.import({ path: sourcePath })
-    const prompt = imported.slots.find((slot) => slot.name === "Prompt")
-    if (!prompt) throw new Error("no Prompt slot")
+    const named = (name: string): (typeof imported.slots)[number] => {
+      const found = imported.slots.find((slot) => slot.name === name)
+      if (!found) throw new Error(`no ${name} slot`)
+      return found
+    }
+    const prompt = named("Prompt")
+    const duration = named("Duration (s)")
+    const picture = named("Picture 1")
+    await caller.workflows.setTier({ slotId: picture.id, tier: "hidden" })
     // A graph that cannot be read, which reading the full workflow refuses.
     const project = session.current()
     if (!project) throw new Error("no project open")
     project.db.update(schema.workflows).set({ graph: "{ not json" }).run()
     await expect(caller.workflows.get({ workflowId: imported.id })).rejects.toThrow()
 
-    expect(await caller.workflows.textSlots()).toEqual([
-      {
-        id: imported.id,
-        name: "h3-r2v-base",
-        slots: [
-          { id: prompt.id, name: "Prompt", displayName: null, multiline: true, tier: "basic" },
-        ],
-      },
-    ])
-    await caller.workflows.setTier({ slotId: prompt.id, tier: "hidden" })
-    expect(await caller.workflows.textSlots()).toEqual([
-      { id: imported.id, name: "h3-r2v-base", slots: [] },
-    ])
+    const [listed] = await caller.workflows.shownSlots()
+
+    expect(listed).toMatchObject({ id: imported.id, name: "h3-r2v-base" })
+    expect(listed.slots).toContainEqual({
+      id: prompt.id,
+      name: "Prompt",
+      displayName: null,
+      kind: "text",
+      multiline: true,
+      tier: "basic",
+    })
+    expect(listed.slots).toContainEqual({
+      id: duration.id,
+      name: "Duration (s)",
+      displayName: null,
+      kind: "number",
+      multiline: false,
+      tier: "basic",
+    })
+    expect(listed.slots.map((slot) => slot.name)).toContain("Picture 2")
+    expect(listed.slots.find((slot) => slot.name === "Picture 2")?.kind).toBe("image")
+    expect(listed.slots.map((slot) => slot.id)).not.toContain(picture.id)
+    expect(listed.slots.map((slot) => slot.id)).toEqual(
+      imported.slots.filter((slot) => slot.id !== picture.id).map((slot) => slot.id)
+    )
   })
 
   it("refuses changes that are no longer the ones shown as a conflict", async () => {

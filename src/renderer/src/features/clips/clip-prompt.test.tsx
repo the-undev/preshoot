@@ -2,7 +2,7 @@ import { fireEvent, render, screen, within } from "@testing-library/react"
 import { describe, expect, it, vi } from "vitest"
 import { takePromptTransfer } from "@renderer/features/workflows/prompt-transfer"
 import { StubTrpcProvider, type StubAnswers } from "@renderer/lib/stub-trpc"
-import type { ClipPrompt, TextSlot, WorkflowTextSlots } from "@renderer/lib/trpc"
+import type { ClipPrompt, ShownSlot, WorkflowShownSlots } from "@renderer/lib/trpc"
 import { ClipPromptPanel } from "./clip-prompt"
 
 const ready: ClipPrompt = {
@@ -23,30 +23,38 @@ const ready: ClipPrompt = {
   body: { words: 92, min: 350, max: 500 },
 }
 
-function slot(over: Partial<TextSlot>): TextSlot {
-  return { id: 1, name: "Prompt", displayName: null, tier: "basic", multiline: true, ...over }
+function slot(over: Partial<ShownSlot>): ShownSlot {
+  return {
+    id: 1,
+    name: "Prompt",
+    displayName: null,
+    kind: "text",
+    tier: "basic",
+    multiline: true,
+    ...over,
+  }
 }
 
-function workflow(id: number, name: string, slots: TextSlot[]): WorkflowTextSlots {
+function workflow(id: number, name: string, slots: ShownSlot[]): WorkflowShownSlots {
   return { id, name, slots }
 }
 
-/** The project's workflows with the text slots their forms show, in graph order. */
-const workflows: WorkflowTextSlots[] = [
+/** The project's workflows with the slots their forms show, in graph order. */
+const workflows: WorkflowShownSlots[] = [
   workflow(3, "h3-r2v-base", [
     slot({ id: 10, name: "Negative", multiline: false }),
     slot({ id: 12, name: "Style", tier: "advanced" }),
     slot({ id: 13, name: "Prompt" }),
   ]),
-  // One holds only a seed and one only a hidden text slot, so neither shows a text slot.
-  workflow(4, "qwen-image-seed", []),
+  // One shows only a seed and one only a hidden text slot, so neither shows a text slot.
+  workflow(4, "qwen-image-seed", [slot({ id: 30, name: "Seed", kind: "seed", multiline: false })]),
   workflow(5, "qwen-image-hidden", []),
   workflow(6, "qwen-image-edit", [slot({ id: 40, name: "Instruction" })]),
 ]
 
 /** Answers the one workflow call the send dialog makes from the workflows given. */
-function workflowAnswers(shown: WorkflowTextSlots[]): StubAnswers {
-  return { "workflows.textSlots": shown }
+function workflowAnswers(shown: WorkflowShownSlots[]): StubAnswers {
+  return { "workflows.shownSlots": shown }
 }
 
 interface Rendered {
