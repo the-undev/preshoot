@@ -38,7 +38,7 @@ const slots: WorkflowSlot[] = [
 
 describe("WorkflowMapping", () => {
   it("groups the slots by tier", () => {
-    render(<WorkflowMapping slots={slots} onSetTier={vi.fn()} />)
+    render(<WorkflowMapping slots={slots} onSetTier={vi.fn()} onSetLabel={vi.fn()} />)
 
     const basic = within(screen.getByRole("region", { name: "Basic" }))
     const advanced = within(screen.getByRole("region", { name: "Advanced" }))
@@ -50,14 +50,14 @@ describe("WorkflowMapping", () => {
   })
 
   it("says what each slot takes, and when it is bypassed in the workflow", () => {
-    render(<WorkflowMapping slots={slots} onSetTier={vi.fn()} />)
+    render(<WorkflowMapping slots={slots} onSetTier={vi.fn()} onSetLabel={vi.fn()} />)
 
     expect(screen.getByText("Text")).toBeInTheDocument()
     expect(screen.getByText("Image · bypassed in the workflow")).toBeInTheDocument()
   })
 
   it("marks the tier each slot is at", () => {
-    render(<WorkflowMapping slots={slots} onSetTier={vi.fn()} />)
+    render(<WorkflowMapping slots={slots} onSetTier={vi.fn()} onSetLabel={vi.fn()} />)
 
     expect(screen.getByRole("button", { name: "Basic: Seed" })).toHaveAttribute(
       "aria-pressed",
@@ -71,7 +71,7 @@ describe("WorkflowMapping", () => {
 
   it("moves a slot to the tier picked for it", () => {
     const onSetTier = vi.fn()
-    render(<WorkflowMapping slots={slots} onSetTier={onSetTier} />)
+    render(<WorkflowMapping slots={slots} onSetTier={onSetTier} onSetLabel={vi.fn()} />)
 
     fireEvent.click(screen.getByRole("button", { name: "Hidden: Seed" }))
 
@@ -80,11 +80,76 @@ describe("WorkflowMapping", () => {
 
   it("asks for nothing when the tier picked is the one it is at", () => {
     const onSetTier = vi.fn()
-    render(<WorkflowMapping slots={slots} onSetTier={onSetTier} />)
+    render(<WorkflowMapping slots={slots} onSetTier={onSetTier} onSetLabel={vi.fn()} />)
 
     fireEvent.click(screen.getByRole("button", { name: "Basic: Seed" }))
 
     expect(onSetTier).not.toHaveBeenCalled()
+  })
+
+  it("keeps the scanned name, with the display name and note beside it", () => {
+    render(
+      <WorkflowMapping
+        slots={[slot({ displayName: "Scene", note: "Say what moves." })]}
+        onSetTier={vi.fn()}
+        onSetLabel={vi.fn()}
+      />
+    )
+
+    expect(screen.getByText("Prompt")).toBeInTheDocument()
+    expect(screen.getByText("Text · shown as Scene")).toBeInTheDocument()
+    expect(screen.getByText("Say what moves.")).toBeInTheDocument()
+  })
+
+  it("saves a display name and note typed for a slot", () => {
+    const onSetLabel = vi.fn()
+    render(<WorkflowMapping slots={slots} onSetTier={vi.fn()} onSetLabel={onSetLabel} />)
+
+    fireEvent.click(screen.getByRole("button", { name: "Edit Seed" }))
+    const form = within(screen.getByRole("form", { name: "Label for Seed" }))
+    expect(form.getByLabelText("Shown as")).toHaveAttribute("placeholder", "Seed")
+    fireEvent.change(form.getByLabelText("Shown as"), { target: { value: "Noise seed" } })
+    fireEvent.change(form.getByLabelText("Note"), { target: { value: "Keep it fixed." } })
+    fireEvent.click(form.getByRole("button", { name: "Save" }))
+
+    expect(onSetLabel).toHaveBeenCalledWith(3, {
+      displayName: "Noise seed",
+      note: "Keep it fixed.",
+    })
+    expect(screen.queryByRole("form", { name: "Label for Seed" })).not.toBeInTheDocument()
+  })
+
+  it("clears a display name and note by saving them empty", () => {
+    const onSetLabel = vi.fn()
+    render(
+      <WorkflowMapping
+        slots={[slot({ displayName: "Scene", note: "Say what moves." })]}
+        onSetTier={vi.fn()}
+        onSetLabel={onSetLabel}
+      />
+    )
+
+    fireEvent.click(screen.getByRole("button", { name: "Edit Prompt" }))
+    const form = within(screen.getByRole("form", { name: "Label for Prompt" }))
+    expect(form.getByLabelText("Shown as")).toHaveValue("Scene")
+    fireEvent.change(form.getByLabelText("Shown as"), { target: { value: "" } })
+    fireEvent.change(form.getByLabelText("Note"), { target: { value: "" } })
+    fireEvent.click(form.getByRole("button", { name: "Save" }))
+
+    expect(onSetLabel).toHaveBeenCalledWith(1, { displayName: "", note: "" })
+  })
+
+  it("saves nothing when the edit is cancelled", () => {
+    const onSetLabel = vi.fn()
+    render(<WorkflowMapping slots={slots} onSetTier={vi.fn()} onSetLabel={onSetLabel} />)
+
+    fireEvent.click(screen.getByRole("button", { name: "Edit Seed" }))
+    const form = within(screen.getByRole("form", { name: "Label for Seed" }))
+    fireEvent.change(form.getByLabelText("Shown as"), { target: { value: "Noise seed" } })
+    fireEvent.keyDown(form.getByLabelText("Shown as"), { key: "Escape" })
+
+    expect(onSetLabel).not.toHaveBeenCalled()
+    expect(screen.queryByRole("form", { name: "Label for Seed" })).not.toBeInTheDocument()
   })
 })
 

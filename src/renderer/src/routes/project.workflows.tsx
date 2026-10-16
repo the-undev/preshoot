@@ -138,7 +138,7 @@ function OpenWorkflow({
             <h2 className="font-heading text-sm font-semibold text-muted-foreground">Guide</h2>
             <WorkflowGuide guide={workflow.guide} />
           </section>
-          {/* Tiers are set once per workflow, so the mapping waits behind a fold. */}
+          {/* Tiers and labels are set once per workflow, so the mapping waits behind a fold. */}
           <Collapsible open={mappingOpen} onOpenChange={setMappingOpen}>
             <CollapsibleTrigger asChild>
               <Button variant="ghost" size="sm" className="-ml-2 gap-1 text-muted-foreground">
@@ -149,7 +149,11 @@ function OpenWorkflow({
               </Button>
             </CollapsibleTrigger>
             <CollapsibleContent className="pt-3">
-              <WorkflowMapping slots={workflow.slots} onSetTier={panel.setTier} />
+              <WorkflowMapping
+                slots={workflow.slots}
+                onSetTier={panel.setTier}
+                onSetLabel={panel.setLabel}
+              />
             </CollapsibleContent>
           </Collapsible>
         </div>

@@ -88,6 +88,7 @@ export interface WorkflowPanel {
   isChecking: boolean
   checkSource(): void
   setTier(slotId: number, tier: SlotTier): void
+  setLabel(slotId: number, label: { displayName: string; note: string }): void
   applyUpdate(contentHash: string): void
   isApplying: boolean
   errorMessage: string | null
@@ -116,6 +117,7 @@ export function useWorkflow(workflowId: number): WorkflowPanel {
     void queryClient.invalidateQueries({ queryKey: trpc.runs.values.pathKey() })
   }, [sourceState, sourceCheckedAt, queryClient, trpc, workflowId])
   const setTier = useMutation(trpc.workflows.setTier.mutationOptions({ onSuccess: refresh }))
+  const setLabel = useMutation(trpc.workflows.setLabel.mutationOptions({ onSuccess: refresh }))
   const apply = useMutation(trpc.workflows.applyUpdate.mutationOptions({ onSuccess: refresh }))
 
   return {
@@ -124,12 +126,14 @@ export function useWorkflow(workflowId: number): WorkflowPanel {
     isChecking: source.isFetching,
     checkSource: () => void source.refetch(),
     setTier: (slotId, tier) => setTier.mutate({ slotId, tier }),
+    setLabel: (slotId, label) => setLabel.mutate({ slotId, ...label }),
     applyUpdate: (contentHash) => apply.mutate({ workflowId, contentHash }),
     isApplying: apply.isPending,
     // The message from main already says what the user can do about it.
     errorMessage:
       apply.error?.message ??
       setTier.error?.message ??
+      setLabel.error?.message ??
       workflow.error?.message ??
       source.error?.message ??
       null,
