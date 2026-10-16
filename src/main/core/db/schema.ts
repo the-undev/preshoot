@@ -160,3 +160,40 @@ export const workflowSlots = sqliteTable("workflow_slots", {
   bypassed: integer("bypassed", { mode: "boolean" }).notNull(),
   position: integer("position").notNull(),
 })
+
+/**
+ * One time a workflow was queued. The prompt is the API-format JSON exactly as it was posted and
+ * the bindings are what filled the slots, so a run can say what made it after the workflow moves
+ * on.
+ */
+export const runs = sqliteTable("runs", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  workflowId: integer("workflow_id")
+    .notNull()
+    .references(() => workflows.id, { onDelete: "cascade" }),
+  // ComfyUI's id for the queued prompt, which its queue and history are read by.
+  promptId: text("prompt_id").notNull(),
+  apiPrompt: text("api_prompt").notNull(),
+  bindings: text("bindings", { mode: "json" }).notNull(),
+  // The value the seed slot ran with, or nothing when the workflow has no seed slot.
+  seed: integer("seed"),
+  // Queued, running, failed or done, as the last poll of ComfyUI found it.
+  state: text("state").notNull(),
+  // Why the run failed, in ComfyUI's words when it gave them.
+  error: text("error"),
+  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+  finishedAt: integer("finished_at", { mode: "timestamp_ms" }),
+})
+
+/** A file a finished run wrote, copied into the project's outputs folder. */
+export const runOutputs = sqliteTable("run_outputs", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  runId: integer("run_id")
+    .notNull()
+    .references(() => runs.id, { onDelete: "cascade" }),
+  // Relative to the project folder, with forward slashes.
+  path: text("path").notNull(),
+  // The name ComfyUI saved it under.
+  sourceFilename: text("source_filename").notNull(),
+  position: integer("position").notNull(),
+})
