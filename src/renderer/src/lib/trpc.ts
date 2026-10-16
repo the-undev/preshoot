@@ -42,6 +42,9 @@ export type ServerModel = RouterOutputs["settings"]["checkLlamaServer"]["models"
 /** What a server had to say when it was asked. */
 export type ServerReport = RouterOutputs["settings"]["checkLlamaServer"]
 
+/** Whether a ComfyUI instance answered, and which version it runs when it did. */
+export type ComfyUiStatus = RouterOutputs["settings"]["checkComfyUi"]
+
 /** One thing in the project's library. */
 export type Asset = RouterOutputs["assets"]["list"][number]
 

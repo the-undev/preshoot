@@ -1,6 +1,6 @@
 import { useState } from "react"
-import { Button, Input, Label } from "@renderer/design-system"
-import type { ServerModel, ServerReport } from "@renderer/lib/trpc"
+import { Button, Input, Label, Separator } from "@renderer/design-system"
+import type { ComfyUiStatus, ServerModel, ServerReport } from "@renderer/lib/trpc"
 
 /** What the Check button reports about the server it reached. */
 const CHECK_MESSAGES: Record<ServerReport["state"], string> = {
@@ -9,49 +9,69 @@ const CHECK_MESSAGES: Record<ServerReport["state"], string> = {
   unreachable: "No answer at that URL.",
 }
 
+/** What the ComfyUI check found, naming the version when something answered. */
+function comfyUiMessage(status: ComfyUiStatus): string {
+  if (status.state === "unreachable") {
+    return "No answer from ComfyUI at that URL."
+  }
+  return `ComfyUI ${status.version} answered.`
+}
+
 interface SettingsFormProps {
   llamaServerUrl: string
   llamaModel: string
+  comfyUiUrl: string
   models: ServerModel[]
   checkState: ServerReport["state"] | null
   isChecking: boolean
+  comfyUiStatus: ComfyUiStatus | null
+  isCheckingComfyUi: boolean
+  comfyUiErrorMessage: string | null
   isSaving: boolean
   isUnloading: boolean
   errorMessage: string | null
   onCheck: (url: string) => void
+  onCheckComfyUi: (url: string) => void
   onUnload: (modelId: string) => void
-  onSave: (fields: { llamaServerUrl: string; llamaModel: string }) => void
+  onSave: (fields: { llamaServerUrl: string; llamaModel: string; comfyUiUrl: string }) => void
   onCancel: () => void
 }
 
-/** Where llama-server is, which model it is asked for, and what it is holding. */
+/** Where llama-server is, which model it is asked for and what it is holding, and where ComfyUI is. */
 export function SettingsForm({
   llamaServerUrl,
   llamaModel,
+  comfyUiUrl,
   models,
   checkState,
   isChecking,
+  comfyUiStatus,
+  isCheckingComfyUi,
+  comfyUiErrorMessage,
   isSaving,
   isUnloading,
   errorMessage,
   onCheck,
+  onCheckComfyUi,
   onUnload,
   onSave,
   onCancel,
 }: SettingsFormProps): React.JSX.Element {
   const [url, setUrl] = useState(llamaServerUrl)
   const [model, setModel] = useState(llamaModel)
+  const [typedComfyUiUrl, setTypedComfyUiUrl] = useState(comfyUiUrl)
 
   // Nothing saved yet means the first model the server offers, so a check is enough to get going.
   const chosen = model.length > 0 ? model : (models[0]?.id ?? "")
   const trimmedUrl = url.trim()
+  const trimmedComfyUiUrl = typedComfyUiUrl.trim()
 
   return (
     <form
       className="flex flex-col gap-4"
       onSubmit={(event) => {
         event.preventDefault()
-        onSave({ llamaServerUrl: trimmedUrl, llamaModel: chosen })
+        onSave({ llamaServerUrl: trimmedUrl, llamaModel: chosen, comfyUiUrl: trimmedComfyUiUrl })
       }}
     >
       <div className="flex flex-col gap-2">
@@ -67,6 +87,7 @@ export function SettingsForm({
             type="button"
             variant="outline"
             disabled={isChecking}
+            aria-label="Check llama-server"
             onClick={() => onCheck(trimmedUrl)}
           >
             {isChecking ? "Checking…" : "Check"}
@@ -119,11 +140,40 @@ export function SettingsForm({
         )}
       </div>
 
+      <Separator />
+
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="comfyui-url">ComfyUI URL</Label>
+        <div className="flex gap-2">
+          <Input
+            id="comfyui-url"
+            value={typedComfyUiUrl}
+            onChange={(event) => setTypedComfyUiUrl(event.target.value)}
+          />
+          <Button
+            type="button"
+            variant="outline"
+            disabled={isCheckingComfyUi}
+            aria-label="Check ComfyUI"
+            onClick={() => onCheckComfyUi(trimmedComfyUiUrl)}
+          >
+            {isCheckingComfyUi ? "Checking…" : "Check"}
+          </Button>
+        </div>
+        {comfyUiStatus && (
+          <p className="text-xs text-muted-foreground">{comfyUiMessage(comfyUiStatus)}</p>
+        )}
+        {comfyUiErrorMessage && <p className="text-xs text-destructive">{comfyUiErrorMessage}</p>}
+      </div>
+
       <div className="flex justify-end gap-2">
         <Button type="button" variant="outline" onClick={onCancel}>
           Cancel
         </Button>
-        <Button type="submit" disabled={isSaving || trimmedUrl.length === 0}>
+        <Button
+          type="submit"
+          disabled={isSaving || trimmedUrl.length === 0 || trimmedComfyUiUrl.length === 0}
+        >
           Save
         </Button>
       </div>
