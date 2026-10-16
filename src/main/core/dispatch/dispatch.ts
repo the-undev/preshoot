@@ -89,7 +89,7 @@ export async function queueRun(input: {
   const recorded: RecordedBinding[] = []
   const patches: NodePatch[] = []
   for (const { slot, binding } of bound) {
-    const value = await sentValue(client, binding.value)
+    const value = await sentValue(client, binding)
     patches.push({ nodeId: slot.nodeId, on: binding.on, value })
     recorded.push({
       slotId: slot.id,
@@ -228,11 +228,11 @@ export async function pollRun(input: {
 }
 
 /** The value a binding sends: the value typed, or the name ComfyUI gave a file sent to it. */
-async function sentValue(
-  client: ComfyUiClient,
-  value: BoundValue | null
-): Promise<SlotValue | null> {
+async function sentValue(client: ComfyUiClient, binding: SlotBinding): Promise<SlotValue | null> {
+  const { value } = binding
   if (value?.type !== "file") return value?.value ?? null
+  // A slot that is off feeds nothing, so its file is neither read nor sent.
+  if (!binding.on) return null
   let bytes: Buffer
   try {
     bytes = readFileSync(value.path)
@@ -256,18 +256,23 @@ function refusalReasons(
   return [...message, ...nodeReasons]
 }
 
-/** The seed the run uses: its seed slot's bound value, or the one saved in the workflow. */
+/**
+ * The seed the run uses: that of the first seed slot whose node runs, bound or as saved. A slot
+ * switched off feeds no sampler, so its value is not the run's seed.
+ */
 function seedOf(
   slots: SlotRecord[],
   recorded: RecordedBinding[],
   saved: { slotId: number; value: SlotValue | null }[]
 ): number | null {
-  const seedSlot = slots.find((slot) => slot.kind === "seed")
-  if (!seedSlot) return null
-  const value =
-    recorded.find((binding) => binding.slotId === seedSlot.id)?.value ??
-    saved.find((entry) => entry.slotId === seedSlot.id)?.value
-  return typeof value === "number" ? value : null
+  for (const slot of slots) {
+    if (slot.kind !== "seed") continue
+    const binding = recorded.find((entry) => entry.slotId === slot.id)
+    if (!(binding?.on ?? !slot.bypassed)) continue
+    const value = binding?.value ?? saved.find((entry) => entry.slotId === slot.id)?.value
+    return typeof value === "number" ? value : null
+  }
+  return null
 }
 
 /** A workflow's stored graph, with the path of the file it came from for naming it in errors. */

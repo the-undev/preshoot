@@ -160,6 +160,46 @@ describe("dispatch", () => {
     expect(run.seed).toBe(757358688076805)
   })
 
+  it("records no seed when the seed slot is switched off", async () => {
+    const { routes } = accepting()
+    const { client } = fakeComfyUi(routes)
+
+    const run = await queueRun({
+      db: handle.db,
+      client,
+      workflowId: workflow.id,
+      configurationId: null,
+      bindings: [{ slotId: slotId("Seed"), on: false, value: { type: "value", value: 42 } }],
+      now,
+    })
+
+    expect(run.seed).toBeNull()
+  })
+
+  it("neither reads nor sends the file of a slot that is off", async () => {
+    const { routes } = accepting()
+    const { client, calls } = fakeComfyUi(routes)
+    const gone = join(dir, "gone.png")
+
+    const run = await queueRun({
+      db: handle.db,
+      client,
+      workflowId: workflow.id,
+      configurationId: null,
+      bindings: [
+        {
+          slotId: slotId("Picture 3 (bypassed: Ctrl+B to use)"),
+          on: false,
+          value: { type: "file", path: gone },
+        },
+      ],
+      now,
+    })
+
+    expect(calls.map((call) => call.path)).not.toContain("/upload/image")
+    expect(run.bindings[0]).toMatchObject({ on: false, value: null, file: gone })
+  })
+
   it("sends a picked file and fills the slot with the name ComfyUI gave it", async () => {
     const picture = join(dir, "anna.png")
     writeFileSync(picture, Buffer.from([1, 2, 3]))
