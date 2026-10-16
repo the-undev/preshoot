@@ -10,6 +10,7 @@ import {
   importWorkflow,
   listWorkflows,
   readWorkflow,
+  setSlotLabel,
   setSlotTier,
 } from "../../core/workflows/store"
 import { asClientError } from "../client-errors"
@@ -61,6 +62,20 @@ export const workflowsRouter = router({
     .mutation(({ ctx, input }) => {
       try {
         return setSlotTier(requireProject(ctx), input.slotId, input.tier)
+      } catch (error) {
+        asClientError(error)
+      }
+    }),
+
+  /** Sets the name and note the form shows for a slot. An empty name shows the scanned one. */
+  setLabel: publicProcedure
+    .input(z.object({ slotId: z.number().int(), displayName: z.string(), note: z.string() }))
+    .mutation(({ ctx, input }) => {
+      try {
+        return setSlotLabel(requireProject(ctx), input.slotId, {
+          displayName: input.displayName,
+          note: input.note,
+        })
       } catch (error) {
         asClientError(error)
       }

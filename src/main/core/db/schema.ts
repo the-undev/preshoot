@@ -152,7 +152,12 @@ export const workflowSlots = sqliteTable("workflow_slots", {
   // The node's id in the graph, which ComfyUI never reuses or renumbers within one file.
   nodeId: integer("node_id").notNull(),
   nodeType: text("node_type").notNull(),
+  // The name the scan took from the node title, which a re-scan is compared by.
   name: text("name").notNull(),
+  // The name the form shows instead of the scanned one, or null to show the scanned one.
+  displayName: text("display_name"),
+  // One line the form shows under the slot. Set by the user and kept across updates.
+  note: text("note").notNull().default(""),
   kind: text("kind").notNull(),
   // Basic, advanced or hidden. Set by the scan and changed by the user, and kept across updates.
   tier: text("tier").notNull(),

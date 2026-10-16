@@ -58,6 +58,8 @@ function slot(over: Partial<WorkflowSlot>): WorkflowSlot {
     nodeId: 10,
     nodeType: "PrimitiveStringMultiline",
     name: "Prompt",
+    displayName: null,
+    note: "",
     kind: "text",
     tier: "basic",
     bypassed: false,

@@ -31,7 +31,12 @@ export interface SlotRecord {
   workflowId: number
   nodeId: number
   nodeType: string
+  /** The name the scan took from the node title. */
   name: string
+  /** The name the form shows instead, or null to show the scanned one. */
+  displayName: string | null
+  /** One line the form shows under the slot, empty when there is none. */
+  note: string
   kind: SlotKind
   tier: SlotTier
   bypassed: boolean
@@ -134,6 +139,26 @@ export function setSlotTier(db: ProjectDatabase, slotId: number, tier: SlotTier)
 }
 
 /**
+ * Sets the name and note the form shows for a slot. A display name of only spaces goes back to the
+ * scanned name.
+ */
+export function setSlotLabel(
+  db: ProjectDatabase,
+  slotId: number,
+  label: { displayName: string; note: string }
+): SlotRecord {
+  const displayName = label.displayName.trim()
+  const row = db
+    .update(schema.workflowSlots)
+    .set({ displayName: displayName === "" ? null : displayName, note: label.note.trim() })
+    .where(eq(schema.workflowSlots.id, slotId))
+    .returning()
+    .get()
+  if (!row) throw WorkflowError.notFound(`Slot ${slotId}`)
+  return toSlotRecord(row)
+}
+
+/**
  * Reads the source file again and says whether, and how, it differs from the project's copy. A
  * change that renames, adds and removes no slot is applied here and reported as `updated`, since
  * there is nothing for the user to decide.
@@ -163,9 +188,10 @@ export function checkSource(db: ProjectDatabase, workflowId: number): SourceStat
 
 /**
  * Takes the source file's changes into the project: its graph and hash replace the snapshot, kept
- * slots take their new names and keep their tiers, removed slots go and added slots come in at the
- * tier the scan gives them, all at once or not at all. `contentHash` is the hash the changes were
- * shown for, so a file saved again in between is refused rather than taken unseen.
+ * slots take their new names and keep their tiers, display names and notes, removed slots go and
+ * added slots come in at the tier the scan gives them, all at once or not at all. `contentHash` is
+ * the hash the changes were shown for, so a file saved again in between is refused rather than
+ * taken unseen.
  */
 export function applySourceUpdate(
   db: ProjectDatabase,
@@ -203,7 +229,7 @@ function applyScan(
         tx.delete(schema.workflowSlots).where(eq(schema.workflowSlots.id, slot.id)).run()
         continue
       }
-      // Kept, so the tier stays as the user left it and everything the graph says is taken.
+      // Kept, so what the user set stays as it was and everything the graph says is taken.
       const fresh = freshByKey.get(slotKey(slot)) as ScannedSlot
       tx.update(schema.workflowSlots)
         .set({

@@ -163,6 +163,37 @@ describe("workflows router", () => {
     expect(workflow.guide.map((note) => note.title)).toEqual(["How to use"])
   })
 
+  it("gives a slot a display name and note, and clears them again", async () => {
+    await openProject()
+    settings.setWorkflowsFolder(folder)
+    const imported = await caller.workflows.import({ path: sourcePath })
+    const seed = imported.slots.find((slot) => slot.name === "Seed")
+    if (!seed) throw new Error("no seed slot")
+
+    const labelled = await caller.workflows.setLabel({
+      slotId: seed.id,
+      displayName: "Noise seed",
+      note: "Keep it fixed.",
+    })
+    expect(labelled).toEqual(
+      expect.objectContaining({ name: "Seed", displayName: "Noise seed", note: "Keep it fixed." })
+    )
+
+    await caller.workflows.setLabel({ slotId: seed.id, displayName: "", note: "" })
+    const workflow = await caller.workflows.get({ workflowId: imported.id })
+    expect(workflow.slots.find((slot) => slot.id === seed.id)).toEqual(
+      expect.objectContaining({ displayName: null, note: "" })
+    )
+  })
+
+  it("reports a label for a slot that is not there as not found", async () => {
+    await openProject()
+
+    await expect(
+      caller.workflows.setLabel({ slotId: 999, displayName: "Seed", note: "" })
+    ).rejects.toThrow(expect.objectContaining({ code: "NOT_FOUND" }))
+  })
+
   it("refuses a tier the mapping does not have", async () => {
     await openProject()
 

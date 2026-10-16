@@ -14,6 +14,7 @@ import {
   listWorkflows,
   readWorkflow,
   readWorkflowSlots,
+  setSlotLabel,
   setSlotTier,
   type WorkflowDetail,
 } from "./store"
@@ -139,6 +140,41 @@ describe("workflow store", () => {
     expect(() => setSlotTier(handle.db, 999, "basic")).toThrow(/not in this project/)
   })
 
+  it("starts each slot with no display name and no note", () => {
+    const seed = slotNamed(imported(), "Seed")
+
+    expect(seed).toEqual(expect.objectContaining({ displayName: null, note: "" }))
+  })
+
+  it("gives a slot a display name and a note, trimmed", () => {
+    const workflow = imported()
+    const seed = slotNamed(workflow, "Seed")
+
+    setSlotLabel(handle.db, seed.id, { displayName: " Noise seed ", note: " Keep it fixed. " })
+
+    expect(slotNamed(readWorkflow(handle.db, workflow.id), "Seed")).toEqual(
+      expect.objectContaining({ displayName: "Noise seed", note: "Keep it fixed." })
+    )
+  })
+
+  it("goes back to the scanned name when the display name is emptied", () => {
+    const workflow = imported()
+    const seed = slotNamed(workflow, "Seed")
+    setSlotLabel(handle.db, seed.id, { displayName: "Noise seed", note: "Keep it fixed." })
+
+    setSlotLabel(handle.db, seed.id, { displayName: "  ", note: "" })
+
+    expect(slotNamed(readWorkflow(handle.db, workflow.id), "Seed")).toEqual(
+      expect.objectContaining({ displayName: null, note: "" })
+    )
+  })
+
+  it("refuses a label for a slot that is not there", () => {
+    expect(() => setSlotLabel(handle.db, 999, { displayName: "", note: "" })).toThrow(
+      /not in this project/
+    )
+  })
+
   it("says the source is in sync when it has not changed", () => {
     expect(checkSource(handle.db, imported().id)).toEqual({ state: "in-sync" })
   })
@@ -228,6 +264,35 @@ describe("workflow store", () => {
     )
     expect(updated.contentHash).not.toBe(workflow.contentHash)
     expect(checkSource(handle.db, workflow.id)).toEqual({ state: "in-sync" })
+  })
+
+  it("keeps a display name and note across an applied update, renamed or not", () => {
+    const workflow = imported()
+    setSlotLabel(handle.db, slotNamed(workflow, "Duration (s)").id, {
+      displayName: "Length",
+      note: "Seconds of video.",
+    })
+    setSlotLabel(handle.db, slotNamed(workflow, "Seed").id, {
+      displayName: "Noise seed",
+      note: "",
+    })
+    editSource((graph) => {
+      const duration = graph.nodes.find((node) => node.id === 18)
+      if (duration) duration.title = "Length (s)"
+      graph.nodes.push({ id: 33, type: "LoadAudio", title: "Voice", mode: 0 })
+    })
+
+    const updated = applySourceUpdate(handle.db, workflow.id, changedHash(workflow.id))
+
+    expect(slotNamed(updated, "Length (s)")).toEqual(
+      expect.objectContaining({ displayName: "Length", note: "Seconds of video." })
+    )
+    expect(slotNamed(updated, "Seed")).toEqual(
+      expect.objectContaining({ displayName: "Noise seed", note: "" })
+    )
+    expect(slotNamed(updated, "Voice")).toEqual(
+      expect.objectContaining({ displayName: null, note: "" })
+    )
   })
 
   it("refuses an update when the source changed again after its changes were shown", () => {
