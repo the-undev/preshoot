@@ -4,9 +4,12 @@ import {
   useTRPC,
   useTRPCClient,
   type LibraryFolder,
+  type OutputExport,
   type RunBinding,
   type RunRecord,
   type SavedSlotValue,
+  type Verdict,
+  type VerdictCounts,
 } from "@renderer/lib/trpc"
 import type { FileKind } from "./run-form"
 
@@ -131,5 +134,51 @@ export function useRuns(workflowId: number): RunsPanel {
     positions,
     pollError: pollError ?? openOutput.error?.message ?? runs.error?.message ?? null,
     openOutput: (outputId) => openOutput.mutate({ outputId }),
+  }
+}
+
+/** What a workflow's outputs count before the counts are read. */
+const NO_COUNTS: VerdictCounts = { all: 0, good: 0, bad: 0, unmarked: 0 }
+
+/** How many outputs each verdict has, the calls that give one, and the export of the good ones. */
+export interface ReviewPanel {
+  counts: VerdictCounts
+  setVerdict(outputId: number, verdict: Verdict | null): void
+  setNote(outputId: number, note: string): void
+  isExporting: boolean
+  /** What the last export did, or nothing before the first. */
+  lastExport: OutputExport | null
+  exportGood(): void
+  errorMessage: string | null
+}
+
+/** Reads a workflow's verdict counts, marks and notes its outputs, and exports the good ones. */
+export function useReview(workflowId: number): ReviewPanel {
+  const trpc = useTRPC()
+  const queryClient = useQueryClient()
+  const counts = useQuery(trpc.review.counts.queryOptions({ workflowId }))
+  const refresh = async (): Promise<void> => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: trpc.runs.list.queryKey({ workflowId }) }),
+      queryClient.invalidateQueries({ queryKey: trpc.review.counts.queryKey({ workflowId }) }),
+    ])
+  }
+  const setVerdict = useMutation(trpc.review.setVerdict.mutationOptions({ onSuccess: refresh }))
+  const setNote = useMutation(trpc.review.setNote.mutationOptions({ onSuccess: refresh }))
+  const exportGood = useMutation(trpc.review.exportGood.mutationOptions())
+
+  return {
+    counts: counts.data ?? NO_COUNTS,
+    setVerdict: (outputId, verdict) => setVerdict.mutate({ outputId, verdict }),
+    setNote: (outputId, note) => setNote.mutate({ outputId, note }),
+    isExporting: exportGood.isPending,
+    lastExport: exportGood.data ?? null,
+    exportGood: () => exportGood.mutate({ workflowId }),
+    errorMessage:
+      setVerdict.error?.message ??
+      setNote.error?.message ??
+      exportGood.error?.message ??
+      counts.error?.message ??
+      null,
   }
 }

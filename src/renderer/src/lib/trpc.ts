@@ -178,3 +178,27 @@ export type Configuration = RouterOutputs["configurations"]["list"][number]
 
 /** A configuration's values matched to the workflow's slots as they are now. */
 export type LoadedConfiguration = RouterOutputs["configurations"]["load"]
+
+/** One file a run wrote, with the verdict and note it was given. */
+export type RunOutput = RunRecord["outputs"][number]
+
+/** What a reviewer said of an output. */
+export type Verdict = NonNullable<RunOutput["verdict"]>
+
+/** How many of a workflow's outputs are good, bad, unmarked, and in all. */
+export type VerdictCounts = RouterOutputs["review"]["counts"]
+
+/** Which outputs the run list shows. */
+export type VerdictFilter = keyof VerdictCounts
+
+/** What exporting the good outputs did. */
+export type OutputExport = RouterOutputs["review"]["exportGood"]
+
+/**
+ * Where the renderer reads a run's output from, by where it sits in the project. A width asks for
+ * a picture drawn that wide, as `assetImageUrl` does.
+ */
+export function outputFileUrl(path: string, width?: 80 | 160 | 320): string {
+  const url = `output://file/${encodeURIComponent(path)}`
+  return width === undefined ? url : `${url}?width=${width}`
+}

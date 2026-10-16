@@ -31,6 +31,15 @@ const runs: RunRecord[] = [
         runId: 4,
         path: "outputs/run-4/clip.mp4",
         sourceFilename: "clip_00001_.mp4",
+        media: "video",
+        verdict: null,
+        note: "",
+      },
+      {
+        id: 10,
+        runId: 4,
+        path: "outputs/run-4/log.json",
+        sourceFilename: "log.json",
         media: "other",
         verdict: null,
         note: "",
@@ -41,6 +50,9 @@ const runs: RunRecord[] = [
   run({ id: 2, state: "running", seed: null }),
   run({ id: 1, state: "queued", seed: 7 }),
 ]
+
+/** The review props every list takes, showing every output. */
+const reviewProps = { filter: "all" as const, onSetVerdict: vi.fn(), onSetNote: vi.fn() }
 
 function row(runId: number): ReturnType<typeof within> {
   return within(screen.getByRole("listitem", { name: `Run ${runId}` }))
@@ -54,6 +66,7 @@ describe("RunList", () => {
         positions={{}}
         pollError={null}
         onOpenOutput={vi.fn()}
+        {...reviewProps}
       />
     )
 
@@ -62,7 +75,15 @@ describe("RunList", () => {
   })
 
   it("shows each run's state, seed and outcome", () => {
-    render(<RunList runs={runs} positions={{ 1: 2 }} pollError={null} onOpenOutput={vi.fn()} />)
+    render(
+      <RunList
+        runs={runs}
+        positions={{ 1: 2 }}
+        pollError={null}
+        onOpenOutput={vi.fn()}
+        {...reviewProps}
+      />
+    )
 
     expect(row(1).getByText("Queued, position 2")).toBeInTheDocument()
     expect(row(1).getByText("Seed 7")).toBeInTheDocument()
@@ -75,22 +96,46 @@ describe("RunList", () => {
   })
 
   it("shows a queued run without a place until a poll gives one", () => {
-    render(<RunList runs={[run({})]} positions={{}} pollError={null} onOpenOutput={vi.fn()} />)
+    render(
+      <RunList
+        runs={[run({})]}
+        positions={{}}
+        pollError={null}
+        onOpenOutput={vi.fn()}
+        {...reviewProps}
+      />
+    )
 
     expect(row(1).getByText("Queued")).toBeInTheDocument()
   })
 
-  it("opens an output when its name is clicked", () => {
+  it("opens an output it cannot show when its name is clicked", () => {
     const onOpenOutput = vi.fn()
-    render(<RunList runs={runs} positions={{}} pollError={null} onOpenOutput={onOpenOutput} />)
+    render(
+      <RunList
+        runs={runs}
+        positions={{}}
+        pollError={null}
+        onOpenOutput={onOpenOutput}
+        {...reviewProps}
+      />
+    )
 
-    fireEvent.click(screen.getByRole("button", { name: "Open clip.mp4" }))
+    fireEvent.click(screen.getByRole("button", { name: "Open log.json" }))
 
-    expect(onOpenOutput).toHaveBeenCalledWith(9)
+    expect(onOpenOutput).toHaveBeenCalledWith(10)
   })
 
   it("says when nothing has been queued, and when ComfyUI could not be asked", () => {
-    render(<RunList runs={[]} positions={{}} pollError="No answer." onOpenOutput={vi.fn()} />)
+    render(
+      <RunList
+        runs={[]}
+        positions={{}}
+        pollError="No answer."
+        onOpenOutput={vi.fn()}
+        {...reviewProps}
+      />
+    )
 
     expect(screen.getByText("Nothing queued yet.")).toBeInTheDocument()
     expect(screen.getByText("Could not ask ComfyUI how runs stand: No answer.")).toBeInTheDocument()

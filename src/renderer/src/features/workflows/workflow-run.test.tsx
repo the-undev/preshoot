@@ -1,8 +1,14 @@
 import { act, fireEvent, render, screen, within } from "@testing-library/react"
 import { describe, expect, it, vi } from "vitest"
-import type { Configuration, WorkflowDetail, WorkflowSlot } from "@renderer/lib/trpc"
+import type {
+  Configuration,
+  RunOutput,
+  RunRecord,
+  WorkflowDetail,
+  WorkflowSlot,
+} from "@renderer/lib/trpc"
 import type { ConfigurationsPanel } from "./use-configurations"
-import type { RunFormPanel, RunsPanel } from "./use-runs"
+import type { ReviewPanel, RunFormPanel, RunsPanel } from "./use-runs"
 import { WorkflowRunView } from "./workflow-run"
 
 function slot(over: Partial<WorkflowSlot>): WorkflowSlot {
@@ -63,6 +69,49 @@ function formPanel(): RunFormPanel {
 
 const runsPanel: RunsPanel = { runs: [], positions: {}, pollError: null, openOutput: vi.fn() }
 
+function reviewPanel(over: Partial<ReviewPanel> = {}): ReviewPanel {
+  return {
+    counts: { all: 0, good: 0, bad: 0, unmarked: 0 },
+    setVerdict: vi.fn(),
+    setNote: vi.fn(),
+    isExporting: false,
+    lastExport: null,
+    exportGood: vi.fn(),
+    errorMessage: null,
+    ...over,
+  }
+}
+
+function output(over: Partial<RunOutput>): RunOutput {
+  return {
+    id: 1,
+    runId: 1,
+    path: "outputs/run-1/a.png",
+    sourceFilename: "a.png",
+    media: "image",
+    verdict: null,
+    note: "",
+    ...over,
+  }
+}
+
+function doneRun(id: number, outputs: RunOutput[]): RunRecord {
+  return {
+    id,
+    workflowId: 3,
+    configurationId: null,
+    configurationName: null,
+    promptId: `prompt-${id}`,
+    state: "done",
+    seed: id,
+    error: null,
+    bindings: [],
+    createdAt: "2026-10-16T09:00:00.000Z",
+    finishedAt: "2026-10-16T09:01:00.000Z",
+    outputs,
+  }
+}
+
 function configurationsPanel(over: Partial<ConfigurationsPanel> = {}): ConfigurationsPanel {
   return {
     configurations: [],
@@ -94,6 +143,7 @@ describe("WorkflowRunView", () => {
         form={form}
         configurations={configurations}
         runs={runsPanel}
+        review={reviewPanel()}
       />
     )
     expect(screen.getByText("No longer in the workflow: Turbo steps")).toBeInTheDocument()
@@ -134,6 +184,7 @@ describe("WorkflowRunView", () => {
         form={form}
         configurations={configurationsPanel()}
         runs={runsPanel}
+        review={reviewPanel()}
       />
     )
 
@@ -151,6 +202,7 @@ describe("WorkflowRunView", () => {
         form={formPanel()}
         configurations={configurations}
         runs={runsPanel}
+        review={reviewPanel()}
       />
     )
 
@@ -165,6 +217,7 @@ describe("WorkflowRunView", () => {
         form={formPanel()}
         configurations={{ ...configurations, configurations: [saved] }}
         runs={runsPanel}
+        review={reviewPanel()}
       />
     )
 
@@ -173,5 +226,94 @@ describe("WorkflowRunView", () => {
     expect(
       within(screen.getByRole("dialog")).getByRole("button", { name: "Update Anna" })
     ).toBeInTheDocument()
+  })
+
+  it("filters the outputs shown by verdict, leaving out runs with none to show", () => {
+    const runs: RunsPanel = {
+      ...runsPanel,
+      runs: [
+        doneRun(2, [
+          output({ id: 21, runId: 2, path: "outputs/run-2/good.png", verdict: "good" }),
+          output({ id: 22, runId: 2, path: "outputs/run-2/plain.png" }),
+        ]),
+        doneRun(1, [output({ id: 11, runId: 1, path: "outputs/run-1/bad.png", verdict: "bad" })]),
+      ],
+    }
+    render(
+      <WorkflowRunView
+        workflow={workflow}
+        form={formPanel()}
+        configurations={configurationsPanel()}
+        runs={runs}
+        review={reviewPanel({ counts: { all: 3, good: 1, bad: 1, unmarked: 1 } })}
+      />
+    )
+    const shown = (): string[] =>
+      screen.queryAllByRole("img").map((image) => image.getAttribute("alt") ?? "")
+    expect(shown()).toEqual(["good.png", "plain.png", "bad.png"])
+
+    fireEvent.click(screen.getByRole("button", { name: /^Good/ }))
+    expect(shown()).toEqual(["good.png"])
+    expect(screen.queryByRole("listitem", { name: "Run 1" })).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole("button", { name: /^Bad/ }))
+    expect(shown()).toEqual(["bad.png"])
+    expect(screen.queryByRole("listitem", { name: "Run 2" })).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole("button", { name: /^Unmarked/ }))
+    expect(shown()).toEqual(["plain.png"])
+
+    fireEvent.click(screen.getByRole("button", { name: /^All/ }))
+    expect(shown()).toEqual(["good.png", "plain.png", "bad.png"])
+  })
+
+  it("says when no output matches the filter", () => {
+    render(
+      <WorkflowRunView
+        workflow={workflow}
+        form={formPanel()}
+        configurations={configurationsPanel()}
+        runs={{ ...runsPanel, runs: [doneRun(1, [output({})])] }}
+        review={reviewPanel({ counts: { all: 1, good: 0, bad: 0, unmarked: 1 } })}
+      />
+    )
+
+    fireEvent.click(screen.getByRole("button", { name: /^Good/ }))
+
+    expect(screen.getByText("No outputs match.")).toBeInTheDocument()
+  })
+
+  it("passes a verdict and a note through to the review calls", () => {
+    const review = reviewPanel()
+    render(
+      <WorkflowRunView
+        workflow={workflow}
+        form={formPanel()}
+        configurations={configurationsPanel()}
+        runs={{ ...runsPanel, runs: [doneRun(1, [output({ id: 9, verdict: "good" })])] }}
+        review={review}
+      />
+    )
+
+    fireEvent.click(screen.getByRole("button", { name: "Mark bad" }))
+    fireEvent.change(screen.getByLabelText("Note on a.png"), { target: { value: "Sharp." } })
+    fireEvent.blur(screen.getByLabelText("Note on a.png"))
+
+    expect(review.setVerdict).toHaveBeenCalledWith(9, "bad")
+    expect(review.setNote).toHaveBeenCalledWith(9, "Sharp.")
+  })
+
+  it("shows why a review call failed", () => {
+    render(
+      <WorkflowRunView
+        workflow={workflow}
+        form={formPanel()}
+        configurations={configurationsPanel()}
+        runs={runsPanel}
+        review={reviewPanel({ errorMessage: "Output 9 is not in this project." })}
+      />
+    )
+
+    expect(screen.getByText("Output 9 is not in this project.")).toBeInTheDocument()
   })
 })

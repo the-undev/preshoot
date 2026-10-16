@@ -1,13 +1,24 @@
 import { useState } from "react"
 import { Alert, AlertDescription } from "@renderer/design-system"
-import type { Configuration, RunBinding, WorkflowDetail } from "@renderer/lib/trpc"
+import type { Configuration, RunBinding, VerdictFilter, WorkflowDetail } from "@renderer/lib/trpc"
 import { ConfigurationStrip } from "./configuration-strip"
+import { ReviewBar } from "./review-bar"
 import { RunForm } from "./run-form"
 import { RunList } from "./run-list"
 import { useConfigurations, type ConfigurationsPanel } from "./use-configurations"
-import { useRunForm, useRuns, type RunFormPanel, type RunsPanel } from "./use-runs"
+import {
+  useReview,
+  useRunForm,
+  useRuns,
+  type ReviewPanel,
+  type RunFormPanel,
+  type RunsPanel,
+} from "./use-runs"
 
-/** A workflow's slots as a form to queue it with, its configurations, and the runs it has had. */
+/**
+ * A workflow's slots as a form to queue it with, its configurations, and the runs it has had with
+ * their outputs to review.
+ */
 export function WorkflowRun({ workflow }: { workflow: WorkflowDetail }): React.JSX.Element {
   return (
     <WorkflowRunView
@@ -15,6 +26,7 @@ export function WorkflowRun({ workflow }: { workflow: WorkflowDetail }): React.J
       form={useRunForm(workflow.id)}
       configurations={useConfigurations(workflow.id)}
       runs={useRuns(workflow.id)}
+      review={useReview(workflow.id)}
     />
   )
 }
@@ -31,6 +43,7 @@ interface WorkflowRunViewProps {
   form: RunFormPanel
   configurations: ConfigurationsPanel
   runs: RunsPanel
+  review: ReviewPanel
 }
 
 /** The workflow screen's run section, given what it reads and the calls it makes. */
@@ -39,8 +52,10 @@ export function WorkflowRunView({
   form,
   configurations,
   runs,
+  review,
 }: WorkflowRunViewProps): React.JSX.Element {
   const [loaded, setLoaded] = useState<LoadedState | null>(null)
+  const [filter, setFilter] = useState<VerdictFilter>("all")
   // Counts loads, so loading the same configuration again starts the form again from it.
   const [loadCount, setLoadCount] = useState(0)
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -128,11 +143,27 @@ export function WorkflowRunView({
       </section>
       <section className="flex min-w-0 flex-col gap-3">
         <h2 className="font-heading text-sm font-semibold text-muted-foreground">Runs</h2>
+        {review.errorMessage && (
+          <Alert variant="destructive">
+            <AlertDescription className="break-words">{review.errorMessage}</AlertDescription>
+          </Alert>
+        )}
+        <ReviewBar
+          counts={review.counts}
+          filter={filter}
+          onFilter={setFilter}
+          isExporting={review.isExporting}
+          lastExport={review.lastExport}
+          onExport={review.exportGood}
+        />
         <RunList
           runs={runs.runs}
           positions={runs.positions}
           pollError={runs.pollError}
+          filter={filter}
           onOpenOutput={runs.openOutput}
+          onSetVerdict={review.setVerdict}
+          onSetNote={review.setNote}
         />
       </section>
     </div>
