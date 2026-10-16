@@ -9,11 +9,16 @@ const STATE_CHIPS: Record<RunState, { label: string; className: string }> = {
   done: { label: "Done", className: "border-input bg-muted text-foreground" },
 }
 
+/** The states of a run ComfyUI has not finished with. */
+const UNFINISHED_STATES: ReadonlySet<RunState> = new Set(["queued", "running"])
+
 interface RunListProps {
   runs: RunRecord[]
   positions: Record<number, number | null>
   pollError: string | null
-  /** Which outputs show. A run with none of them is left out, unless every output shows. */
+  /**
+   * Which outputs show. A finished run with none of them is left out, unless every output shows.
+   */
   filter: VerdictFilter
   onOpenOutput: (outputId: number) => void
   onSetVerdict: (outputId: number, verdict: Verdict | null) => void
@@ -132,8 +137,12 @@ function startedAt(iso: string): string {
   })
 }
 
-/** `run` with only the outputs `filter` keeps, or nothing when it keeps none of them. */
+/**
+ * `run` with only the outputs `filter` keeps, or nothing when it keeps none of them. A run not yet
+ * finished has no outputs to filter, so it stays.
+ */
 function withOutputsKept(run: RunRecord, filter: Exclude<VerdictFilter, "all">): RunRecord[] {
+  if (UNFINISHED_STATES.has(run.state)) return [run]
   const outputs = run.outputs.filter((output) => keeps(filter, output))
   return outputs.length === 0 ? [] : [{ ...run, outputs }]
 }

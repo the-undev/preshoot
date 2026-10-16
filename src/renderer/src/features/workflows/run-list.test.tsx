@@ -126,6 +126,40 @@ describe("RunList", () => {
     expect(onOpenOutput).toHaveBeenCalledWith(10)
   })
 
+  it("shows queued and running runs whatever the filter, without saying no outputs match", () => {
+    render(
+      <RunList
+        runs={runs}
+        positions={{}}
+        pollError={null}
+        onOpenOutput={vi.fn()}
+        {...reviewProps}
+        filter="good"
+      />
+    )
+
+    expect(row(1).getByText("Queued")).toBeInTheDocument()
+    expect(row(2).getByText("Running")).toBeInTheDocument()
+    expect(screen.queryByRole("listitem", { name: "Run 3" })).not.toBeInTheDocument()
+    expect(screen.queryByRole("listitem", { name: "Run 4" })).not.toBeInTheDocument()
+    expect(screen.queryByText("No outputs match.")).not.toBeInTheDocument()
+  })
+
+  it("says no outputs match when only finished runs were left out", () => {
+    render(
+      <RunList
+        runs={runs.filter((entry) => entry.state === "done" || entry.state === "failed")}
+        positions={{}}
+        pollError={null}
+        onOpenOutput={vi.fn()}
+        {...reviewProps}
+        filter="bad"
+      />
+    )
+
+    expect(screen.getByText("No outputs match.")).toBeInTheDocument()
+  })
+
   it("says when nothing has been queued, and when ComfyUI could not be asked", () => {
     render(
       <RunList
