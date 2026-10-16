@@ -13,6 +13,7 @@ import {
   importWorkflow,
   listWorkflows,
   readWorkflow,
+  readWorkflowSlots,
   setSlotTier,
   type WorkflowDetail,
 } from "./store"
@@ -113,6 +114,15 @@ describe("workflow store", () => {
 
     expect(() => imported()).toThrow(WorkflowError)
     expect(listWorkflows(handle.db)).toEqual([])
+  })
+
+  it("reads the slots alone as the detail lists them, and refuses a workflow that is not there", () => {
+    const workflow = imported()
+
+    expect(readWorkflowSlots(handle.db, workflow.id)).toEqual(workflow.slots)
+    expect(() => readWorkflowSlots(handle.db, 999)).toThrow(
+      expect.objectContaining({ code: "not-found" })
+    )
   })
 
   it("moves a slot to another tier", () => {

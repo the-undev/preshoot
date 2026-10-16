@@ -5,7 +5,7 @@ import { and, eq } from "drizzle-orm"
 import type { ComfyUiClient, QueueAnswer } from "../backend/comfyui-client"
 import { schema, type ProjectDatabase } from "../db"
 import { readGraph } from "../workflows/scan"
-import { readWorkflow, type SlotRecord } from "../workflows/store"
+import { readWorkflowSlots, type SlotRecord } from "../workflows/store"
 import { DispatchError } from "./errors"
 import { resolvePrompt, type NodePatch, type SlotValue } from "./resolve"
 import {
@@ -54,10 +54,10 @@ export function savedSlotValues(
   db: ProjectDatabase,
   workflowId: number
 ): { slotId: number; value: SlotValue | null }[] {
-  const workflow = readWorkflow(db, workflowId)
-  const graph = readGraph(workflow.sourcePath, graphText(db, workflowId))
+  const stored = storedGraph(db, workflowId)
+  const graph = readGraph(stored.sourcePath, stored.graph)
   const nodes = new Map(graph.nodes.map((node) => [node.id, node]))
-  return workflow.slots.map((slot) => {
+  return readWorkflowSlots(db, workflowId).map((slot) => {
     const saved = nodes.get(slot.nodeId)?.widgets_values
     const value = VALUE_KINDS.has(slot.kind) && Array.isArray(saved) ? saved[0] : null
     return { slotId: slot.id, value: isSlotValue(value) ? value : null }
@@ -77,8 +77,8 @@ export async function queueRun(input: {
   now: Date
 }): Promise<RunRecord> {
   const { db, client, workflowId, configurationId, now } = input
-  const workflow = readWorkflow(db, workflowId)
-  const slotById = new Map(workflow.slots.map((slot) => [slot.id, slot]))
+  const slots = readWorkflowSlots(db, workflowId)
+  const slotById = new Map(slots.map((slot) => [slot.id, slot]))
   const bound = input.bindings.map((binding) => {
     const slot = slotById.get(binding.slotId)
     if (!slot) throw DispatchError.notFound(`Slot ${binding.slotId}`)
@@ -99,17 +99,17 @@ export async function queueRun(input: {
       file: binding.value?.type === "file" ? binding.value.path : null,
     })
   }
-  const prompt = resolvePrompt(graphText(db, workflowId), objectInfo, patches, now)
+  const prompt = resolvePrompt(storedGraph(db, workflowId).graph, objectInfo, patches, now)
 
   const answer = await client.queuePrompt(prompt, randomUUID())
-  if (!answer.accepted) throw DispatchError.refused(refusalReasons(answer, workflow.slots))
+  if (!answer.accepted) throw DispatchError.refused(refusalReasons(answer, slots))
   return recordRun(db, {
     workflowId,
     configurationId,
     promptId: answer.promptId,
     apiPrompt: JSON.stringify(prompt),
     bindings: recorded,
-    seed: seedOf(workflow.slots, recorded, savedSlotValues(db, workflowId)),
+    seed: seedOf(slots, recorded, savedSlotValues(db, workflowId)),
     createdAt: now,
   })
 }
@@ -131,7 +131,7 @@ export async function queueBatch(input: {
 }): Promise<RunRecord[]> {
   const { db, workflowId, configurationId } = input
   if (configurationId !== null) requireConfiguration(db, workflowId, configurationId)
-  const seedSlots = readWorkflow(db, workflowId).slots.filter((slot) => slot.kind === "seed")
+  const seedSlots = readWorkflowSlots(db, workflowId).filter((slot) => slot.kind === "seed")
   const runs: RunRecord[] = []
   for (let index = 0; index < input.count; index += 1) {
     const bindings =
@@ -270,14 +270,18 @@ function seedOf(
   return typeof value === "number" ? value : null
 }
 
-function graphText(db: ProjectDatabase, workflowId: number): string {
+/** A workflow's stored graph, with the path of the file it came from for naming it in errors. */
+function storedGraph(
+  db: ProjectDatabase,
+  workflowId: number
+): { sourcePath: string; graph: string } {
   const row = db
-    .select({ graph: schema.workflows.graph })
+    .select({ sourcePath: schema.workflows.sourcePath, graph: schema.workflows.graph })
     .from(schema.workflows)
     .where(eq(schema.workflows.id, workflowId))
     .get()
   if (!row) throw DispatchError.notFound(`Workflow ${workflowId}`)
-  return row.graph
+  return row
 }
 
 /** A file name from ComfyUI that cannot climb out of the run's folder. */

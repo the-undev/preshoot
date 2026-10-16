@@ -67,18 +67,20 @@ export function listWorkflows(db: ProjectDatabase): WorkflowSummary[] {
 
 /** One workflow with its slots in graph order and the guide its notes make. */
 export function readWorkflow(db: ProjectDb, id: number): WorkflowDetail {
-  const row = db.select().from(schema.workflows).where(eq(schema.workflows.id, id)).get()
-  if (!row) throw WorkflowError.notFound(`Workflow ${id}`)
-
-  const slots = db
-    .select()
-    .from(schema.workflowSlots)
-    .where(eq(schema.workflowSlots.workflowId, id))
-    .orderBy(asc(schema.workflowSlots.position))
-    .all()
-    .map(toSlotRecord)
+  const row = readRow(db, id)
   const { guide } = scanGraph(readGraph(row.sourcePath, row.graph))
-  return { ...toSummary(row), slots, guide }
+  return { ...toSummary(row), slots: slotsOf(db, id), guide }
+}
+
+/** A workflow's slots in graph order, read without parsing its graph. */
+export function readWorkflowSlots(db: ProjectDb, id: number): SlotRecord[] {
+  const row = db
+    .select({ id: schema.workflows.id })
+    .from(schema.workflows)
+    .where(eq(schema.workflows.id, id))
+    .get()
+  if (!row) throw WorkflowError.notFound(`Workflow ${id}`)
+  return slotsOf(db, id)
 }
 
 /**
@@ -136,7 +138,7 @@ export function setSlotTier(db: ProjectDatabase, slotId: number, tier: SlotTier)
  * there is nothing for the user to decide.
  */
 export function checkSource(db: ProjectDatabase, workflowId: number): SourceStatus {
-  const workflow = readWorkflow(db, workflowId)
+  const workflow = readRow(db, workflowId)
   let source: SourceFile | null
   try {
     source = readSource(workflow.sourcePath)
@@ -148,7 +150,7 @@ export function checkSource(db: ProjectDatabase, workflowId: number): SourceStat
 
   try {
     const { slots } = scanGraph(readGraph(workflow.sourcePath, source.text))
-    const diff = diffSlots(workflow.slots, slots)
+    const diff = diffSlots(slotsOf(db, workflowId), slots)
     if (!changesNoSlots(diff)) return { state: "changed", contentHash: source.hash, diff }
     applyScan(db, workflowId, source, slots)
     return { state: "updated" }
@@ -169,7 +171,7 @@ export function applySourceUpdate(
   workflowId: number,
   contentHash: string
 ): WorkflowDetail {
-  const workflow = readWorkflow(db, workflowId)
+  const workflow = readRow(db, workflowId)
   const source = readSource(workflow.sourcePath)
   if (!source) throw WorkflowError.unreadable(workflow.sourcePath, "it is not there any more.")
   if (source.hash !== contentHash) throw WorkflowError.stale()
@@ -187,7 +189,7 @@ function applyScan(
   const freshByKey = new Map(slots.map((slot) => [slotKey(slot), slot]))
 
   return db.transaction((tx) => {
-    const stored = readWorkflow(tx, workflowId).slots
+    const stored = slotsOf(tx, workflowId)
     const diff = diffSlots(stored, slots)
     const removedIds = new Set(diff.removed.map((slot) => slot.id))
     tx.update(schema.workflows)
@@ -233,6 +235,22 @@ function readSource(path: string): SourceFile | null {
     throw error
   }
   return { text: bytes.toString("utf8"), hash: createHash("sha256").update(bytes).digest("hex") }
+}
+
+function readRow(db: ProjectDb, id: number): WorkflowRow {
+  const row = db.select().from(schema.workflows).where(eq(schema.workflows.id, id)).get()
+  if (!row) throw WorkflowError.notFound(`Workflow ${id}`)
+  return row
+}
+
+function slotsOf(db: ProjectDb, workflowId: number): SlotRecord[] {
+  return db
+    .select()
+    .from(schema.workflowSlots)
+    .where(eq(schema.workflowSlots.workflowId, workflowId))
+    .orderBy(asc(schema.workflowSlots.position))
+    .all()
+    .map(toSlotRecord)
 }
 
 function insertSlots(tx: ProjectDb, workflowId: number, slots: ScannedSlot[]): void {

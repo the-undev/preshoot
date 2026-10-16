@@ -6,7 +6,7 @@ import type { BoundValue, SlotBinding } from "../dispatch/dispatch"
 import type { RecordedBinding } from "../dispatch/run-store"
 import { slotKey, type StoredSlotKey } from "../workflows/diff"
 import { isInsideFolder } from "../workflows/folder"
-import { readWorkflow, type SlotRecord } from "../workflows/store"
+import { readWorkflowSlots, type SlotRecord } from "../workflows/store"
 import { ConfigurationError } from "./errors"
 
 /** The folder under the project that holds the files configurations bind. */
@@ -45,7 +45,7 @@ type ConfigurationRow = typeof schema.configurations.$inferSelect
 
 /** A workflow's configurations, by name. */
 export function listConfigurations(db: ProjectDb, workflowId: number): ConfigurationSummary[] {
-  const slots = readWorkflow(db, workflowId).slots
+  const slots = readWorkflowSlots(db, workflowId)
   return db
     .select()
     .from(schema.configurations)
@@ -82,7 +82,7 @@ export function saveConfiguration(input: {
   now: Date
 }): ConfigurationSummary {
   const { db, directory, workflowId, now } = input
-  const slots = readWorkflow(db, workflowId).slots
+  const slots = readWorkflowSlots(db, workflowId)
   const bindings = storeBindings(directory, slots, input.bindings)
   const row = db
     .insert(schema.configurations)
@@ -102,7 +102,7 @@ export function updateConfiguration(input: {
 }): ConfigurationSummary {
   const { db, directory, configurationId, now } = input
   const before = readRow(db, configurationId)
-  const slots = readWorkflow(db, before.workflowId).slots
+  const slots = readWorkflowSlots(db, before.workflowId)
   const bindings = storeBindings(directory, slots, input.bindings)
   const row = db
     .update(schema.configurations)
@@ -128,7 +128,7 @@ export function renameConfiguration(
     .returning()
     .get()
   if (!row) throw ConfigurationError.notFound(`Configuration ${configurationId}`)
-  return toSummary(row, readWorkflow(db, row.workflowId).slots)
+  return toSummary(row, readWorkflowSlots(db, row.workflowId))
 }
 
 /** Copies a configuration under a new name, with copies of its files so neither shares them. */
@@ -160,7 +160,7 @@ export function duplicateConfiguration(input: {
     })
     .returning()
     .get()
-  return toSummary(row, readWorkflow(db, row.workflowId).slots)
+  return toSummary(row, readWorkflowSlots(db, row.workflowId))
 }
 
 /**
@@ -194,7 +194,7 @@ export function loadConfiguration(
   configurationId: number
 ): LoadedConfiguration {
   const row = readRow(db, configurationId)
-  const slots = readWorkflow(db, row.workflowId).slots
+  const slots = readWorkflowSlots(db, row.workflowId)
   const slotByKey = new Map(slots.map((slot) => [slotKey(slot), slot]))
   const bindings = bindingsOf(row).flatMap((binding): SlotBinding[] => {
     const slot = slotByKey.get(slotKey(binding))
