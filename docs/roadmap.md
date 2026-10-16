@@ -269,7 +269,10 @@ describes reference pictures. Nothing else in the app calls a model.
   another workflow is rebinding the same library items there, not
   translating a scenario between workflows whose inputs do not mean the same
   thing. Queueing one configuration several times over several seeds is the
-  experiment loop.
+  experiment loop. A binding takes a library entry, a file picked or dragged
+  from anywhere, or a literal typed in; a file from outside the library is
+  copied into the project as reference pictures are, so the library is a
+  convenience, never a gate.
 - A run records the bindings, the workflow snapshot it ran with, the seed
   and its outputs, so any output can say what made it even after the
   project's copy of the workflow has moved on.
