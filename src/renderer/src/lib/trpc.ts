@@ -59,6 +59,30 @@ export function assetImageUrl(imageId: number, width?: 80 | 160 | 320): string {
   return width === undefined ? `asset://${imageId}` : `asset://${imageId}/${width}`
 }
 
+/** What the library folder holds, or why nothing can be listed. */
+export type LibraryFolder = RouterOutputs["library"]["entries"]
+
+/** A top-level folder of the library. */
+export type LibraryKind = Extract<LibraryFolder, { state: "listed" }>["kinds"][number]
+
+/** A folder under a kind, or a file directly under one, with its files and its notes. */
+export type LibraryEntry = LibraryKind["entries"][number]
+
+/** One file of a library entry. */
+export type LibraryFile = LibraryEntry["files"][number]
+
+/** What a library file holds, as far as its extension says. */
+export type LibraryMedia = LibraryFile["media"]
+
+/**
+ * Where the renderer reads a library file from, by where it sits under the library folder. A
+ * width asks for a picture drawn that wide, as `assetImageUrl` does.
+ */
+export function libraryFileUrl(relativePath: string, width?: 80 | 160 | 320): string {
+  const url = `library://file/${encodeURIComponent(relativePath)}`
+  return width === undefined ? url : `${url}?width=${width}`
+}
+
 /** What a library thing can be. */
 export type AssetKind = RouterInputs["assets"]["create"]["kind"]
 
