@@ -5,6 +5,7 @@ import { promptsRouter } from "./routers/prompts"
 import { settingsRouter } from "./routers/settings"
 import { tabsRouter } from "./routers/tabs"
 import { systemRouter } from "./routers/system"
+import { workflowsRouter } from "./routers/workflows"
 import { router } from "./trpc"
 
 export const appRouter = router({
@@ -15,6 +16,7 @@ export const appRouter = router({
   tabs: tabsRouter,
   prompts: promptsRouter,
   settings: settingsRouter,
+  workflows: workflowsRouter,
 })
 
 export type AppRouter = typeof appRouter
