@@ -98,7 +98,7 @@ describe("runs router", () => {
   })
 
   async function openProjectWithWorkflow(): Promise<
-    Awaited<ReturnType<typeof caller.workflows.import>>
+    Awaited<ReturnType<typeof caller.workflows.import>>["workflow"]
   > {
     await caller.projects.create({
       directory: join(dir, "film"),
@@ -106,7 +106,7 @@ describe("runs router", () => {
       createDirectory: false,
       allowNonEmpty: false,
     })
-    return caller.workflows.import({ path: join(folder, "h3-r2v-base.json") })
+    return (await caller.workflows.import({ path: join(folder, "h3-r2v-base.json") })).workflow
   }
 
   it("asks for a project before listing runs", async () => {

@@ -62,7 +62,7 @@ describe("review router", () => {
       createDirectory: false,
       allowNonEmpty: false,
     })
-    return (await caller.workflows.import({ path: join(folder, "h3-r2v-base.json") })).id
+    return (await caller.workflows.import({ path: join(folder, "h3-r2v-base.json") })).workflow.id
   }
 
   /** A finished run of the workflow with one file per name, written into the project. */

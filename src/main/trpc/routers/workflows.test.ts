@@ -87,7 +87,7 @@ describe("workflows router", () => {
     await openProject()
     settings.setWorkflowsFolder(folder)
 
-    const imported = await caller.workflows.import({ path: sourcePath })
+    const { workflow: imported } = await caller.workflows.import({ path: sourcePath })
     const files = await caller.workflows.files()
 
     expect(files).toEqual({
@@ -107,10 +107,34 @@ describe("workflows router", () => {
     ])
   })
 
+  it("suggests a base on import only when another workflow shares enough slots", async () => {
+    await openProject()
+    settings.setWorkflowsFolder(folder)
+    writeFileSync(join(folder, "h3-fl2v-base.json"), fixtureText("h3-fl2v-base"))
+    writeFileSync(
+      join(folder, "qwen-edit-2511-edit-base.json"),
+      fixtureText("qwen-edit-2511-edit-base")
+    )
+
+    const first = await caller.workflows.import({ path: sourcePath })
+    const fl2v = await caller.workflows.import({ path: join(folder, "h3-fl2v-base.json") })
+    const qwen = await caller.workflows.import({
+      path: join(folder, "qwen-edit-2511-edit-base.json"),
+    })
+
+    expect(first.suggestion).toBeNull()
+    expect(fl2v.suggestion).toEqual({
+      workflowId: first.workflow.id,
+      name: "h3-r2v-base",
+      matchingSlots: 7,
+    })
+    expect(qwen.suggestion).toBeNull()
+  })
+
   it("removes a workflow and lists its source as importable again", async () => {
     await openProject()
     settings.setWorkflowsFolder(folder)
-    const imported = await caller.workflows.import({ path: sourcePath })
+    const { workflow: imported } = await caller.workflows.import({ path: sourcePath })
 
     await caller.workflows.remove({ workflowId: imported.id })
 
@@ -152,7 +176,7 @@ describe("workflows router", () => {
   it("reads a workflow back with its slots and guide, and moves a slot to another tier", async () => {
     await openProject()
     settings.setWorkflowsFolder(folder)
-    const imported = await caller.workflows.import({ path: sourcePath })
+    const { workflow: imported } = await caller.workflows.import({ path: sourcePath })
     const seed = imported.slots.find((slot) => slot.name === "Seed")
     if (!seed) throw new Error("no seed slot")
 
@@ -166,7 +190,7 @@ describe("workflows router", () => {
   it("gives a slot a display name and note, and clears them again", async () => {
     await openProject()
     settings.setWorkflowsFolder(folder)
-    const imported = await caller.workflows.import({ path: sourcePath })
+    const { workflow: imported } = await caller.workflows.import({ path: sourcePath })
     const seed = imported.slots.find((slot) => slot.name === "Seed")
     if (!seed) throw new Error("no seed slot")
 
@@ -213,7 +237,7 @@ describe("workflows router", () => {
   it("shows a changed source and applies it when asked", async () => {
     await openProject()
     settings.setWorkflowsFolder(folder)
-    const imported = await caller.workflows.import({ path: sourcePath })
+    const { workflow: imported } = await caller.workflows.import({ path: sourcePath })
     expect(await caller.workflows.checkSource({ workflowId: imported.id })).toEqual({
       state: "in-sync",
     })
@@ -238,7 +262,7 @@ describe("workflows router", () => {
   it("applies a source change that touches no slot during the check", async () => {
     await openProject()
     settings.setWorkflowsFolder(folder)
-    const imported = await caller.workflows.import({ path: sourcePath })
+    const { workflow: imported } = await caller.workflows.import({ path: sourcePath })
     const graph = JSON.parse(fixtureText("h3-r2v-base"))
     graph.nodes.push({ id: 90, type: "SaveImage", title: "Output", mode: 0 })
     writeFileSync(sourcePath, JSON.stringify(graph))
@@ -257,7 +281,7 @@ describe("workflows router", () => {
   it("refuses changes that are no longer the ones shown as a conflict", async () => {
     await openProject()
     settings.setWorkflowsFolder(folder)
-    const imported = await caller.workflows.import({ path: sourcePath })
+    const { workflow: imported } = await caller.workflows.import({ path: sourcePath })
     writeFileSync(sourcePath, fixtureText("h3-r2v-base").replace('"Seed"', '"Noise seed"'))
 
     await expect(

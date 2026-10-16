@@ -35,7 +35,7 @@ export function useWorkflows(): WorkflowsPanel {
     folder: folder.data,
     workflows: workflows.data ?? [],
     importFile: (path, onImported) =>
-      importing.mutate({ path }, { onSuccess: (workflow) => onImported(workflow.id) }),
+      importing.mutate({ path }, { onSuccess: (result) => onImported(result.workflow.id) }),
     refresh: () => void refresh(),
     isImporting: importing.isPending,
     errorMessage: importing.error?.message ?? folder.error?.message ?? null,

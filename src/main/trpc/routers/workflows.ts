@@ -2,6 +2,7 @@ import { TRPCError } from "@trpc/server"
 import { z } from "zod"
 import { configurationNamesBinding } from "../../core/configurations/store"
 import { listWorkflowFolder } from "../../core/workflows/folder"
+import { suggestBase } from "../../core/workflows/base"
 import { removeWorkflow } from "../../core/workflows/remove"
 import { SLOT_TIERS } from "../../core/workflows/scan"
 import {
@@ -25,7 +26,10 @@ export const workflowsRouter = router({
     listWorkflowFolder(ctx.settings.workflowsFolder(), listWorkflows(requireProject(ctx)))
   ),
 
-  /** Copies one file from the workflows folder into the project and scans its slots. */
+  /**
+   * Copies one file from the workflows folder into the project and scans its slots, and names
+   * another of the project's workflows whose mapping it could start from when one fits.
+   */
   import: publicProcedure
     .input(z.object({ path: z.string().min(1) }))
     .mutation(({ ctx, input }) => {
@@ -38,7 +42,8 @@ export const workflowsRouter = router({
         })
       }
       try {
-        return importWorkflow(db, { folder, sourcePath: input.path })
+        const workflow = importWorkflow(db, { folder, sourcePath: input.path })
+        return { workflow, suggestion: suggestBase(db, workflow.id) }
       } catch (error) {
         asClientError(error)
       }
