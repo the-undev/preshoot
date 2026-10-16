@@ -57,9 +57,11 @@ says so.
   piece is tested against recorded shapes, and the resolution rules were
   read out of the server's own source, but the first real queue is the
   live test.
-- Cancelling a run posts `{"delete": [prompt_id]}` to `/queue` and an empty
-  body to `/interrupt`, shapes taken from the API's documented behaviour and
-  not yet exercised against a live instance.
+- Cancelling a run posts `{"delete": [prompt_id]}` to `/queue` and
+  `{"prompt_id": prompt_id}` to `/interrupt`, shapes taken from the API's
+  documented behaviour and not yet exercised against a live instance. Whether
+  a live instance stops only that prompt, or ignores the id and stops
+  whatever runs, is unverified.
 - Run bindings record absolute file paths, so a run's provenance names
   where a file sat on the machine that queued it rather than a
   project-relative path.

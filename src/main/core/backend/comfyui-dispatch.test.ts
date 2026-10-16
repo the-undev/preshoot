@@ -165,21 +165,21 @@ describe("ComfyUiClient.deletePending", () => {
 })
 
 describe("ComfyUiClient.interrupt", () => {
-  it("posts to interrupt with no body", async () => {
+  it("posts the prompt id to stop to interrupt", async () => {
     const { client, fetchMock } = clientAnswering(() => new Response(null, { status: 200 }))
 
-    await client.interrupt()
+    await client.interrupt("a1b2")
 
     const [url, init] = fetchMock.mock.calls[0]
     expect(url).toBe(`${baseUrl}/interrupt`)
     expect(init.method).toBe("POST")
-    expect(init.body).toBeUndefined()
+    expect(JSON.parse(init.body as string)).toEqual({ prompt_id: "a1b2" })
   })
 
   it("names the status when a refusal gives no reason", async () => {
     const { client } = clientAnswering(() => new Response("", { status: 500 }))
 
-    await expect(client.interrupt()).rejects.toThrow(
+    await expect(client.interrupt("a1b2")).rejects.toThrow(
       expect.objectContaining({
         code: "refused",
         message: "ComfyUI refused to stop the running prompt: it answered 500.",

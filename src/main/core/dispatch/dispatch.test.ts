@@ -632,6 +632,7 @@ describe("dispatch", () => {
         ["/queue", "GET"],
         ["/interrupt", "POST"],
       ])
+      expect(JSON.parse(calls[1].init.body as string)).toEqual({ prompt_id: "a1b2" })
     })
 
     it("leaves a run in neither place to the next poll and says there was nothing to cancel", async () => {

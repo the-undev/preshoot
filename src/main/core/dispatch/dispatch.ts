@@ -281,7 +281,7 @@ export async function cancelRun(input: {
   if (queue.pending.includes(run.promptId)) {
     await client.deletePending([run.promptId])
   } else if (queue.running.includes(run.promptId)) {
-    await client.interrupt()
+    await client.interrupt(run.promptId)
   } else {
     throw DispatchError.nothingToCancel(runId)
   }

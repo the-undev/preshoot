@@ -214,9 +214,17 @@ export class ComfyUiClient {
     )
   }
 
-  /** Stops the prompt ComfyUI is running now, whichever it is. */
-  async interrupt(): Promise<void> {
-    await this.post("/interrupt", { method: "POST" }, "to stop the running prompt")
+  /** Stops `promptId` while it runs. An older ComfyUI ignores the id and stops whatever runs. */
+  async interrupt(promptId: string): Promise<void> {
+    await this.post(
+      "/interrupt",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt_id: promptId }),
+      },
+      "to stop the running prompt"
+    )
   }
 
   /** How a prompt ended, or nothing while it has not. */
