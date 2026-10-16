@@ -2,7 +2,13 @@ import { randomUUID } from "node:crypto"
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs"
 import { basename, join } from "node:path"
 import { and, asc, eq, inArray } from "drizzle-orm"
-import type { ComfyUiClient, ObjectInfo, QueueAnswer, QueueState } from "../backend/comfyui-client"
+import type {
+  ComfyUiClient,
+  ObjectInfo,
+  OutputFile,
+  QueueAnswer,
+  QueueState,
+} from "../backend/comfyui-client"
 import { schema, type ProjectDatabase } from "../db"
 import { freeName } from "../files/free-name"
 import { readGraph } from "../workflows/scan"
@@ -320,7 +326,7 @@ async function pollRun(
   mkdirSync(join(input.directory, folder), { recursive: true })
   const taken = new Set<string>()
   const saved: { path: string; sourceFilename: string }[] = []
-  for (const file of history.outputs) {
+  for (const file of history.outputs.filter(isSavedOutput)) {
     const name = freeName(safeName(file.filename), (candidate) => {
       if (taken.has(candidate)) return false
       taken.add(candidate)
@@ -401,6 +407,11 @@ function storedGraph(
     .get()
   if (!row) throw DispatchError.notFound(`Workflow ${workflowId}`)
   return row
+}
+
+/** Whether ComfyUI saved a file to its output folder, rather than as a preview in its temp folder. */
+function isSavedOutput(file: OutputFile): boolean {
+  return file.type === "output"
 }
 
 /** A file name from ComfyUI that cannot climb out of the run's folder. */

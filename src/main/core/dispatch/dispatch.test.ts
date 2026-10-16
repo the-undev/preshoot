@@ -721,6 +721,36 @@ describe("dispatch", () => {
       expect(calls.filter((call) => call.path === "/view")).toHaveLength(2)
     })
 
+    it("leaves out the previews ComfyUI keeps in its temp folder", async () => {
+      const runId = await queued()
+      const { client, calls } = fakeComfyUi({
+        ...finished,
+        "/history/a1b2": () =>
+          json({
+            a1b2: {
+              outputs: {
+                "32": {
+                  images: [
+                    { filename: "clip_00001_.mp4", subfolder: "video", type: "output" },
+                    { filename: "ComfyUI_temp_abcde_00001_.png", subfolder: "", type: "temp" },
+                  ],
+                },
+              },
+              status: { status_str: "success", messages: [] },
+            },
+          }),
+        "/view": (url) => new Response(url.searchParams.get("filename")),
+      })
+
+      const status = await polled(client, runId)
+
+      expect(status.run.outputs.map((output) => output.sourceFilename)).toEqual(["clip_00001_.mp4"])
+      expect(existsSync(join(dir, `outputs/run-${runId}/ComfyUI_temp_abcde_00001_.png`))).toBe(
+        false
+      )
+      expect(calls.filter((call) => call.path === "/view")).toHaveLength(1)
+    })
+
     it("still records the other runs when one cannot be copied, then says why", async () => {
       const failing = await queued()
       const other = await queued()
