@@ -12,11 +12,11 @@ export function createDialogs(window: BrowserWindow): Dialogs {
       return result.filePaths[0] ?? null
     },
 
-    async pickFiles({ title, extensions }) {
+    async pickFiles({ title, filterName, extensions, multiple }) {
       const result = await dialog.showOpenDialog(window, {
         title,
-        properties: ["openFile", "multiSelections"],
-        filters: [{ name: "Pictures", extensions }],
+        properties: multiple ? ["openFile", "multiSelections"] : ["openFile"],
+        filters: [{ name: filterName, extensions }],
       })
       return result.filePaths
     },

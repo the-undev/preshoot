@@ -75,7 +75,9 @@ export const assetsRouter = router({
     const project = requireOpenProject(ctx)
     const chosen = await ctx.dialogs.pickFiles({
       title: "Add reference pictures",
+      filterName: "Pictures",
       extensions: IMAGE_EXTENSIONS,
+      multiple: true,
     })
     try {
       return chosen.map((sourcePath) =>

@@ -2,6 +2,7 @@ import { assetsRouter } from "./routers/assets"
 import { clipsRouter } from "./routers/clips"
 import { projectsRouter } from "./routers/projects"
 import { promptsRouter } from "./routers/prompts"
+import { runsRouter } from "./routers/runs"
 import { settingsRouter } from "./routers/settings"
 import { tabsRouter } from "./routers/tabs"
 import { systemRouter } from "./routers/system"
@@ -17,6 +18,7 @@ export const appRouter = router({
   prompts: promptsRouter,
   settings: settingsRouter,
   workflows: workflowsRouter,
+  runs: runsRouter,
 })
 
 export type AppRouter = typeof appRouter
