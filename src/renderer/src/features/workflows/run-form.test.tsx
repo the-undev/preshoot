@@ -148,6 +148,45 @@ describe("RunForm", () => {
     expect(screen.queryByText(/later runs each get fresh ones/)).not.toBeInTheDocument()
   })
 
+  it("queues on control and enter from a text area, as the Queue button would", () => {
+    const { onQueue } = renderForm()
+    fireEvent.change(screen.getByLabelText("Number of runs"), { target: { value: "2" } })
+
+    fireEvent.keyDown(screen.getByLabelText("Prompt"), { key: "Enter", ctrlKey: true })
+
+    expect(onQueue).toHaveBeenCalledWith(unchangedBindings, 2)
+  })
+
+  it("does not queue on control and enter while queueing is blocked", () => {
+    const { onQueue } = renderForm({ blockedReason: "ComfyUI is not answering." })
+
+    fireEvent.keyDown(screen.getByLabelText("Prompt"), { key: "Enter", ctrlKey: true })
+
+    expect(screen.getByRole("button", { name: "Queue" })).toBeDisabled()
+    expect(onQueue).not.toHaveBeenCalled()
+  })
+
+  it("does not queue on control and enter while a value is one it cannot send", () => {
+    const { onQueue } = renderForm()
+    fireEvent.change(screen.getByLabelText("Steps"), { target: { value: "many" } })
+
+    fireEvent.keyDown(screen.getByLabelText("Steps"), { key: "Enter", ctrlKey: true })
+
+    expect(onQueue).not.toHaveBeenCalled()
+  })
+
+  it("does not queue on control and enter from a dialog the form opened", () => {
+    const { onQueue } = renderForm()
+    fireEvent.click(screen.getByRole("button", { name: "Save as configuration" }))
+
+    fireEvent.keyDown(within(screen.getByRole("dialog")).getByLabelText("Name"), {
+      key: "Enter",
+      ctrlKey: true,
+    })
+
+    expect(onQueue).not.toHaveBeenCalled()
+  })
+
   it("offers to start from the workflow when started from a configuration or clip", () => {
     renderForm({ hasStart: true })
 

@@ -29,6 +29,7 @@ export const SHORTCUTS = [
     label: "Open the command menu on a line",
   },
   { id: "copyPrompt", keys: "ctrl+shift+c", group: "Clips", label: "Copy the prompt" },
+  { id: "queueForm", keys: "ctrl+enter", group: "Workflows", label: "Queue the workflow's form" },
   { id: "showShortcuts", keys: "?", group: "Help", label: "Show the keyboard shortcuts" },
 ] as const
 
@@ -60,6 +61,7 @@ export function shortcutKeys(shortcut: Shortcut): string[] {
     if (key === "alt") return "Alt"
     if (key === "tab") return "Tab"
     if (key === "space") return "Space"
+    if (key === "enter") return "Enter"
     return key.toUpperCase()
   })
 }

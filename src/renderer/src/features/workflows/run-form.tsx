@@ -11,6 +11,7 @@ import {
   Textarea,
 } from "@renderer/design-system"
 import { LibraryFilePicker } from "@renderer/features/library/library-file-picker"
+import { matchesShortcut, shortcutNamed } from "@renderer/features/shortcuts/shortcuts"
 import { fileName } from "@renderer/lib/file-name"
 import {
   libraryFileUrl,
@@ -22,6 +23,8 @@ import {
 import { SaveConfigurationDialog } from "./save-configuration-dialog"
 import { BATCH_LIMIT, randomSeed } from "../../../../main/core/dispatch/batch"
 import { KIND_LABELS, shownName } from "./slot-labels"
+
+const QUEUE_SHORTCUT = shortcutNamed("queueForm")
 
 /** The kinds of slot filled from a file on disk. */
 export type FileKind = "image" | "audio"
@@ -128,6 +131,10 @@ export function RunForm({
   const reason = blockedReason ?? bindingProblem ?? countProblem
   const sent = (): RunBinding[] =>
     bindings.flatMap((entry) => ("binding" in entry ? [entry.binding] : []))
+  const canQueue = reason === null && !isQueueing
+  const queue = (): void => {
+    if (canQueue && count !== null) onQueue(sent(), count)
+  }
   // Built the same way as the states, so a form holding the workflow's values reads as unedited.
   const edited =
     JSON.stringify(states) !== JSON.stringify(startingStates(slots, savedValues, [], null))
@@ -155,6 +162,13 @@ export function RunForm({
       className="flex flex-col gap-4"
       onDragOver={(event) => event.preventDefault()}
       onDrop={(event) => event.preventDefault()}
+      onKeyDown={(event) => {
+        // A dialog the form opens sits elsewhere on the page, though its keys still reach here.
+        if (!event.currentTarget.contains(event.target as Node)) return
+        if (!matchesShortcut(event, QUEUE_SHORTCUT)) return
+        event.preventDefault()
+        queue()
+      }}
     >
       {basic.length > 0 ? (
         rows(basic)
@@ -177,10 +191,7 @@ export function RunForm({
       )}
 
       <div className="flex flex-wrap items-center gap-3">
-        <Button
-          disabled={reason !== null || isQueueing}
-          onClick={() => count !== null && onQueue(sent(), count)}
-        >
+        <Button disabled={!canQueue} onClick={queue}>
           {isQueueing ? "Queueing…" : "Queue"}
         </Button>
         <Label className="gap-1.5 text-sm font-normal text-muted-foreground">
