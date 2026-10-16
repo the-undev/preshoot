@@ -6,3 +6,4 @@ tsconfig.json
 tsconfig.*.json
 src/renderer/src/routeTree.gen.ts
 resources/migrations
+src/main/core/workflows/fixtures
