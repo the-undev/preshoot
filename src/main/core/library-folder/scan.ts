@@ -83,8 +83,9 @@ function readKind(folder: string, kind: string): LibraryKind {
 
 function readFolderEntry(folder: string, kind: string, path: string): LibraryEntry {
   const notesPath = join(path, NOTES_FILE)
-  const hasNotes = visible(path).some((entry) => entry.isFile() && entry.name === NOTES_FILE)
-  const files = filesUnder(path)
+  const listing = visible(path)
+  const hasNotes = listing.some((entry) => entry.isFile() && entry.name === NOTES_FILE)
+  const files = filesIn(path, listing)
     .filter((file) => file !== notesPath)
     .map((file) => toFile(folder, file, relative(path, file)))
     .sort((a, b) => a.name.localeCompare(b.name))
@@ -103,7 +104,12 @@ function toFile(folder: string, path: string, name: string): LibraryFile {
 
 /** Every file under `directory`, walking its folders, without hidden entries or links. */
 function filesUnder(directory: string): string[] {
-  return visible(directory).flatMap((entry) => {
+  return filesIn(directory, visible(directory))
+}
+
+/** Every file in `listing`, the visible entries of `directory`, and under its folders. */
+function filesIn(directory: string, listing: Dirent[]): string[] {
+  return listing.flatMap((entry) => {
     const path = join(directory, entry.name)
     if (entry.isDirectory()) return filesUnder(path)
     return entry.isFile() ? [path] : []
