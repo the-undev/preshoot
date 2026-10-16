@@ -216,7 +216,10 @@ describes reference pictures. Nothing else in the app calls a model.
   target and the request fields in a json beside it. It is written from the
   clip as it stands at the moment it is asked for.
 - Generation goes through ComfyUI's HTTP API: a workflow queued with
-  `POST /prompt`, progress over its websocket, outputs read from `/history`.
+  `POST /prompt`, followed by polling `/queue` and `/history`, outputs read
+  from `/history` and fetched with `/view`. A websocket would push progress
+  per node; polling was built because it needs no push channel and the
+  queue position and done states are what the run list shows.
   Everything higher level is a template workflow, named values patched into
   it, and a queue of posts, so dispatch needs no custom node. The request
   fields the app used to show as things to copy, because nothing it could
@@ -291,9 +294,9 @@ describes reference pictures. Nothing else in the app calls a model.
 ## What the app does
 
 1. Projects: a welcome screen, create and open, and a recent list.
-2. A library of the people, places and objects a project refers to, with
-   reference pictures copied in and a description drafted from them by the
-   local vision model.
+2. The people, places and objects a project refers to, with reference
+   pictures copied in and a description drafted from them by the local
+   vision model.
 3. Clips built from shots, with camera moves, cuts, timings, subjects, sound,
    and one ordered list per shot of what happens and what is said, including
    who speaks, off-screen voices, lines carried across a cut and lines the clip
@@ -308,27 +311,34 @@ describes reference pictures. Nothing else in the app calls a model.
 6. A workspace of tabs holding scratch clips, saved clips and branches of
    either, with keyboard shortcuts and a list of them behind `?`, and undo
    per clip.
-7. A library of starting points: saved clips, saved shots and saved subjects,
-   each copied when it is used rather than shared.
+7. Saved starting points: clips, shots and subjects kept under Saved, each
+   copied when it is used rather than shared.
+8. A ComfyUI backend attached by URL in settings, with whether it answers
+   and its version shown. The app starts and stops nothing; snug owns the
+   instance.
+9. Workflow intake: the workflows folder named in settings and read in
+   place, a workflow imported into the project as a copy with a link back
+   to its source, its inputs scanned into a mapping of tiered slots, its
+   notes shown as its guide, and a literal kept, renamed, added and removed
+   diff when the source changes, applied silently when no slot changed and
+   naming the configurations that bind a removed slot when one did.
+10. Dispatch: the graph resolved to API format against the instance's
+    `/object_info`, bound values patched in, picked files uploaded, the run
+    queued and followed by polling, its outputs pulled into the project,
+    and the run recorded with its bindings and its seed.
+11. The library: a folder of files the user owns, named in settings, read
+    as kinds, entries, files and notes, served read-only over `library://`,
+    with copy-on-use into subjects, image slots and clips, and one explicit
+    write back, copying a saved subject out as a new entry.
+12. Configurations: named bindings saved per workflow with their picked
+    files copied into the project, loaded back with anything stale named,
+    renamed, duplicated and deleted, and queued as a batch with fresh seeds.
+13. Review: outputs previewed beside their run, marked good or bad with a
+    note, filtered with counts, and the good ones exported together to a
+    chosen folder.
 
 ## Milestones
 
-8. Backend connection: attach a ComfyUI instance by URL, health, and
-   `/object_info`, shown in settings. The app starts and stops nothing;
-   snug owns the instance.
-9. Workflow intake: watch the workflows folder, copy a chosen workflow into
-   the project, scan its slots, edit the mapping and its tiers, and the
-   literal re-import diff. A scored suggestion of an existing mapping as a
-   base for a new workflow waits until the plain flow works.
-10. Dispatch: resolve to API format against `/object_info`, patch one
-    configuration's bindings, queue it, show progress over the websocket,
-    land the outputs in the project, record the run.
-11. Library entries: the watched folder, kinds, entries holding files and
-    notes, and the migration of saved subjects into it. RefMods and voices
-    are files on a character from day one.
-12. Configurations: saved bindings, duplication, and seed batches.
-13. Review: outputs beside their run, good or bad with notes, export chosen
-    takes.
 14. H3 prompt builder overhaul: the clip editor as the editor behind a
     prompt slot, library prompts offered as starting points, and the
     confusions of the ComfyUI builder it replaces addressed rather than
@@ -363,6 +373,8 @@ improvements live in `docs/issues.md`.
 
 - Whether a prompt slot binds a composed clip by copy or by reference: by
   reference the prompt follows the clip as it is edited, by copy a
-  configuration stays reproducible. Decided with milestone 12.
+  configuration stays reproducible. As built, a text slot holds a literal,
+  so a configuration keeps its prompt by copy; binding a composed clip is
+  milestone 14's decision.
 - The exact shapes of the userdata routes, pinned against a live instance
   when the Runpod work starts.

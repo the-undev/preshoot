@@ -53,6 +53,22 @@ says so.
   name is typed without an extension.
 - Streaming tokens to the renderer as they arrive needs a subscription link
   over the `trpc://` scheme, which nothing implements yet.
+- The dispatch path has not run against a live instance end to end. Every
+  piece is tested against recorded shapes, and the resolution rules were
+  read out of the server's own source, but the first real queue is the
+  live test.
+- Run bindings record absolute file paths, so a run's provenance names
+  where a file sat on the machine that queued it rather than a
+  project-relative path.
+- A workflow's guide is shown as plain text. Markdown in a How to use note
+  is not rendered.
+- LoadAudio's saved widget shape is unverified. A workflow holding one may
+  fail at resolution, loudly and naming the node.
+- Reroute and the legacy Primitive node are dropped at resolution like any
+  class the instance does not list, not wired through. The base workflows
+  hold none.
+- Seeking in a video preview relies on hand-written Range handling that is
+  unit-tested but has not been tried in the running app.
 - The library and workflows folders are read again when their screen is
   shown, from the refresh control, and on the page's `visibilitychange`,
   which is the only event TanStack Query refetches on. Whether Electron fires
