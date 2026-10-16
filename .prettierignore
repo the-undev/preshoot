@@ -7,3 +7,4 @@ tsconfig.*.json
 src/renderer/src/routeTree.gen.ts
 resources/migrations
 src/main/core/workflows/fixtures
+src/main/core/dispatch/fixtures
