@@ -7,6 +7,7 @@ import {
   type OutputExport,
   type RunBinding,
   type RunRecord,
+  type RunStatus,
   type SavedSlotValue,
   type Verdict,
   type VerdictCounts,
@@ -101,27 +102,26 @@ export function useRuns(workflowId: number): RunsPanel {
 
   useEffect(() => {
     if (unfinished === "") return
-    const runIds = unfinished.split(",").map(Number)
+    const listKey = trpc.runs.list.queryKey({ workflowId })
     let inFlight = false
     const poll = async (): Promise<void> => {
       if (inFlight) return
       inFlight = true
+      // A failed poll may have recorded some runs before it stopped, so the list is read again.
+      let changed = true
       try {
-        const statuses = await Promise.all(
-          runIds.map((runId) => client.runs.poll.mutate({ runId }))
-        )
+        const statuses = await client.runs.poll.mutate({ workflowId })
         setPositions((current) => ({
           ...current,
           ...Object.fromEntries(statuses.map((status) => [status.run.id, status.position])),
         }))
         setPollError(null)
+        changed = changesState(statuses, queryClient.getQueryData(listKey) ?? [])
       } catch (error) {
         setPollError(error instanceof Error ? error.message : String(error))
       } finally {
         inFlight = false
-        await queryClient.invalidateQueries({
-          queryKey: trpc.runs.list.queryKey({ workflowId }),
-        })
+        if (changed) await queryClient.invalidateQueries({ queryKey: listKey })
       }
     }
     void poll()
@@ -135,6 +135,12 @@ export function useRuns(workflowId: number): RunsPanel {
     pollError: pollError ?? openOutput.error?.message ?? runs.error?.message ?? null,
     openOutput: (outputId) => openOutput.mutate({ outputId }),
   }
+}
+
+/** Whether a poll moved any run to a state other than the one the list shows. */
+export function changesState(statuses: RunStatus[], listed: RunRecord[]): boolean {
+  const listedStates = new Map(listed.map((run) => [run.id, run.state]))
+  return statuses.some((status) => listedStates.get(status.run.id) !== status.run.state)
 }
 
 /** What a workflow's outputs count before the counts are read. */

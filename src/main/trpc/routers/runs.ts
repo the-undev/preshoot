@@ -3,7 +3,7 @@ import { z } from "zod"
 import { IMAGE_MEDIA_TYPES } from "../../core/composition/image-store"
 import {
   BATCH_LIMIT,
-  pollRun,
+  pollRuns,
   queueBatch,
   randomSeed,
   savedSlotValues,
@@ -94,23 +94,24 @@ export const runsRouter = router({
       }
     }),
 
-  /** Asks ComfyUI where a run stands, records it, and copies its outputs in once it is done. */
-  poll: publicProcedure
-    .input(z.object({ runId: z.number().int() }))
-    .mutation(async ({ ctx, input }) => {
-      const project = requireOpenProject(ctx)
-      try {
-        return await pollRun({
-          db: project.db,
-          directory: project.directory,
-          client: ctx.comfyUiClient(ctx.settings.comfyUiUrl()),
-          runId: input.runId,
-          now: new Date(),
-        })
-      } catch (error) {
-        asClientError(error)
-      }
-    }),
+  /**
+   * Asks ComfyUI where each unfinished run of a workflow stands, records it, and copies a run's
+   * outputs in once it is done.
+   */
+  poll: publicProcedure.input(z.object({ workflowId })).mutation(async ({ ctx, input }) => {
+    const project = requireOpenProject(ctx)
+    try {
+      return await pollRuns({
+        db: project.db,
+        directory: project.directory,
+        client: ctx.comfyUiClient(ctx.settings.comfyUiUrl()),
+        workflowId: input.workflowId,
+        now: new Date(),
+      })
+    } catch (error) {
+      asClientError(error)
+    }
+  }),
 
   /** Asks for a file to fill an image or audio slot, and hands its path back. */
   pickFile: publicProcedure

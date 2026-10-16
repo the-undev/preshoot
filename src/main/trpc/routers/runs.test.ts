@@ -137,7 +137,7 @@ describe("runs router", () => {
     expect(run.state).toBe("queued")
     expect(comfyUiUrls).toEqual(["http://127.0.0.1:8190"])
 
-    const status = await caller.runs.poll({ runId: run.id })
+    const [status] = await caller.runs.poll({ workflowId: workflow.id })
     expect(status.run.state).toBe("done")
     const [output] = status.run.outputs
     expect(readFileSync(join(dir, "film", output.path), "utf8")).toBe("video bytes")

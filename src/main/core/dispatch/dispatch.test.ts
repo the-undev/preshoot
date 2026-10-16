@@ -1,14 +1,15 @@
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { eq } from "drizzle-orm"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { ComfyUiClient } from "../backend/comfyui-client"
 import { openProjectDatabase, schema, type ProjectDatabaseHandle } from "../db"
 import { fixtureText } from "../workflows/fixtures"
 import { importWorkflow, type WorkflowDetail } from "../workflows/store"
-import { pollRun, queueBatch, queueRun, savedSlotValues } from "./dispatch"
+import { pollRuns, queueBatch, queueRun, savedSlotValues, type RunStatus } from "./dispatch"
 import { objectInfoFixture } from "./fixtures"
-import { readRunPrompt } from "./run-store"
+import { readRun, readRunPrompt } from "./run-store"
 
 const migrationsFolder = join(__dirname, "../../../../resources/migrations")
 const baseUrl = "http://127.0.0.1:8188"
@@ -82,6 +83,20 @@ describe("dispatch", () => {
       },
       posted: () => body,
     }
+  }
+
+  /** Polls the workflow's unfinished runs and gives what the poll found for `runId`. */
+  async function polled(client: ComfyUiClient, runId: number): Promise<RunStatus> {
+    const statuses = await pollRuns({
+      db: handle.db,
+      directory: dir,
+      client,
+      workflowId: workflow.id,
+      now,
+    })
+    const status = statuses.find((entry) => entry.run.id === runId)
+    if (!status) throw new Error(`the poll did not find run ${runId}`)
+    return status
   }
 
   async function queued(): Promise<number> {
@@ -459,7 +474,7 @@ describe("dispatch", () => {
         }),
     })
 
-    const status = await pollRun({ db: handle.db, directory: dir, client, runId, now })
+    const status = await polled(client, runId)
 
     expect(status.run.state).toBe("queued")
     expect(status.position).toBe(2)
@@ -471,7 +486,7 @@ describe("dispatch", () => {
       "/queue": () => json({ queue_running: [[3, "a1b2", {}, {}, []]], queue_pending: [] }),
     })
 
-    const status = await pollRun({ db: handle.db, directory: dir, client, runId, now })
+    const status = await polled(client, runId)
 
     expect(status).toMatchObject({ run: { state: "running" }, position: null })
   })
@@ -501,7 +516,7 @@ describe("dispatch", () => {
         }),
     })
 
-    const status = await pollRun({ db: handle.db, directory: dir, client, runId, now })
+    const status = await polled(client, runId)
 
     expect(status.run).toMatchObject({
       state: "failed",
@@ -516,10 +531,49 @@ describe("dispatch", () => {
       "/history/a1b2": () => json({}),
     })
 
-    const status = await pollRun({ db: handle.db, directory: dir, client, runId, now })
+    const status = await polled(client, runId)
 
     expect(status.run.state).toBe("failed")
     expect(status.run.error).toMatch(/no record of this run/)
+  })
+
+  it("reads the queue once for every unfinished run, and asks for history only off the queue", async () => {
+    const first = await queued()
+    const second = await queued()
+    handle.db.update(schema.runs).set({ promptId: "gone" }).where(eq(schema.runs.id, second)).run()
+    const { client, calls } = fakeComfyUi({
+      "/queue": () => json({ queue_running: [], queue_pending: [[5, "a1b2", {}, {}, []]] }),
+      "/history/gone": () => json({}),
+    })
+
+    const statuses = await pollRuns({
+      db: handle.db,
+      directory: dir,
+      client,
+      workflowId: workflow.id,
+      now,
+    })
+
+    expect(statuses.map((status) => [status.run.id, status.run.state, status.position])).toEqual([
+      [first, "queued", 1],
+      [second, "failed", null],
+    ])
+    expect(calls.map((call) => call.path)).toEqual(["/queue", "/history/gone"])
+  })
+
+  it("asks ComfyUI nothing when no run is unfinished", async () => {
+    const { client, calls } = fakeComfyUi({})
+
+    const statuses = await pollRuns({
+      db: handle.db,
+      directory: dir,
+      client,
+      workflowId: workflow.id,
+      now,
+    })
+
+    expect(statuses).toEqual([])
+    expect(calls).toEqual([])
   })
 
   describe("a finished run", () => {
@@ -548,8 +602,14 @@ describe("dispatch", () => {
         "/view": (url) => new Response(url.searchParams.get("subfolder")),
       })
 
-      const status = await pollRun({ db: handle.db, directory: dir, client, runId, now })
-      const again = await pollRun({ db: handle.db, directory: dir, client, runId, now })
+      const status = await polled(client, runId)
+      const again = await pollRuns({
+        db: handle.db,
+        directory: dir,
+        client,
+        workflowId: workflow.id,
+        now,
+      })
 
       expect(status.run.state).toBe("done")
       expect(status.run.outputs.map((output) => [output.path, output.sourceFilename])).toEqual([
@@ -558,8 +618,26 @@ describe("dispatch", () => {
       ])
       expect(readFileSync(join(dir, status.run.outputs[0].path), "utf8")).toBe("video/2026-03-04")
       expect(readFileSync(join(dir, status.run.outputs[1].path), "utf8")).toBe("video/other")
-      expect(again.run).toEqual(status.run)
+      expect(again).toEqual([])
       expect(calls.filter((call) => call.path === "/view")).toHaveLength(2)
+    })
+
+    it("still records the other runs when one cannot be copied, then says why", async () => {
+      const failing = await queued()
+      const other = await queued()
+      handle.db.update(schema.runs).set({ promptId: "next" }).where(eq(schema.runs.id, other)).run()
+      const { client } = fakeComfyUi({
+        ...finished,
+        "/queue": () => json({ queue_running: [[3, "next", {}, {}, []]], queue_pending: [] }),
+        "/view": () => new Response("gone", { status: 404 }),
+      })
+
+      await expect(polled(client, failing)).rejects.toThrow(
+        expect.objectContaining({ code: "bad-response" })
+      )
+
+      expect(readRun(handle.db, failing).state).toBe("queued")
+      expect(readRun(handle.db, other).state).toBe("running")
     })
 
     it("stays unfinished when a file cannot be copied, for the next poll to try again", async () => {
@@ -569,11 +647,11 @@ describe("dispatch", () => {
         "/view": () => new Response("gone", { status: 404 }),
       })
 
-      await expect(pollRun({ db: handle.db, directory: dir, client, runId, now })).rejects.toThrow(
+      await expect(polled(client, runId)).rejects.toThrow(
         expect.objectContaining({ code: "bad-response" })
       )
       const { client: recovered } = fakeComfyUi({ ...finished, "/view": () => new Response("x") })
-      const status = await pollRun({ db: handle.db, directory: dir, client: recovered, runId, now })
+      const status = await polled(recovered, runId)
 
       expect(status.run.state).toBe("done")
       expect(existsSync(join(dir, `outputs/run-${runId}/clip_00001_.mp4.part`))).toBe(false)

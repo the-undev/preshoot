@@ -171,7 +171,7 @@ export type RunRecord = RouterOutputs["runs"]["list"][number]
 export type RunState = RunRecord["state"]
 
 /** What a poll of a run found, with its place in the queue while it waits. */
-export type RunStatus = RouterOutputs["runs"]["poll"]
+export type RunStatus = RouterOutputs["runs"]["poll"][number]
 
 /** A saved set of values for one workflow's slots. */
 export type Configuration = RouterOutputs["configurations"]["list"][number]

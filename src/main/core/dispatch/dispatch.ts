@@ -1,8 +1,8 @@
 import { randomUUID } from "node:crypto"
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs"
 import { basename, join } from "node:path"
-import { and, eq } from "drizzle-orm"
-import type { ComfyUiClient, ObjectInfo, QueueAnswer } from "../backend/comfyui-client"
+import { and, asc, eq, inArray } from "drizzle-orm"
+import type { ComfyUiClient, ObjectInfo, QueueAnswer, QueueState } from "../backend/comfyui-client"
 import { schema, type ProjectDatabase } from "../db"
 import { readGraph } from "../workflows/scan"
 import { readWorkflowSlots, type SlotRecord } from "../workflows/store"
@@ -10,13 +10,13 @@ import { DispatchError } from "./errors"
 import { resolvePrompt, type NodePatch, type SlotValue } from "./resolve"
 import {
   completeRun,
-  isFinished,
   markFailed,
   markUnfinished,
   readRun,
   recordRun,
   type RecordedBinding,
   type RunRecord,
+  type RunState,
 } from "./run-store"
 
 /** What fills a slot: a value typed in, or a file picked from disk that is sent to ComfyUI. */
@@ -34,6 +34,9 @@ export interface RunStatus {
   run: RunRecord
   position: number | null
 }
+
+/** The states of a run ComfyUI has not finished with. */
+const UNFINISHED_STATES: RunState[] = ["queued", "running"]
 
 /** The most runs one batch queues. */
 export const BATCH_LIMIT = 20
@@ -228,23 +231,56 @@ function requireConfiguration(
 }
 
 /**
- * Asks ComfyUI where a run stands and records what it finds. A finished run's files are copied
- * into the project before it is marked done, so a failed copy leaves it to the next poll.
+ * Asks ComfyUI where each unfinished run of a workflow stands and records what it finds, reading
+ * the queue once for all of them. A failed poll of one run does not stop the others; the first
+ * failure is thrown once they are done.
  */
-export async function pollRun(input: {
+export async function pollRuns(input: {
   db: ProjectDatabase
   directory: string
   client: ComfyUiClient
-  runId: number
+  workflowId: number
   now: Date
-}): Promise<RunStatus> {
-  const { db, client, runId, now } = input
-  const run = readRun(db, runId)
-  if (isFinished(run.state)) return { run, position: null }
+}): Promise<RunStatus[]> {
+  const { db, client, workflowId } = input
+  const runIds = db
+    .select({ id: schema.runs.id })
+    .from(schema.runs)
+    .where(
+      and(eq(schema.runs.workflowId, workflowId), inArray(schema.runs.state, UNFINISHED_STATES))
+    )
+    .orderBy(asc(schema.runs.id))
+    .all()
+    .map((row) => row.id)
+  if (runIds.length === 0) return []
 
+  const queue = await client.queue()
+  const statuses: RunStatus[] = []
+  const failures: unknown[] = []
+  for (const runId of runIds) {
+    try {
+      statuses.push(await pollRun(input, queue, readRun(db, runId)))
+    } catch (error) {
+      failures.push(error)
+    }
+  }
+  if (failures.length > 0) throw failures[0]
+  return statuses
+}
+
+/**
+ * Records where one unfinished run stands against the queue as read. A finished run's files are
+ * copied into the project before it is marked done, so a failed copy leaves it to the next poll.
+ */
+async function pollRun(
+  input: { db: ProjectDatabase; directory: string; client: ComfyUiClient; now: Date },
+  queue: QueueState,
+  run: RunRecord
+): Promise<RunStatus> {
+  const { db, client, now } = input
+  const runId = run.id
   // The queue is read before the history: ComfyUI records a run's history before it leaves the
   // queue, so a run in neither has not just slipped from one to the other.
-  const queue = await client.queue()
   if (queue.running.includes(run.promptId)) {
     return { run: markUnfinished(db, runId, "running"), position: null }
   }
