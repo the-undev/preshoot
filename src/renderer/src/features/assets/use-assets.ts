@@ -9,7 +9,7 @@ export interface AssetFields {
   voice: string | null
 }
 
-/** The library and the calls that change it. */
+/** The saved subjects and the calls that change it. */
 export interface AssetsPanel {
   assets: Asset[]
   create(fields: Omit<AssetFields, "voice">): void
@@ -19,7 +19,7 @@ export interface AssetsPanel {
   errorMessage: string | null
 }
 
-/** Reads the project's library and keeps it fresh as it changes. */
+/** Reads the project's saved subjects and keeps it fresh as it changes. */
 export function useAssets(): AssetsPanel {
   const trpc = useTRPC()
   const queryClient = useQueryClient()

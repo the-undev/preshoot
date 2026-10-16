@@ -13,7 +13,7 @@ import {
 import type { AssetKind } from "@renderer/lib/trpc"
 import type { AssetFields } from "./use-assets"
 
-/** What a thing in the library can be. The router accepts these and nothing else. */
+/** What a saved subject can be. The router accepts these and nothing else. */
 const ASSET_KINDS: AssetKind[] = ["person", "place", "object"]
 
 interface AssetFormProps {

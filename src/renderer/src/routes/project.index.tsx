@@ -1,6 +1,6 @@
 import { useState } from "react"
 import { useQuery } from "@tanstack/react-query"
-import { createFileRoute } from "@tanstack/react-router"
+import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import { Alert, AlertDescription, ConfirmDialog } from "@renderer/design-system"
 import { useAssetImages } from "@renderer/features/assets/use-asset-images"
 import { useAssets } from "@renderer/features/assets/use-assets"
@@ -17,6 +17,7 @@ import { useClip } from "@renderer/features/clips/use-clip"
 import { useClips } from "@renderer/features/clips/use-clips"
 import { useExportPrompt } from "@renderer/features/clips/use-export-prompt"
 import { useTabs } from "@renderer/features/clips/use-tabs"
+import { useAddToProject } from "@renderer/features/library/use-library"
 import { useShortcuts } from "@renderer/features/shortcuts/use-shortcuts"
 import { useTRPC, type ClipSummary, type OpenTab } from "@renderer/lib/trpc"
 
@@ -156,11 +157,13 @@ function OpenClip({ clipId, tab, onBranched }: OpenClipProps): React.JSX.Element
   const [naming, setNaming] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const library = useAssets()
+  const addToProject = useAddToProject()
   const pictures = useAssetImages()
   const exporting = useExportPrompt(clipId)
   const trpc = useTRPC()
   const shapes = useQuery(trpc.clips.aspectRatios.queryOptions())
   const savedShots = useQuery(trpc.clips.savedShots.queryOptions())
+  const navigate = useNavigate()
 
   useShortcuts({
     addShot: () => clip.addShot(setShowing),
@@ -246,6 +249,7 @@ function OpenClip({ clipId, tab, onBranched }: OpenClipProps): React.JSX.Element
             saved={library.assets}
             speaking={speaking}
             onAddSubject={clip.addSubject}
+            onCreateFromLibrary={addToProject.add}
             onUpdateSubject={clip.updateSubject}
             onSaveSubject={clip.saveSubject}
             onRemoveSubject={clip.removeSubject}
@@ -264,12 +268,17 @@ function OpenClip({ clipId, tab, onBranched }: OpenClipProps): React.JSX.Element
           ) : (
             <ClipPromptPanel
               prompt={clip.prompt}
+              clipName={clip.composition.name}
               isExporting={exporting.isExporting}
               exportedTo={exporting.exportedTo}
               errorMessage={exporting.errorMessage}
               onExport={exporting.exportToProject}
               onSave={exporting.saveAs}
               onOpenExports={exporting.openExports}
+              onOpenWorkflow={(workflowId) =>
+                void navigate({ to: "/project/workflows", search: { workflow: workflowId } })
+              }
+              onOpenWorkflows={() => void navigate({ to: "/project/workflows" })}
             />
           )}
         </section>

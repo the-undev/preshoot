@@ -1,14 +1,9 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { useState } from "react"
-import { createFileRoute, Link, Outlet, redirect, useNavigate } from "@tanstack/react-router"
+import { createFileRoute, Outlet, redirect, useNavigate } from "@tanstack/react-router"
 import { Keyboard, Settings } from "lucide-react"
-import {
-  Button,
-  buttonVariants,
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@renderer/design-system"
+import { Button, Tooltip, TooltipContent, TooltipTrigger } from "@renderer/design-system"
+import { ProjectNav } from "@renderer/features/projects/project-nav"
 import { useOpenSettings } from "@renderer/features/settings/settings-dialog-context"
 import { SettingsDialogProvider } from "@renderer/features/settings/use-settings-dialog"
 import { ShortcutsDialog } from "@renderer/features/shortcuts/shortcuts-dialog"
@@ -26,10 +21,6 @@ export const Route = createFileRoute("/project")({
   },
   component: ProjectWorkspace,
 })
-
-/** The tab look, since the tabs are links rather than panels. */
-const tabClass = buttonVariants({ variant: "ghost", size: "sm" })
-const activeTab = { className: "bg-accent text-accent-foreground" }
 
 function ProjectWorkspace(): React.JSX.Element {
   return (
@@ -64,19 +55,7 @@ function Workspace(): React.JSX.Element {
             <h1 className="font-heading text-lg font-semibold">{project.name}</h1>
             <p className="truncate text-xs text-muted-foreground">{project.directory}</p>
           </div>
-          <nav className="flex items-center gap-1">
-            <Link
-              to="/project"
-              activeOptions={{ exact: true }}
-              className={tabClass}
-              activeProps={activeTab}
-            >
-              Clips
-            </Link>
-            <Link to="/project/library" className={tabClass} activeProps={activeTab}>
-              Library
-            </Link>
-          </nav>
+          <ProjectNav />
         </div>
         <div className="flex items-center gap-2">
           <Tooltip>

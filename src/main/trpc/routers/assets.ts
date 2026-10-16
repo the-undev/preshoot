@@ -75,7 +75,9 @@ export const assetsRouter = router({
     const project = requireOpenProject(ctx)
     const chosen = await ctx.dialogs.pickFiles({
       title: "Add reference pictures",
+      filterName: "Pictures",
       extensions: IMAGE_EXTENSIONS,
+      multiple: true,
     })
     try {
       return chosen.map((sourcePath) =>
@@ -89,6 +91,21 @@ export const assetsRouter = router({
       asClientError(error)
     }
   }),
+
+  /**
+   * Where a picture's file is on disk, for binding it to a workflow slot the way a picked file is.
+   * The id is looked up in the open project, so no other file can be named.
+   */
+  picturePath: publicProcedure
+    .input(z.object({ imageId: z.number().int() }))
+    .query(({ ctx, input }) => {
+      const project = requireOpenProject(ctx)
+      try {
+        return readImage(project.db, project.directory, input.imageId).path
+      } catch (error) {
+        asClientError(error)
+      }
+    }),
 
   /** Removes a picture and the file behind it. */
   removeImage: publicProcedure

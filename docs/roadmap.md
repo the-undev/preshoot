@@ -5,23 +5,32 @@ discussion and rejected options live here, not in code comments.
 
 ## Purpose
 
-A desktop app for building storyboards and turning them into prompts for
-video and image generation models. Generation runs elsewhere (a Runpod pod
-running ComfyUI, or a local ComfyUI for small jobs). The app owns the
-project, its assets, the shot list, the prompts, and the review of what
-comes back.
+A desktop app that is the user's side of video and image generation:
+composition and dispatch over ComfyUI. The user curates a library of
+characters, scenes, voices and prompts, composes clips, binds library pieces
+into a workflow's inputs, queues runs, and reviews what comes back. ComfyUI
+executes. Workflows are made and edited in ComfyUI, never here: the app fills
+their inputs and queues them, and builds no graphs to do it.
+
+ComfyUI is workflow-oriented and this app is user-oriented. Once a workflow
+works, using it is picking pieces and pressing run, with experiments cheap to
+queue and every run recorded with what went into it. ComfyUI's own app mode,
+SwarmUI and ViewComfy were looked at and each stops at a form per workflow,
+with no library behind the form and no record of what filled it.
 
 Targets: MiniMax H3 (text to video, reference to video, first and last
-frame), Qwen Image, Qwen Image Edit. New targets are prompt templates
-plus a settings schema, not new code paths.
+frame), Qwen Image, Qwen Image Edit. A target owns prompt writing for one
+model; new targets are prompt templates plus a settings schema, not new code
+paths.
 
 ## Machine
 
-RTX 3070 Ti with 8GB VRAM, 31GB RAM. The local model is Qwen3.5-9B at Q4_K_M
-(5.68GB) with its vision projector (0.92GB), served by llama-server, and it
-describes reference pictures. Nothing else in the app calls a model. H3 itself
-does not run locally. Qwen Image runs locally only at Q2 or Q3 with the
-Lightning LoRA.
+RTX 5070 Ti with 16GB VRAM, 93GB RAM. ComfyUI runs through snug, which owns
+installs, containers and model pools; the base workflows and notes on running
+the models live in the gen-ai-docs vault. One user for now, though nothing is
+designed around the machine or the single user. The local model is
+Qwen3.5-9B with its vision projector, served by llama-server, and it
+describes reference pictures. Nothing else in the app calls a model.
 
 ## Decisions
 
@@ -206,15 +215,82 @@ Lightning LoRA.
   it pastes straight into the model's own form, with the clip, its note, the
   target and the request fields in a json beside it. It is written from the
   clip as it stands at the moment it is asked for.
-- A prompt is one field of a generation request, and the app holds the rest:
-  the task, the duration, the shape, the short edge, the seed and the
-  pictures. They are shown as fields to copy rather than sent anywhere,
-  because nothing the app can reach accepts them. The adaptor that would
-  turn them into a request belongs with the Runpod or ComfyUI work, built
-  against a real endpoint rather than guessed at from a sample.
-- Runpod: manual copy of prompts first. Then rsync of the project bundle
-  over SSH plus ComfyUI HTTP for queueing jobs and pulling outputs. Then
-  pod start and stop through the Runpod API.
+- Generation goes through ComfyUI's HTTP API: a workflow queued with
+  `POST /prompt`, followed by polling `/queue` and `/history`, outputs read
+  from `/history` and fetched with `/view`. A websocket would push progress
+  per node; polling was built because it needs no push channel and the
+  queue position and done states are what the run list shows.
+  Everything higher level is a template workflow, named values patched into
+  it, and a queue of posts, so dispatch needs no custom node. The request
+  fields the app used to show as things to copy, because nothing it could
+  reach accepted them, become bound inputs of whatever workflow runs the
+  clip.
+- A backend is a ComfyUI instance named by a base URL. Local through snug
+  first; a Runpod pod is the same code path with a different URL and a
+  transport for reading saved workflows, since there is no shared folder.
+  The earlier plan of rsync over SSH went: ComfyUI already serves outputs
+  and user files over HTTP.
+- App settings are machine settings: the backend, the folders and the model
+  server are about where the app runs, so they are global and a project
+  carries no configuration. The library is one folder for the user, never
+  one per project, because collections outlive any project and copy-on-use
+  already gives a project its own copies. The one fact that is neither
+  global nor the project's is which stack runs a workflow, and that belongs
+  on the workflow itself.
+- The library is a folder of files the user owns, pointed at in app settings
+  and read again each time its screen is shown. Top-level folders give the
+  kind (characters, scenes, prompts), a folder per entry, a file directly
+  under a kind an entry of its own, media type read from the file extension,
+  and an optional `entry.md` beside the files for notes. Kinds are shelf
+  labels for browsing: no code branches on them, so a new kind is a folder,
+  not a feature. The database holds nothing of it, so leaving the app keeps
+  the collection. The renderer reads its pictures through a `library://`
+  scheme that serves only files inside the folder, links resolved first.
+- The app reads the user's collections and copies from them, and writes to
+  them only on an explicit save or export. Using a library entry in a project
+  clones it in, as copy-on-use already required, so projects stay portable
+  and a deleted entry breaks nothing that used it.
+- A prompt in the library is a file: plain text for one written anywhere, a
+  JSON composition for one built here, whose text is written on demand
+  because it is a function of the composition. A foreign text prompt still
+  opens as a clip, so other people's prompts are curated by dropping them
+  into the folder.
+- A workflow enters a project by copy, with a link back to the source file.
+  When the source changes, the update applies silently if no inputs changed
+  and shows the diff when they did, and the project copy changes only when
+  the user accepts. The user's workflow collection is read-only to the app.
+  snug already mounts the instance's saved workflows as a local folder, so
+  saving in ComfyUI is the import gesture.
+- A mapping is a workflow's input surface: slots scanned from node type and
+  title, typed by media (text, image, audio, number, boolean, seed, lora
+  stack, bypass toggle), each slot basic, advanced or hidden, with the
+  workflow's own `How to use` note shown as its guide. The scan recognises
+  node types and takes names from titles, never one workflow's shape, so
+  what is specific to a model stays in the workflow and the target. A slot
+  takes an image and does not know it is a character: meaning is bound at
+  configuration time and recorded, not pushed into the workflow.
+- Re-import matches slots by node id and node type, and the diff is literal:
+  kept, added, removed, with a changed title shown as a rename. A removed
+  slot flags every configuration that bound it, and no guess is made that an
+  added slot is a removed one come back; reconnecting is the user's call.
+  Node ids are stable within a workflow file's lifetime, which is what makes
+  the id match safe.
+- A configuration is a saved binding of library items and literals to one
+  workflow's slots. It is duplicated rather than abstracted: moving work to
+  another workflow is rebinding the same library items there, not
+  translating a scenario between workflows whose inputs do not mean the same
+  thing. Queueing one configuration several times over several seeds is the
+  experiment loop. A binding takes a library entry, a file picked or dragged
+  from anywhere, or a literal typed in; a file from outside the library is
+  copied into the project as reference pictures are, so the library is a
+  convenience, never a gate.
+- A run records the bindings, the workflow snapshot it ran with, the seed
+  and its outputs, so any output can say what made it even after the
+  project's copy of the workflow has moved on.
+- Dispatch resolves the graph-format JSON to API format against the live
+  instance's `/object_info`, applies the bypasses, patches the bound values
+  and posts the result. This is the riskiest piece of the design, so it is
+  built first and against a real instance.
 - `pnpm-workspace.yaml` overrides `yauzl` to 3.x. Electron unpacks its binary
   with `extract-zip`, whose `yauzl@2` stalls part-way through the zip on
   current Node and exits 0 without writing `path.txt`, so a fresh install
@@ -225,9 +301,9 @@ Lightning LoRA.
 ## What the app does
 
 1. Projects: a welcome screen, create and open, and a recent list.
-2. A library of the people, places and objects a project refers to, with
-   reference pictures copied in and a description drafted from them by the
-   local vision model.
+2. The people, places and objects a project refers to, with reference
+   pictures copied in and a description drafted from them by the local
+   vision model.
 3. Clips built from shots, with camera moves, cuts, timings, subjects, sound,
    and one ordered list per shot of what happens and what is said, including
    who speaks, off-screen voices, lines carried across a cut and lines the clip
@@ -242,40 +318,92 @@ Lightning LoRA.
 6. A workspace of tabs holding scratch clips, saved clips and branches of
    either, with keyboard shortcuts and a list of them behind `?`, and undo
    per clip.
-7. A library of starting points: saved clips, saved shots and saved subjects,
-   each copied when it is used rather than shared.
+7. Saved starting points: clips, shots and subjects kept under Saved, each
+   copied when it is used rather than shared.
+8. A ComfyUI backend attached by URL in settings, with whether it answers
+   and its version shown. The app starts and stops nothing; snug owns the
+   instance.
+9. Workflow intake: the workflows folder named in settings and read in
+   place, a workflow imported into the project as a copy with a link back
+   to its source, its inputs scanned into a mapping of tiered slots, its
+   notes shown as its guide, and a literal kept, renamed, added and removed
+   diff when the source changes, applied silently when no slot changed and
+   naming the configurations that bind a removed slot when one did. Each
+   slot can carry a shown name and a note, and importing a workflow that
+   resembles a mapped one offers to copy its mapping.
+10. Dispatch: the graph resolved to API format against the instance's
+    `/object_info`, bound values patched in, picked files uploaded, the run
+    queued and followed by polling, its outputs pulled into the project,
+    and the run recorded with its bindings and its seed. A run can be
+    cancelled, opened in its folder, read slot by slot behind a Details
+    fold, and deleted with its files, and an imported workflow can be
+    removed with everything that hangs off it.
+11. The library: a folder of files the user owns, named in settings, read
+    as kinds, entries, files and notes, served read-only over `library://`,
+    with copy-on-use into subjects, image slots and clips, and one explicit
+    write back, copying a saved subject out as a new entry. A library
+    entry with a picture joins a clip's cast in one flow from the cast
+    strip or the command menu.
+12. Configurations: named bindings saved per workflow with their picked
+    files copied into the project, loaded back with anything stale named,
+    renamed, duplicated and deleted, and queued as a batch with fresh seeds.
+13. Review: outputs previewed beside their run, marked good or bad with a
+    note, filtered with counts, and the good ones exported together to a
+    chosen folder.
+14. The run form filled from outside itself: pictures, sounds and saved
+    prompt files picked from the library, a file dropped straight onto a
+    slot, and a clip's prompt, duration and frame pictures sent onto the
+    slots of a chosen workflow, each slot confirmed in the send dialog,
+    arriving as typed values and chosen files to edit, save or queue.
 
 ## Milestones
 
-8. The shot editor: subjects referred to inline, the way `@` works in a chat
-   app, so naming someone in a line is what puts them in the shot; fields added
-   as they are wanted rather than all present and empty; slash commands for the
-   same from the keyboard. The lines are already one ordered list carrying
-   text, so this is a renderer change rather than another migration.
-9. Improving a field with a model: an enhance action on one text field at a
-   time, which is a job small enough to check, rather than a model writing the
-   whole prompt. Worth looking at what the ComfyUI prompt enhancer nodes do
-   and which models they use.
-10. Full reference mode: pictures and audio labelled as `<Picture N>` and
-    `<Audio N>`, subjects built from them, retention markers, and a second
-    target whose prompt is six sections rather than three.
-    `docs/h3-mapping.md` says what is missing before it can be built.
-11. Storyboard editor: clips in order across a film, chained by last frame
-    to first frame.
-12. Runpod link: connect to a pod, pull outputs into the project, show each
-    take next to its shot, mark good or bad with notes, export chosen takes.
-    Four separate features, none assuming the others: takes, remote files over
-    SSH, a provider interface with Runpod as one implementation, and a
-    generation backend such as ComfyUI.
-13. ComfyUI templates: API-format workflow JSON per target with named slots,
-    filled and submitted by the app.
-14. Local ComfyUI management: model downloads, start and stop, RefMod
-    creation if the H3 VAE fits in 8GB with offload (TBD).
+15. H3 prompt builder overhaul: the clip editor as the editor behind a
+    prompt slot, library prompts offered as starting points, and the
+    confusions of the ComfyUI builder it replaces addressed rather than
+    copied.
+
+## Later
+
+In rough order, none started and none assuming the others:
+
+- snug integration: discover the machine's stacks with their names, ports,
+  running state and workflows folders instead of a typed URL and folder,
+  list workflows grouped by stack, tag an imported workflow with the stack
+  it came from, and queue it against that stack's port with its state
+  shown. The typed URL and folder stay as the fallback for machines
+  without snug and for remote backends. How to read the stacks (the snug
+  CLI or its own files) is pinned at build time.
+- A route or node on the ComfyUI side that sends things back: "export into
+  preshoot" for a prompt or an output worth keeping.
+- LoRA Manager: its loader node is already in the base workflows; read its
+  metadata and recipe routes before designing the lora slot.
+- Runpod: a backend at a remote URL, saved workflows read over the userdata
+  routes instead of a watched folder, outputs pulled down over HTTP, pod
+  start and stop through the Runpod API.
+- Naming a subject inline while typing, the way `@` works in a chat app, so
+  naming someone in a line is what puts them in the shot.
+- Improving a field with a model: an enhance action on one text field at a
+  time, which is a job small enough to check.
+- Full reference mode: pictures and audio labelled as `<Picture N>` and
+  `<Audio N>`, subjects built from them, retention markers, and a second
+  target whose prompt is six sections rather than three.
+  `docs/h3-mapping.md` says what is missing before it can be built.
+- Storyboard editor: clips in order across a film, chained by last frame to
+  first frame.
 
 ## Open questions
 
 Unanswered, and each one decides a later milestone. Bugs, limitations and
 improvements live in `docs/issues.md`.
 
-- Whether Qwen Image at Q4 is usable with RAM offload on this machine.
-- Whether RefMod creation fits on 8GB. Import RefMods regardless.
+- Whether a prompt slot binds a composed clip by copy or by reference: by
+  reference the prompt follows the clip as it is edited, by copy a
+  configuration stays reproducible. As built, a text slot holds a literal,
+  so a configuration keeps its prompt by copy, and a sent prompt arrives as
+  typed text; binding a composed clip is milestone 15's decision.
+- The exact shapes of the userdata routes, pinned against a live instance
+  when the Runpod work starts.
+- Whether preshoot may ask snug to start a stopped stack when a run needs
+  it. The app starts and stops nothing today; asking snug is delegation
+  rather than ownership, but it is still a change to that decision.

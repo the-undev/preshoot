@@ -1,3 +1,4 @@
+import type { ComfyUiClient } from "../core/backend/comfyui-client"
 import type { LlamaServerClient } from "../core/prompting/llama-server-client"
 import type { ClipHistory } from "../core/composition/history"
 import type { ProjectSession } from "../core/projects/session"
@@ -12,6 +13,7 @@ export interface Context {
   migrationsFolder: string
   dialogs: Dialogs
   promptClient(baseUrl: string): LlamaServerClient
+  comfyUiClient(baseUrl: string): ComfyUiClient
   openPath(path: string): Promise<void>
 }
 
@@ -26,6 +28,11 @@ export interface RuntimeVersions {
 /** Native pickers the renderer drives through the router. */
 export interface Dialogs {
   pickDirectory(options: { title: string; allowCreate: boolean }): Promise<string | null>
-  pickFiles(options: { title: string; extensions: string[] }): Promise<string[]>
+  pickFiles(options: {
+    title: string
+    filterName: string
+    extensions: string[]
+    multiple: boolean
+  }): Promise<string[]>
   saveFile(options: { title: string; defaultPath: string }): Promise<string | null>
 }

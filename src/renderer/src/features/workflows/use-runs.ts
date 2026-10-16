@@ -1,0 +1,261 @@
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { useCallback, useEffect, useState } from "react"
+import {
+  useTRPC,
+  useTRPCClient,
+  type LibraryFile,
+  type OutputExport,
+  type RunBinding,
+  type RunRecord,
+  type RunStatus,
+  type SavedSlotValue,
+  type Verdict,
+  type VerdictCounts,
+} from "@renderer/lib/trpc"
+import type { FileKind } from "./run-form"
+
+/** How often unfinished runs are asked about while the screen is open. */
+const POLL_INTERVAL_MS = 1_500
+
+/** How often an unreachable ComfyUI is asked again, so starting it unblocks the form. */
+const STATUS_RETRY_MS = 5_000
+
+/** What the run form needs: the values it starts from, whether it can queue, and its calls. */
+export interface RunFormPanel {
+  savedValues: SavedSlotValue[] | undefined
+  blockedReason: string | null
+  isQueueing: boolean
+  queue(bindings: RunBinding[], count: number, configurationId: number | null): void
+  pickFile(kind: FileKind): Promise<string | null>
+  readLibraryText(file: LibraryFile): Promise<string>
+  errorMessage: string | null
+}
+
+/**
+ * Reads a workflow's saved values and whether ComfyUI answers, and queues runs of it.
+ */
+export function useRunForm(workflowId: number): RunFormPanel {
+  const trpc = useTRPC()
+  const client = useTRPCClient()
+  const queryClient = useQueryClient()
+  const values = useQuery(trpc.runs.values.queryOptions({ workflowId }))
+  const settings = useQuery(trpc.settings.get.queryOptions())
+  const status = useQuery(
+    trpc.settings.comfyUiStatus.queryOptions(undefined, {
+      refetchInterval: (query) =>
+        query.state.data?.state === "unreachable" ? STATUS_RETRY_MS : false,
+    })
+  )
+  const queue = useMutation(
+    trpc.runs.queue.mutationOptions({
+      onSuccess: () => queryClient.invalidateQueries({ queryKey: trpc.runs.list.pathKey() }),
+    })
+  )
+  const pickFile = useMutation(trpc.runs.pickFile.mutationOptions())
+  // Kept the same between renders, so the picker's previews are not read again on each poll.
+  const readLibraryText = useCallback(
+    async (file: LibraryFile) =>
+      (await client.library.readText.query({ relativePath: file.relativePath })).text,
+    [client]
+  )
+
+  return {
+    savedValues: values.data,
+    blockedReason: blockedReason(status.data?.state, settings.data?.comfyUiUrl),
+    isQueueing: queue.isPending,
+    queue: (bindings, count, configurationId) =>
+      queue.mutate({ workflowId, bindings, count, configurationId }),
+    pickFile: (kind) => pickFile.mutateAsync({ kind }),
+    readLibraryText,
+    errorMessage: queue.error?.message ?? pickFile.error?.message ?? values.error?.message ?? null,
+  }
+}
+
+/** Why nothing can be queued yet, or nothing when ComfyUI answers. */
+function blockedReason(
+  state: "reachable" | "unreachable" | undefined,
+  url: string | undefined
+): string | null {
+  if (state === undefined) return "Checking ComfyUI…"
+  if (state === "reachable") return null
+  return `ComfyUI does not answer at ${url ?? "the saved URL"}. Start it, or change the URL in settings.`
+}
+
+/** A workflow's runs, where waiting ones stand in the queue, and the calls that act on them. */
+export interface RunsPanel {
+  runs: RunRecord[]
+  positions: Record<number, number | null>
+  pollError: string | null
+  openOutput(outputId: number): void
+  /** Opens the folder a run's outputs sit in. */
+  showRunFolder(runId: number): void
+  cancel(runId: number): void
+  /** The runs a cancel has been asked for and not yet answered. */
+  cancellingRunIds: ReadonlySet<number>
+  cancelError: string | null
+  /** Deletes a finished run with its files. */
+  remove(runId: number): void
+  deleteError: string | null
+}
+
+/** Lists a workflow's runs and asks ComfyUI about the unfinished ones until none are left. */
+export function useRuns(workflowId: number): RunsPanel {
+  const trpc = useTRPC()
+  const client = useTRPCClient()
+  const queryClient = useQueryClient()
+  const runs = useQuery(trpc.runs.list.queryOptions({ workflowId }))
+  const openOutput = useMutation(trpc.runs.openOutput.mutationOptions())
+  const openRunFolder = useMutation(trpc.runs.openRunFolder.mutationOptions())
+  const cancel = useMutation(
+    trpc.runs.cancel.mutationOptions({
+      onSettled: () =>
+        queryClient.invalidateQueries({ queryKey: trpc.runs.list.queryKey({ workflowId }) }),
+    })
+  )
+  const remove = useMutation(
+    trpc.runs.delete.mutationOptions({
+      onSuccess: () =>
+        Promise.all([
+          queryClient.invalidateQueries({ queryKey: trpc.runs.list.queryKey({ workflowId }) }),
+          queryClient.invalidateQueries({ queryKey: trpc.review.counts.queryKey({ workflowId }) }),
+        ]),
+    })
+  )
+  const [cancellingRunIds, setCancellingRunIds] = useState<ReadonlySet<number>>(new Set())
+  const [positions, setPositions] = useState<Record<number, number | null>>({})
+  const [pollError, setPollError] = useState<string | null>(null)
+
+  // A string, so the effect restarts only when the set of unfinished runs changes.
+  const unfinished = (runs.data ?? [])
+    .filter(isUnfinished)
+    .map((run) => run.id)
+    .join(",")
+
+  useEffect(() => {
+    if (unfinished === "") return
+    const listKey = trpc.runs.list.queryKey({ workflowId })
+    let inFlight = false
+    const poll = async (): Promise<void> => {
+      if (inFlight) return
+      inFlight = true
+      // A failed poll may have recorded some runs before it stopped, so the list is read again.
+      let changed = true
+      try {
+        const statuses = await client.runs.poll.mutate({ workflowId })
+        setPositions(positionsOf(statuses))
+        setPollError(null)
+        changed = changesState(statuses, queryClient.getQueryData(listKey) ?? [])
+      } catch (error) {
+        setPollError(error instanceof Error ? error.message : String(error))
+      } finally {
+        inFlight = false
+        if (changed) await queryClient.invalidateQueries({ queryKey: listKey })
+      }
+    }
+    void poll()
+    const timer = setInterval(() => void poll(), POLL_INTERVAL_MS)
+    return () => clearInterval(timer)
+  }, [unfinished, client, queryClient, trpc, workflowId])
+
+  return {
+    runs: runs.data ?? [],
+    positions,
+    pollError:
+      pollError ??
+      openOutput.error?.message ??
+      openRunFolder.error?.message ??
+      runs.error?.message ??
+      null,
+    openOutput: (outputId) => openOutput.mutate({ outputId }),
+    showRunFolder: (runId) => openRunFolder.mutate({ runId }),
+    cancel: (runId) => {
+      setCancellingRunIds((current) => new Set(current).add(runId))
+      // The error stays on the mutation, so the promise is settled here only to free the button.
+      void cancel
+        .mutateAsync({ runId })
+        .catch(() => {})
+        .finally(() =>
+          setCancellingRunIds((current) => {
+            const next = new Set(current)
+            next.delete(runId)
+            return next
+          })
+        )
+    },
+    cancellingRunIds,
+    cancelError: cancel.error?.message ?? null,
+    remove: (runId) => remove.mutate({ runId }),
+    deleteError: remove.error?.message ?? null,
+  }
+}
+
+/** Whether ComfyUI has yet to finish with a run. */
+function isUnfinished(run: RunRecord): boolean {
+  return run.state === "queued" || run.state === "running"
+}
+
+/** Where each run a poll found unfinished stands in the queue; a finished run has no entry. */
+export function positionsOf(statuses: RunStatus[]): Record<number, number | null> {
+  return Object.fromEntries(
+    statuses
+      .filter((status) => isUnfinished(status.run))
+      .map((status) => [status.run.id, status.position])
+  )
+}
+
+/** Whether a poll moved any run to a state other than the one the list shows. */
+export function changesState(statuses: RunStatus[], listed: RunRecord[]): boolean {
+  const listedStates = new Map(listed.map((run) => [run.id, run.state]))
+  return statuses.some((status) => listedStates.get(status.run.id) !== status.run.state)
+}
+
+/** What a workflow's outputs count before the counts are read. */
+const NO_COUNTS: VerdictCounts = { all: 0, good: 0, bad: 0, unmarked: 0 }
+
+/** How many outputs each verdict has, the calls that give one, and the export of the good ones. */
+export interface ReviewPanel {
+  counts: VerdictCounts
+  setVerdict(outputId: number, verdict: Verdict | null): void
+  setNote(outputId: number, note: string): void
+  isExporting: boolean
+  /** What the last export did, or nothing before the first. */
+  lastExport: OutputExport | null
+  exportGood(): void
+  /** Opens the folder an export wrote to. */
+  openExportFolder(folder: string): void
+  errorMessage: string | null
+}
+
+/** Reads a workflow's verdict counts, marks and notes its outputs, and exports the good ones. */
+export function useReview(workflowId: number): ReviewPanel {
+  const trpc = useTRPC()
+  const queryClient = useQueryClient()
+  const counts = useQuery(trpc.review.counts.queryOptions({ workflowId }))
+  const refresh = async (): Promise<void> => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: trpc.runs.list.queryKey({ workflowId }) }),
+      queryClient.invalidateQueries({ queryKey: trpc.review.counts.queryKey({ workflowId }) }),
+    ])
+  }
+  const setVerdict = useMutation(trpc.review.setVerdict.mutationOptions({ onSuccess: refresh }))
+  const setNote = useMutation(trpc.review.setNote.mutationOptions({ onSuccess: refresh }))
+  const exportGood = useMutation(trpc.review.exportGood.mutationOptions())
+  const openExportFolder = useMutation(trpc.review.openExportFolder.mutationOptions())
+
+  return {
+    counts: counts.data ?? NO_COUNTS,
+    setVerdict: (outputId, verdict) => setVerdict.mutate({ outputId, verdict }),
+    setNote: (outputId, note) => setNote.mutate({ outputId, note }),
+    isExporting: exportGood.isPending,
+    lastExport: exportGood.data ?? null,
+    exportGood: () => exportGood.mutate({ workflowId }),
+    openExportFolder: (folder) => openExportFolder.mutate({ folder }),
+    errorMessage:
+      setVerdict.error?.message ??
+      setNote.error?.message ??
+      exportGood.error?.message ??
+      openExportFolder.error?.message ??
+      counts.error?.message ??
+      null,
+  }
+}

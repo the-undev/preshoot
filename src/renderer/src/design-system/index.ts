@@ -24,6 +24,13 @@ export {
   DialogTitle,
   DialogTrigger,
 } from "./ui/dialog"
+export {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "./ui/dropdown-menu"
 export { Input } from "./ui/input"
 export { Label } from "./ui/label"
 export { Popover, PopoverAnchor, PopoverContent, PopoverTrigger } from "./ui/popover"
@@ -39,6 +46,7 @@ export {
   SelectValue,
 } from "./ui/select"
 export { Separator } from "./ui/separator"
+export { Switch } from "./ui/switch"
 export { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs"
 export { Textarea } from "./ui/textarea"
 export { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip"

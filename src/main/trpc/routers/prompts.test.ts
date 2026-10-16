@@ -43,6 +43,9 @@ describe("prompts router", () => {
         opened.push(path)
       },
       promptClient: () => ({}) as unknown as LlamaServerClient,
+      comfyUiClient: () => {
+        throw new Error("the prompts router does not talk to ComfyUI")
+      },
     }
     caller = appRouter.createCaller(ctx)
   })

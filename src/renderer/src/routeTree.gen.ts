@@ -13,6 +13,8 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as ProjectRouteImport } from './routes/project'
 import { Route as ProjectIndexRouteImport } from './routes/project.index'
 import { Route as ProjectLibraryRouteImport } from './routes/project.library'
+import { Route as ProjectSavedRouteImport } from './routes/project.saved'
+import { Route as ProjectWorkflowsRouteImport } from './routes/project.workflows'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -34,16 +36,30 @@ const ProjectLibraryRoute = ProjectLibraryRouteImport.update({
   path: '/library',
   getParentRoute: () => ProjectRoute,
 } as any)
+const ProjectSavedRoute = ProjectSavedRouteImport.update({
+  id: '/saved',
+  path: '/saved',
+  getParentRoute: () => ProjectRoute,
+} as any)
+const ProjectWorkflowsRoute = ProjectWorkflowsRouteImport.update({
+  id: '/workflows',
+  path: '/workflows',
+  getParentRoute: () => ProjectRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/project': typeof ProjectRouteWithChildren
   '/project/library': typeof ProjectLibraryRoute
+  '/project/saved': typeof ProjectSavedRoute
+  '/project/workflows': typeof ProjectWorkflowsRoute
   '/project/': typeof ProjectIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/project/library': typeof ProjectLibraryRoute
+  '/project/saved': typeof ProjectSavedRoute
+  '/project/workflows': typeof ProjectWorkflowsRoute
   '/project': typeof ProjectIndexRoute
 }
 export interface FileRoutesById {
@@ -51,14 +67,34 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/project': typeof ProjectRouteWithChildren
   '/project/library': typeof ProjectLibraryRoute
+  '/project/saved': typeof ProjectSavedRoute
+  '/project/workflows': typeof ProjectWorkflowsRoute
   '/project/': typeof ProjectIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/project' | '/project/library' | '/project/'
+  fullPaths:
+    | '/'
+    | '/project'
+    | '/project/library'
+    | '/project/saved'
+    | '/project/workflows'
+    | '/project/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/project/library' | '/project'
-  id: '__root__' | '/' | '/project' | '/project/library' | '/project/'
+  to:
+    | '/'
+    | '/project/library'
+    | '/project/saved'
+    | '/project/workflows'
+    | '/project'
+  id:
+    | '__root__'
+    | '/'
+    | '/project'
+    | '/project/library'
+    | '/project/saved'
+    | '/project/workflows'
+    | '/project/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -96,16 +132,34 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProjectLibraryRouteImport
       parentRoute: typeof ProjectRoute
     }
+    '/project/saved': {
+      id: '/project/saved'
+      path: '/saved'
+      fullPath: '/project/saved'
+      preLoaderRoute: typeof ProjectSavedRouteImport
+      parentRoute: typeof ProjectRoute
+    }
+    '/project/workflows': {
+      id: '/project/workflows'
+      path: '/workflows'
+      fullPath: '/project/workflows'
+      preLoaderRoute: typeof ProjectWorkflowsRouteImport
+      parentRoute: typeof ProjectRoute
+    }
   }
 }
 
 interface ProjectRouteChildren {
   ProjectLibraryRoute: typeof ProjectLibraryRoute
+  ProjectSavedRoute: typeof ProjectSavedRoute
+  ProjectWorkflowsRoute: typeof ProjectWorkflowsRoute
   ProjectIndexRoute: typeof ProjectIndexRoute
 }
 
 const ProjectRouteChildren: ProjectRouteChildren = {
   ProjectLibraryRoute: ProjectLibraryRoute,
+  ProjectSavedRoute: ProjectSavedRoute,
+  ProjectWorkflowsRoute: ProjectWorkflowsRoute,
   ProjectIndexRoute: ProjectIndexRoute,
 }
 

@@ -19,6 +19,8 @@ export interface GenerationCondition {
   role: "keyframe"
   at: "first frame" | "last frame"
   fileName: string
+  /** The picture in the project's library, as `asset://` serves it. */
+  imageId: number
   fromAsset: string
 }
 
@@ -70,6 +72,7 @@ export function buildRequest(composition: ClipComposition, rendered: string): Ge
       role: "keyframe",
       at: frame.role === "first" ? "first frame" : "last frame",
       fileName: frame.fileName,
+      imageId: frame.imageId,
       fromAsset: frame.assetName,
     })),
   }

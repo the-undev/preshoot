@@ -1,6 +1,7 @@
 import { useState } from "react"
 import { useMutation, useQuery } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
+import { Settings } from "lucide-react"
 import {
   Alert,
   AlertDescription,
@@ -9,10 +10,15 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
 } from "@renderer/design-system"
 import { NewProjectDialog } from "@renderer/features/projects/new-project-dialog"
 import { RecentProjectsList } from "@renderer/features/projects/recent-projects-list"
 import { useOpenProject } from "@renderer/features/projects/use-open-project"
+import { useOpenSettings } from "@renderer/features/settings/settings-dialog-context"
+import { SettingsDialogProvider } from "@renderer/features/settings/use-settings-dialog"
 import { useTRPC } from "@renderer/lib/trpc"
 
 export const Route = createFileRoute("/")({
@@ -20,6 +26,15 @@ export const Route = createFileRoute("/")({
 })
 
 function WelcomePage(): React.JSX.Element {
+  return (
+    <SettingsDialogProvider>
+      <Welcome />
+    </SettingsDialogProvider>
+  )
+}
+
+function Welcome(): React.JSX.Element {
+  const openSettings = useOpenSettings()
   const trpc = useTRPC()
   const info = useQuery(trpc.system.info.queryOptions())
   const recent = useQuery(trpc.projects.recent.queryOptions())
@@ -77,11 +92,21 @@ function WelcomePage(): React.JSX.Element {
       onDrop={dropFolder}
     >
       <div className="flex w-full max-w-[900px] flex-col gap-6">
-        <header className="flex flex-col gap-1">
-          <h1 className="font-heading text-3xl font-semibold">preshoot</h1>
-          <p className="text-sm text-muted-foreground">
-            Storyboards and generation prompts. Open a project folder to start.
-          </p>
+        <header className="flex items-start justify-between gap-6">
+          <div className="flex flex-col gap-1">
+            <h1 className="font-heading text-3xl font-semibold">preshoot</h1>
+            <p className="text-sm text-muted-foreground">
+              Storyboards and generation prompts. Open a project folder to start.
+            </p>
+          </div>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="ghost" size="icon" aria-label="Settings" onClick={openSettings}>
+                <Settings />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Settings</TooltipContent>
+          </Tooltip>
         </header>
 
         <Card>

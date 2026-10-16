@@ -26,9 +26,11 @@ function renderCast(over: Partial<React.ComponentProps<typeof ClipCast>> = {}): 
   onUpdate: ReturnType<typeof vi.fn>
   onSave: ReturnType<typeof vi.fn>
   onRemove: ReturnType<typeof vi.fn>
+  onAddFromLibrary: ReturnType<typeof vi.fn>
 } {
   const handlers = {
     onAdd: vi.fn(),
+    onAddFromLibrary: vi.fn(),
     onUpdate: vi.fn(),
     onSave: vi.fn(),
     onRemove: vi.fn(),
@@ -78,11 +80,11 @@ describe("ClipCast", () => {
     expect(screen.getByLabelText("Voice")).toBeInTheDocument()
   })
 
-  it("saves a subject to the library", () => {
+  it("saves a subject as a starting point", () => {
     const { onSave } = renderCast()
 
     fireEvent.click(screen.getByRole("button", { name: "Edit Keeper" }))
-    fireEvent.click(screen.getByRole("button", { name: "Save Keeper to the library" }))
+    fireEvent.click(screen.getByRole("button", { name: "Save Keeper as a starting point" }))
 
     expect(onSave).toHaveBeenCalledWith(5)
   })
@@ -124,7 +126,7 @@ describe("ClipCast", () => {
     expect(onAdd).toHaveBeenCalledWith(expect.objectContaining({ kind: "place", name: "Cellar" }))
   })
 
-  it("adds a subject the library already holds", () => {
+  it("adds a subject already saved", () => {
     const { onAdd } = renderCast({ saved: [savedLamp] })
 
     fireEvent.click(screen.getByRole("button", { name: "Add a subject" }))
@@ -133,11 +135,22 @@ describe("ClipCast", () => {
     expect(onAdd).toHaveBeenCalledWith(expect.objectContaining({ savedId: 9 }))
   })
 
-  it("offers nothing from the library when it holds nothing", () => {
+  it("opens the library from the add chip, adding nothing itself", () => {
+    const { onAdd, onAddFromLibrary } = renderCast()
+
+    fireEvent.click(screen.getByRole("button", { name: "Add a subject" }))
+    fireEvent.click(screen.getByRole("button", { name: "From library" }))
+
+    expect(onAddFromLibrary).toHaveBeenCalledTimes(1)
+    expect(onAdd).not.toHaveBeenCalled()
+    expect(screen.queryByLabelText("Name a new subject")).not.toBeInTheDocument()
+  })
+
+  it("offers nothing from saved when nothing is saved", () => {
     renderCast()
 
     fireEvent.click(screen.getByRole("button", { name: "Add a subject" }))
 
-    expect(screen.queryByText("From the library")).not.toBeInTheDocument()
+    expect(screen.queryByText("From saved")).not.toBeInTheDocument()
   })
 })

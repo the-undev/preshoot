@@ -1,7 +1,8 @@
 import { z } from "zod"
+import type { ComfyUiStatus } from "../../core/backend/comfyui-client"
 import { PromptServiceError } from "../../core/prompting/errors"
 import type { ServerModel } from "../../core/prompting/llama-server-client"
-import { llamaServerUrlSchema } from "../../core/settings/app-settings"
+import { comfyUiUrlSchema, llamaServerUrlSchema } from "../../core/settings/app-settings"
 import { publicProcedure, router } from "../trpc"
 
 /** What a server had to say when it was asked, models included when it answered. */
@@ -15,19 +16,45 @@ export const settingsRouter = router({
   get: publicProcedure.query(({ ctx }) => ({
     llamaServerUrl: ctx.settings.llamaServerUrl(),
     llamaModel: ctx.settings.llamaModel(),
+    comfyUiUrl: ctx.settings.comfyUiUrl(),
+    workflowsFolder: ctx.settings.workflowsFolder(),
+    libraryFolder: ctx.settings.libraryFolder(),
   })),
 
-  /** Points the app at a different llama-server, or a different model on it. */
+  /**
+   * Points the app at a different llama-server, a different model on it, a different ComfyUI, a
+   * different workflows folder or a different library folder.
+   */
   update: publicProcedure
-    .input(z.object({ llamaServerUrl: llamaServerUrlSchema, llamaModel: z.string() }))
+    .input(
+      z.object({
+        llamaServerUrl: llamaServerUrlSchema,
+        llamaModel: z.string(),
+        comfyUiUrl: comfyUiUrlSchema,
+        workflowsFolder: z.string().trim().min(1).nullable(),
+        libraryFolder: z.string().trim().min(1).nullable(),
+      })
+    )
     .mutation(({ ctx, input }) => {
-      ctx.settings.setLlamaServerUrl(input.llamaServerUrl)
-      ctx.settings.setLlamaModel(input.llamaModel)
+      ctx.settings.update(input)
       return {
         llamaServerUrl: ctx.settings.llamaServerUrl(),
         llamaModel: ctx.settings.llamaModel(),
+        comfyUiUrl: ctx.settings.comfyUiUrl(),
+        workflowsFolder: ctx.settings.workflowsFolder(),
+        libraryFolder: ctx.settings.libraryFolder(),
       }
     }),
+
+  /** Asks for a workflows folder and hands it back without saving it, for the form to show. */
+  pickWorkflowsFolder: publicProcedure.mutation(({ ctx }) =>
+    ctx.dialogs.pickDirectory({ title: "Choose the workflows folder", allowCreate: false })
+  ),
+
+  /** Asks for a library folder and hands it back without saving it, for the form to show. */
+  pickLibraryFolder: publicProcedure.mutation(({ ctx }) =>
+    ctx.dialogs.pickDirectory({ title: "Choose the library folder", allowCreate: true })
+  ),
 
   /** What the saved server can serve, asked for whenever the dialog is opened. */
   models: publicProcedure.query(async ({ ctx }): Promise<ServerReport> => {
@@ -62,6 +89,16 @@ export const settingsRouter = router({
         throw error
       }
     }),
+
+  /** Whether the saved ComfyUI answers, asked for whenever the dialog is opened. */
+  comfyUiStatus: publicProcedure.query(({ ctx }): Promise<ComfyUiStatus> =>
+    ctx.comfyUiClient(ctx.settings.comfyUiUrl()).status()
+  ),
+
+  /** Whether a ComfyUI answers at `url`, so the dialog can look before saving. */
+  checkComfyUi: publicProcedure
+    .input(z.object({ url: comfyUiUrlSchema }))
+    .mutation(({ ctx, input }): Promise<ComfyUiStatus> => ctx.comfyUiClient(input.url).status()),
 
   /** Frees a loaded model, which hands the card back without stopping the server. */
   unloadModel: publicProcedure

@@ -125,3 +125,105 @@ export const openTabs = sqliteTable("open_tabs", {
   clipId: integer("clip_id"),
   position: integer("position").notNull(),
 })
+
+/**
+ * A ComfyUI workflow copied into the project. The graph is the source file's text as it was read,
+ * so the hash of the snapshot and the hash of an unchanged source are the same.
+ */
+export const workflows = sqliteTable("workflows", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  // The source file's name without its extension.
+  name: text("name").notNull(),
+  // Where the workflow was copied from, which the app reads and never writes.
+  sourcePath: text("source_path").notNull(),
+  graph: text("graph").notNull(),
+  // A sha256 of the graph text, compared with the source file's to tell when it has changed.
+  contentHash: text("content_hash").notNull(),
+  importedAt: integer("imported_at", { mode: "timestamp_ms" }).notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
+})
+
+/** One input of a workflow the app can fill, found by scanning its graph. */
+export const workflowSlots = sqliteTable("workflow_slots", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  workflowId: integer("workflow_id")
+    .notNull()
+    .references(() => workflows.id, { onDelete: "cascade" }),
+  // The node's id in the graph, which ComfyUI never reuses or renumbers within one file.
+  nodeId: integer("node_id").notNull(),
+  nodeType: text("node_type").notNull(),
+  // The name the scan took from the node title, which a re-scan is compared by.
+  name: text("name").notNull(),
+  // The name the form shows instead of the scanned one, or null to show the scanned one.
+  displayName: text("display_name"),
+  // One line the form shows under the slot. Set by the user and kept across updates.
+  note: text("note").notNull().default(""),
+  kind: text("kind").notNull(),
+  // Basic, advanced or hidden. Set by the scan and changed by the user, and kept across updates.
+  tier: text("tier").notNull(),
+  // Whether the node is muted or bypassed in the graph, so the slot starts off until it is used.
+  startsOff: integer("starts_off", { mode: "boolean" }).notNull(),
+  // Whether a text slot's value runs over several lines. Read from the node type by the scan.
+  multiline: integer("multiline", { mode: "boolean" }).notNull().default(false),
+  position: integer("position").notNull(),
+})
+
+/**
+ * A saved set of values for one workflow's slots, which the run form loads back. Each binding
+ * names its slot by node id and node type, so it still finds the slot after the workflow's source
+ * changes, and a file it holds is a copy in the project's inputs folder.
+ */
+export const configurations = sqliteTable("configurations", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  workflowId: integer("workflow_id")
+    .notNull()
+    .references(() => workflows.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  bindings: text("bindings", { mode: "json" }).notNull(),
+  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
+})
+
+/**
+ * One time a workflow was queued. The prompt is the API-format JSON exactly as it was posted and
+ * the bindings are what filled the slots, so a run can say what made it after the workflow moves
+ * on.
+ */
+export const runs = sqliteTable("runs", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  workflowId: integer("workflow_id")
+    .notNull()
+    .references(() => workflows.id, { onDelete: "cascade" }),
+  // ComfyUI's id for the queued prompt, which its queue and history are read by.
+  promptId: text("prompt_id").notNull(),
+  apiPrompt: text("api_prompt").notNull(),
+  bindings: text("bindings", { mode: "json" }).notNull(),
+  // The configuration the run was queued from, or nothing for one filled by hand. A plain column
+  // rather than a key: drizzle-kit adds a key to an existing table without its delete rule, so
+  // deleting a configuration clears this itself.
+  configurationId: integer("configuration_id"),
+  // The value the seed slot ran with, or nothing when the workflow has no seed slot.
+  seed: integer("seed"),
+  // Queued, running, failed or done, as the last poll of ComfyUI found it.
+  state: text("state").notNull(),
+  // Why the run failed, in ComfyUI's words when it gave them.
+  error: text("error"),
+  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+  finishedAt: integer("finished_at", { mode: "timestamp_ms" }),
+})
+
+/** A file a finished run wrote, copied into the project's outputs folder. */
+export const runOutputs = sqliteTable("run_outputs", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  runId: integer("run_id")
+    .notNull()
+    .references(() => runs.id, { onDelete: "cascade" }),
+  // Relative to the project folder, with forward slashes.
+  path: text("path").notNull(),
+  // The name ComfyUI saved it under.
+  sourceFilename: text("source_filename").notNull(),
+  position: integer("position").notNull(),
+  // Good, bad, or nothing until the output has been looked at.
+  verdict: text("verdict"),
+  note: text("note").notNull().default(""),
+})

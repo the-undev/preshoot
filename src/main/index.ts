@@ -2,13 +2,14 @@ import { app, protocol, shell, BrowserWindow, Menu, nativeTheme } from "electron
 import { join } from "path"
 import { electronApp, optimizer, is } from "@electron-toolkit/utils"
 import icon from "../../resources/icon.png?asset"
+import { ComfyUiClient } from "./core/backend/comfyui-client"
 import { LlamaServerClient } from "./core/prompting/llama-server-client"
 import { ClipHistory } from "./core/composition/history"
 import { ProjectSession } from "./core/projects/session"
 import { AppSettingsStore } from "./core/settings/app-settings"
 import { createDialogs } from "./dialogs"
 import { APP_MENU } from "./menu"
-import { handleAssetRequests } from "./images/protocol"
+import { handleAssetRequests, handleLibraryRequests, handleOutputRequests } from "./images/protocol"
 import { PRIVILEGED_SCHEMES } from "./schemes"
 import { handleTrpcRequests } from "./trpc/protocol"
 import type { Context } from "./trpc/context"
@@ -31,8 +32,7 @@ function migrationsFolder(): string {
 }
 
 /** Builds the values every procedure reaches. Folder pickers open over `window`. */
-function createContext(window: BrowserWindow): () => Context {
-  const settings = new AppSettingsStore(join(app.getPath("userData"), "settings.json"))
+function createContext(window: BrowserWindow, settings: AppSettingsStore): () => Context {
   const context: Context = {
     versions: {
       app: app.getVersion(),
@@ -47,6 +47,7 @@ function createContext(window: BrowserWindow): () => Context {
     dialogs: createDialogs(window),
     // Built per request, so a URL saved in settings applies to the next generation without a restart.
     promptClient: (baseUrl) => new LlamaServerClient({ baseUrl, fetch: globalThis.fetch }),
+    comfyUiClient: (baseUrl) => new ComfyUiClient({ baseUrl, fetch: globalThis.fetch }),
     openPath: async (path) => {
       await shell.openPath(path)
     },
@@ -104,8 +105,11 @@ app.whenReady().then(() => {
 
   // The window exists before the page loads so the protocol handler is ready for its first request.
   const mainWindow = createWindow()
-  handleTrpcRequests(createContext(mainWindow))
+  const settings = new AppSettingsStore(join(app.getPath("userData"), "settings.json"))
+  handleTrpcRequests(createContext(mainWindow, settings))
   handleAssetRequests(projects)
+  handleLibraryRequests(settings)
+  handleOutputRequests(projects)
   loadRenderer(mainWindow)
 
   app.on("activate", function () {

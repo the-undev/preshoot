@@ -7,6 +7,7 @@ import { deleteAsset, insertAsset } from "./asset-store"
 import {
   deleteImage,
   importImage,
+  importImages,
   listAllImages,
   listImages,
   projectImagesPath,
@@ -52,6 +53,23 @@ describe("image store", () => {
     expect(image.mediaType).toBe("image/png")
     expect(existsSync(join(projectImagesPath(dir), image.fileName))).toBe(true)
     expect(listImages(handle.db, assetId)).toEqual([image])
+  })
+
+  it("copies several pictures all at once, or leaves no row and no file when one fails", () => {
+    const first = sourceFile("keeper.png")
+    const sourcePaths = [first, join(dir, "gone.png")]
+
+    expect(() => importImages(handle.db, { directory: dir, assetId, sourcePaths })).toThrow()
+    expect(listImages(handle.db, assetId)).toEqual([])
+    expect(readdirSync(projectImagesPath(dir))).toEqual([])
+
+    const images = importImages(handle.db, {
+      directory: dir,
+      assetId,
+      sourcePaths: [first, sourceFile("gone.png")],
+    })
+    expect(listImages(handle.db, assetId)).toEqual(images)
+    expect(readdirSync(projectImagesPath(dir))).toHaveLength(2)
   })
 
   it("keeps both when the same file is added twice", () => {

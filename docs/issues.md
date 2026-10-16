@@ -44,6 +44,8 @@ says so.
   it.
 - Keyboard shortcuts are fixed. They are one list in the code, which a settings
   screen could write to, but nothing does.
+- The pages are Alt and 1 to 4. On a Mac, Option and a digit types a
+  character, so the pages would need other keys there.
 - Ctrl and Space opens the command menu. It is also the default key for
   switching input method under IBus and fcitx, so setting one of those up for
   another language would take the chord away from the app.
@@ -53,6 +55,33 @@ says so.
   name is typed without an extension.
 - Streaming tokens to the renderer as they arrive needs a subscription link
   over the `trpc://` scheme, which nothing implements yet.
+- A run cannot be queued again from its row. Running one more of the same
+  with a fresh seed means loading its configuration, or retyping, and
+  queueing from the form.
+- The send dialog carries a clip's prompt, duration and frame pictures,
+  but its width, height and aspect ratio are still copy-only.
+- The dispatch path has not run against a live instance end to end. Every
+  piece is tested against recorded shapes, and the resolution rules were
+  read out of the server's own source, but the first real queue is the
+  live test.
+- Cancelling a run posts `{"delete": [prompt_id]}` to `/queue` and
+  `{"prompt_id": prompt_id}` to `/interrupt`, shapes taken from the API's
+  documented behaviour and not yet exercised against a live instance. Whether
+  a live instance stops only that prompt, or ignores the id and stops
+  whatever runs, is unverified.
+- A workflow's guide is shown as plain text. Markdown in a How to use note
+  is not rendered.
+- LoadAudio's saved widget shape is unverified. A workflow holding one may
+  fail at resolution, loudly and naming the node.
+- Reroute and the legacy Primitive node are dropped at resolution like any
+  class the instance does not list, not wired through. The base workflows
+  hold none.
+- Seeking in a video preview relies on hand-written Range handling that is
+  unit-tested but has not been tried in the running app.
+- The library and workflows folders, and the open workflow's source, are
+  read again when their screen is shown, from the refresh control, and when
+  the window gains focus. A change on disk while the window keeps focus waits
+  for one of those.
 
 ## What the prompt still gets wrong
 

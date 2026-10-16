@@ -1,6 +1,9 @@
 import { Plus } from "lucide-react"
+import { useState } from "react"
 import { Button, FieldHelp } from "@renderer/design-system"
-import type { Asset, ClipComposition, SavedShot, Vocabularies } from "@renderer/lib/trpc"
+import { AddFromLibraryDialog } from "@renderer/features/library/add-from-library-dialog"
+import type { LibrarySubjectFields } from "@renderer/features/library/use-library"
+import type { Asset, AssetKind, ClipComposition, SavedShot, Vocabularies } from "@renderer/lib/trpc"
 import type { SubjectEdit } from "./use-clip"
 import { clipReadiness } from "./readiness"
 import { ClipCast, type SubjectFields } from "./clip-cast"
@@ -27,6 +30,8 @@ interface ClipEditorProps {
   saved: Asset[]
   speaking: number[]
   onAddSubject: (fields: SubjectFields) => void
+  /** Makes a saved subject from a library entry, answering with it, for the cast to copy. */
+  onCreateFromLibrary: (entryPath: string, fields: LibrarySubjectFields) => Promise<Asset>
   onUpdateSubject: (subjectId: number, fields: SubjectEdit) => void
   onSaveSubject: (subjectId: number) => void
   onRemoveSubject: (subjectId: number) => void
@@ -49,10 +54,12 @@ export function ClipEditor({
   saved,
   speaking,
   onAddSubject,
+  onCreateFromLibrary,
   onUpdateSubject,
   onSaveSubject,
   onRemoveSubject,
 }: ClipEditorProps): React.JSX.Element {
+  const [addingFromLibrary, setAddingFromLibrary] = useState(false)
   const seconds = composition.shots.reduce((total, shot) => total + shot.durationMs, 0) / 1000
   const tooLong = seconds > MAX_CLIP_SECONDS
   const missing = clipReadiness(composition)
@@ -64,8 +71,8 @@ export function ClipEditor({
           <h2 className="font-heading text-sm font-semibold text-muted-foreground">Cast</h2>
           <FieldHelp label="the cast">
             The people, places and objects this clip refers to. They belong to this clip, so
-            changing one here changes nothing in any other, and saving one puts a copy in the
-            library to start from.
+            changing one here changes nothing in any other, and saving one puts a copy in Saved to
+            start from.
           </FieldHelp>
         </div>
         <ClipCast
@@ -73,6 +80,7 @@ export function ClipEditor({
           speaking={speaking}
           saved={saved}
           onAdd={onAddSubject}
+          onAddFromLibrary={() => setAddingFromLibrary(true)}
           onUpdate={onUpdateSubject}
           onSave={onSaveSubject}
           onRemove={onRemoveSubject}
@@ -104,6 +112,7 @@ export function ClipEditor({
               onAddSubject({ savedId, kind: "person", name: "", description: "" }),
             onAddSubject: (name) =>
               onAddSubject({ savedId: null, kind: "person", name, description: "" }),
+            onAddFromLibrary: () => setAddingFromLibrary(true),
             onNewShot: onAddShot,
           }}
           onChange={onShotChange}
@@ -126,6 +135,23 @@ export function ClipEditor({
           </Button>
         </div>
       </section>
+
+      {addingFromLibrary && (
+        <AddFromLibraryDialog
+          onCreate={onCreateFromLibrary}
+          onCreated={(subject) => {
+            setAddingFromLibrary(false)
+            // Added as any saved subject is, which copies it into the clip's cast.
+            onAddSubject({
+              savedId: subject.id,
+              kind: subject.kind as AssetKind,
+              name: "",
+              description: "",
+            })
+          }}
+          onCancel={() => setAddingFromLibrary(false)}
+        />
+      )}
 
       {missing.length > 0 && (
         <ul className="flex flex-col gap-1">

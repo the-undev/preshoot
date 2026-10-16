@@ -36,6 +36,9 @@ describe("projects router", () => {
       promptClient: () => {
         throw new Error("the projects router does not generate prompts")
       },
+      comfyUiClient: () => {
+        throw new Error("the projects router does not talk to ComfyUI")
+      },
     }
     caller = appRouter.createCaller(ctx)
   })

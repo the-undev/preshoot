@@ -3,6 +3,10 @@
  * come from here, so a shortcut cannot work without being documented or be listed without working.
  */
 export const SHORTCUTS = [
+  { id: "clipsPage", keys: "alt+1", group: "Pages", label: "Go to Clips" },
+  { id: "libraryPage", keys: "alt+2", group: "Pages", label: "Go to Library" },
+  { id: "savedPage", keys: "alt+3", group: "Pages", label: "Go to Saved" },
+  { id: "workflowsPage", keys: "alt+4", group: "Pages", label: "Go to Workflows" },
   { id: "newTab", keys: "ctrl+t", group: "Tabs", label: "New tab" },
   { id: "closeTab", keys: "ctrl+w", group: "Tabs", label: "Close this tab" },
   { id: "nextTab", keys: "ctrl+tab", group: "Tabs", label: "Next tab" },
@@ -25,6 +29,7 @@ export const SHORTCUTS = [
     label: "Open the command menu on a line",
   },
   { id: "copyPrompt", keys: "ctrl+shift+c", group: "Clips", label: "Copy the prompt" },
+  { id: "queueForm", keys: "ctrl+enter", group: "Workflows", label: "Queue the workflow's form" },
   { id: "showShortcuts", keys: "?", group: "Help", label: "Show the keyboard shortcuts" },
 ] as const
 
@@ -56,6 +61,7 @@ export function shortcutKeys(shortcut: Shortcut): string[] {
     if (key === "alt") return "Alt"
     if (key === "tab") return "Tab"
     if (key === "space") return "Space"
+    if (key === "enter") return "Enter"
     return key.toUpperCase()
   })
 }

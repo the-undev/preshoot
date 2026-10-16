@@ -1,0 +1,1 @@
+ALTER TABLE `workflow_slots` RENAME COLUMN "bypassed" TO "starts_off";

@@ -35,7 +35,15 @@ const assets: Asset[] = [
 
 describe("AssetList", () => {
   it("shows each thing under its kind", () => {
-    render(<AssetList assets={assets} images={[]} onEdit={vi.fn()} onRemove={vi.fn()} />)
+    render(
+      <AssetList
+        assets={assets}
+        images={[]}
+        onEdit={vi.fn()}
+        onRemove={vi.fn()}
+        onCopyToLibrary={vi.fn()}
+      />
+    )
 
     expect(screen.getByText("object")).toBeInTheDocument()
     expect(screen.getByText("person")).toBeInTheDocument()
@@ -46,7 +54,15 @@ describe("AssetList", () => {
 
   it("reports the thing that was chosen for rewriting", () => {
     const onEdit = vi.fn()
-    render(<AssetList assets={assets} images={[]} onEdit={onEdit} onRemove={vi.fn()} />)
+    render(
+      <AssetList
+        assets={assets}
+        images={[]}
+        onEdit={onEdit}
+        onRemove={vi.fn()}
+        onCopyToLibrary={vi.fn()}
+      />
+    )
 
     fireEvent.click(screen.getAllByRole("button", { name: "Edit" })[0])
 
@@ -55,16 +71,49 @@ describe("AssetList", () => {
 
   it("reports the thing that was deleted", () => {
     const onRemove = vi.fn()
-    render(<AssetList assets={assets} images={[]} onEdit={vi.fn()} onRemove={onRemove} />)
+    render(
+      <AssetList
+        assets={assets}
+        images={[]}
+        onEdit={vi.fn()}
+        onRemove={onRemove}
+        onCopyToLibrary={vi.fn()}
+      />
+    )
 
     fireEvent.click(screen.getAllByRole("button", { name: "Delete" })[1])
 
     expect(onRemove).toHaveBeenCalledWith(2)
   })
 
-  it("says so when the library is empty", () => {
-    render(<AssetList assets={[]} images={[]} onEdit={vi.fn()} onRemove={vi.fn()} />)
+  it("says so when nothing is saved", () => {
+    render(
+      <AssetList
+        assets={[]}
+        images={[]}
+        onEdit={vi.fn()}
+        onRemove={vi.fn()}
+        onCopyToLibrary={vi.fn()}
+      />
+    )
 
-    expect(screen.getByText("Nothing in the library yet.")).toBeInTheDocument()
+    expect(screen.getByText("Nothing saved yet.")).toBeInTheDocument()
+  })
+
+  it("reports the thing to copy out to the library", () => {
+    const onCopyToLibrary = vi.fn()
+    render(
+      <AssetList
+        assets={assets}
+        images={[]}
+        onEdit={vi.fn()}
+        onRemove={vi.fn()}
+        onCopyToLibrary={onCopyToLibrary}
+      />
+    )
+
+    fireEvent.click(screen.getByRole("button", { name: "Copy Keeper to the library" }))
+
+    expect(onCopyToLibrary).toHaveBeenCalledWith(assets[1])
   })
 })

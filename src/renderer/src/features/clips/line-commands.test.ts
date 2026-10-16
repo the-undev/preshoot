@@ -40,6 +40,7 @@ function menuContext(over: Partial<LineMenuContext> = {}): LineMenuContext {
     onAddSavedShot: vi.fn(),
     onAddSavedSubject: vi.fn(),
     onAddSubject: vi.fn(),
+    onAddFromLibrary: vi.fn(),
     onNewShot: vi.fn(),
     onSaveShot: vi.fn(),
     onSetShotField: vi.fn(),
@@ -119,6 +120,17 @@ describe("lineCommands", () => {
     expect(build({ word: "  " }).some((command) => command.id === "add-subject")).toBe(false)
   })
 
+  it("offers to make a subject from the library, wherever the cursor is", () => {
+    const menu = menuContext()
+    const command = build({ menu }).find((entry) => entry.id === "add-from-library")
+
+    expect(command).toEqual(
+      expect.objectContaining({ label: "Add a subject from the library", group: "Subjects" })
+    )
+    command?.run()
+    expect(menu.onAddFromLibrary).toHaveBeenCalledTimes(1)
+  })
+
   it("sets a word of the shot's vocabulary", () => {
     const onSetShotField = vi.fn()
     const commands = build({ menu: menuContext({ onSetShotField }) })
@@ -145,7 +157,7 @@ describe("lineCommands", () => {
     expect(groups).toContain("Shot")
   })
 
-  it("offers the shots the library holds", () => {
+  it("offers the shots that are saved", () => {
     const onAddSavedShot = vi.fn()
     const commands = build({
       menu: menuContext({
@@ -160,8 +172,8 @@ describe("lineCommands", () => {
   })
 })
 
-describe("lineCommands and the library", () => {
-  it("offers the subjects the library holds", () => {
+describe("lineCommands and saved starting points", () => {
+  it("offers the subjects that are saved", () => {
     const onAddSavedSubject = vi.fn()
     const commands = build({
       menu: menuContext({
@@ -180,7 +192,7 @@ describe("lineCommands and the library", () => {
       }),
     })
 
-    commands.find((command) => command.label === "Add Lamp from the library")?.run()
+    commands.find((command) => command.label === "Add Lamp from saved")?.run()
 
     expect(onAddSavedSubject).toHaveBeenCalledWith(9)
   })
@@ -202,7 +214,7 @@ describe("lineCommands and the library", () => {
       }),
     })
 
-    expect(labels(commands)).not.toContain("Add Keeper from the library")
+    expect(labels(commands)).not.toContain("Add Keeper from saved")
   })
 })
 

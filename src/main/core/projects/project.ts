@@ -12,7 +12,7 @@ import {
 } from "./marker"
 
 /** Folders every project holds alongside the marker and the database. */
-const PROJECT_SUBFOLDERS = ["assets", "outputs", "exports"]
+const PROJECT_SUBFOLDERS = ["assets", "inputs", "outputs", "exports"]
 
 /** What the renderer needs to describe a project without holding it open. */
 export interface ProjectSummary {

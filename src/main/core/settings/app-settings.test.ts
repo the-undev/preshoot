@@ -3,7 +3,12 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
 import { PROJECT_MARKER_FILENAME } from "../projects/marker"
-import { AppSettingsStore, appSettingsSchema, DEFAULT_LLAMA_SERVER_URL } from "./app-settings"
+import {
+  AppSettingsStore,
+  appSettingsSchema,
+  DEFAULT_COMFYUI_URL,
+  DEFAULT_LLAMA_SERVER_URL,
+} from "./app-settings"
 
 describe("AppSettingsStore", () => {
   let dir: string
@@ -36,6 +41,9 @@ describe("AppSettingsStore", () => {
       recentProjects: [],
       llamaServerUrl: DEFAULT_LLAMA_SERVER_URL,
       llamaModel: "",
+      comfyUiUrl: DEFAULT_COMFYUI_URL,
+      workflowsFolder: null,
+      libraryFolder: null,
     })
   })
 
@@ -45,6 +53,9 @@ describe("AppSettingsStore", () => {
       recentProjects: [],
       llamaServerUrl: DEFAULT_LLAMA_SERVER_URL,
       llamaModel: "",
+      comfyUiUrl: DEFAULT_COMFYUI_URL,
+      workflowsFolder: null,
+      libraryFolder: null,
     })
   })
 
@@ -59,14 +70,14 @@ describe("AppSettingsStore", () => {
   })
 
   it("reads back the model it was given", () => {
-    store.setLlamaModel("unsloth/Qwen3.5-9B-GGUF:Q4_K_M")
+    store.update({ llamaModel: "unsloth/Qwen3.5-9B-GGUF:Q4_K_M" })
 
     expect(store.llamaModel()).toBe("unsloth/Qwen3.5-9B-GGUF:Q4_K_M")
     expect(store.llamaServerUrl()).toBe(DEFAULT_LLAMA_SERVER_URL)
   })
 
   it("reads back the server URL it was given", () => {
-    store.setLlamaServerUrl("http://192.168.1.20:9000")
+    store.update({ llamaServerUrl: "http://192.168.1.20:9000" })
 
     expect(store.llamaServerUrl()).toBe("http://192.168.1.20:9000")
   })
@@ -75,18 +86,94 @@ describe("AppSettingsStore", () => {
     const directory = makeProjectFolder("kept")
     store.recordRecentProject({ directory, name: "Kept", createdAt: "" })
 
-    store.setLlamaServerUrl("http://192.168.1.20:9000")
+    store.update({ llamaServerUrl: "http://192.168.1.20:9000" })
 
     expect(store.listRecentProjects().map((entry) => entry.directory)).toEqual([directory])
   })
 
   it("keeps the server URL when a project is recorded", () => {
-    store.setLlamaServerUrl("http://192.168.1.20:9000")
+    store.update({ llamaServerUrl: "http://192.168.1.20:9000" })
 
     const directory = makeProjectFolder("kept")
     store.recordRecentProject({ directory, name: "Kept", createdAt: "" })
 
     expect(store.llamaServerUrl()).toBe("http://192.168.1.20:9000")
+  })
+
+  it("reads a file without a ComfyUI URL as the default one", () => {
+    writeFileSync(
+      settingsPath,
+      JSON.stringify({ recentProjects: [], llamaServerUrl: DEFAULT_LLAMA_SERVER_URL }),
+      "utf8"
+    )
+
+    expect(store.comfyUiUrl()).toBe(DEFAULT_COMFYUI_URL)
+  })
+
+  it("reads back the ComfyUI URL it was given and leaves llama-server alone", () => {
+    store.update({ comfyUiUrl: "http://127.0.0.1:8190" })
+
+    expect(store.comfyUiUrl()).toBe("http://127.0.0.1:8190")
+    expect(store.llamaServerUrl()).toBe(DEFAULT_LLAMA_SERVER_URL)
+  })
+
+  it("keeps the recent projects when the ComfyUI URL changes", () => {
+    const directory = makeProjectFolder("kept")
+    store.recordRecentProject({ directory, name: "Kept", createdAt: "" })
+
+    store.update({ comfyUiUrl: "http://127.0.0.1:8190" })
+
+    expect(store.listRecentProjects().map((entry) => entry.directory)).toEqual([directory])
+  })
+
+  it("keeps the ComfyUI URL when a project is recorded", () => {
+    store.update({ comfyUiUrl: "http://127.0.0.1:8190" })
+
+    const directory = makeProjectFolder("kept")
+    store.recordRecentProject({ directory, name: "Kept", createdAt: "" })
+
+    expect(store.comfyUiUrl()).toBe("http://127.0.0.1:8190")
+  })
+
+  it("has no workflows folder until one is named", () => {
+    writeFileSync(settingsPath, JSON.stringify({ recentProjects: [] }), "utf8")
+
+    expect(store.workflowsFolder()).toBeNull()
+  })
+
+  it("reads back the workflows folder it was given and leaves the URLs alone", () => {
+    store.update({ workflowsFolder: "/home/someone/workflows" })
+
+    expect(store.workflowsFolder()).toBe("/home/someone/workflows")
+    expect(store.comfyUiUrl()).toBe(DEFAULT_COMFYUI_URL)
+  })
+
+  it("forgets the workflows folder when given none", () => {
+    store.update({ workflowsFolder: "/home/someone/workflows" })
+    store.update({ workflowsFolder: null })
+
+    expect(store.workflowsFolder()).toBeNull()
+  })
+
+  it("has no library folder until one is named", () => {
+    writeFileSync(settingsPath, JSON.stringify({ recentProjects: [] }), "utf8")
+
+    expect(store.libraryFolder()).toBeNull()
+  })
+
+  it("reads back the library folder it was given and leaves the workflows folder alone", () => {
+    store.update({ workflowsFolder: "/home/someone/workflows" })
+    store.update({ libraryFolder: "/home/someone/library" })
+
+    expect(store.libraryFolder()).toBe("/home/someone/library")
+    expect(store.workflowsFolder()).toBe("/home/someone/workflows")
+  })
+
+  it("forgets the library folder when given none", () => {
+    store.update({ libraryFolder: "/home/someone/library" })
+    store.update({ libraryFolder: null })
+
+    expect(store.libraryFolder()).toBeNull()
   })
 
   it("writes a file the schema accepts", () => {

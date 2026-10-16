@@ -42,6 +42,8 @@ interface ClipCastProps {
   speaking: number[]
   saved: Asset[]
   onAdd: (fields: SubjectFields) => void
+  /** Opens the library, to make a subject from one of its entries and add it here. */
+  onAddFromLibrary: () => void
   onUpdate: (subjectId: number, fields: SubjectEdit) => void
   onSave: (subjectId: number) => void
   onRemove: (subjectId: number) => void
@@ -49,14 +51,15 @@ interface ClipCastProps {
 
 /**
  * The people, places and objects this clip holds, as a strip of chips. They belong to the clip, so
- * changing one here changes nothing in any other clip, and saving one copies it into the library
- * as a starting point.
+ * changing one here changes nothing in any other clip, and saving one copies it into
+ * Saved as a starting point.
  */
 export function ClipCast({
   cast,
   speaking,
   saved,
   onAdd,
+  onAddFromLibrary,
   onUpdate,
   onSave,
   onRemove,
@@ -76,12 +79,12 @@ export function ClipCast({
         />
       ))}
 
-      <AddCastChip saved={saved} onAdd={onAdd} />
+      <AddCastChip saved={saved} onAdd={onAdd} onAddFromLibrary={onAddFromLibrary} />
 
       {removing && (
         <ConfirmDialog
           title={`Take ${removing.name} out of this clip?`}
-          description="The lines that name them go with it. Anything saved in the library stays."
+          description="The lines that name them go with it. Anything saved stays."
           confirmLabel="Remove"
           onCancel={() => setRemoving(null)}
           onConfirm={() => {
@@ -175,10 +178,10 @@ function CastChip({
           <Button
             variant="ghost"
             size="sm"
-            aria-label={`Save ${subject.name} to the library`}
+            aria-label={`Save ${subject.name} as a starting point`}
             onClick={onSave}
           >
-            Save to the library
+            Save as a starting point
           </Button>
           <Button
             variant="ghost"
@@ -201,10 +204,11 @@ function CastChip({
 interface AddCastChipProps {
   saved: Asset[]
   onAdd: (fields: SubjectFields) => void
+  onAddFromLibrary: () => void
 }
 
-/** Adds a subject to the clip, either written here or copied from the library. */
-function AddCastChip({ saved, onAdd }: AddCastChipProps): React.JSX.Element {
+/** Adds a subject to the clip, written here, copied from saved, or made from the library. */
+function AddCastChip({ saved, onAdd, onAddFromLibrary }: AddCastChipProps): React.JSX.Element {
   const [open, setOpen] = useState(false)
   const [kind, setKind] = useState<AssetKind>("person")
   const [name, setName] = useState("")
@@ -264,7 +268,7 @@ function AddCastChip({ saved, onAdd }: AddCastChipProps): React.JSX.Element {
 
         {saved.length > 0 && (
           <div className="flex flex-col gap-1">
-            <span className="text-xs text-muted-foreground">From the library</span>
+            <span className="text-xs text-muted-foreground">From saved</span>
             <div className="flex max-h-40 flex-col gap-0.5 overflow-y-auto">
               {saved.map((subject) => (
                 <button
@@ -282,6 +286,18 @@ function AddCastChip({ saved, onAdd }: AddCastChipProps): React.JSX.Element {
             </div>
           </div>
         )}
+
+        <Button
+          variant="outline"
+          size="sm"
+          className="self-start"
+          onClick={() => {
+            setOpen(false)
+            onAddFromLibrary()
+          }}
+        >
+          From library
+        </Button>
       </PopoverContent>
     </Popover>
   )

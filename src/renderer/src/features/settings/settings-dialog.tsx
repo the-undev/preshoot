@@ -13,7 +13,10 @@ interface SettingsDialogProps {
   onClose: () => void
 }
 
-/** App settings: where llama-server is, which model it is asked for, and what it is holding. */
+/**
+ * App settings: where llama-server and ComfyUI are, which model llama-server is asked for, where
+ * workflows are imported from, and where the library is.
+ */
 export function SettingsDialog({ onClose }: SettingsDialogProps): React.JSX.Element {
   const trpc = useTRPC()
   const queryClient = useQueryClient()
@@ -21,8 +24,12 @@ export function SettingsDialog({ onClose }: SettingsDialogProps): React.JSX.Elem
   // Asked for as the dialog opens: an empty list beside a Check button reads as a server with
   // nothing on it, rather than a question nobody has asked yet.
   const saved = useQuery(trpc.settings.models.queryOptions())
+  const savedComfyUi = useQuery(trpc.settings.comfyUiStatus.queryOptions())
 
   const check = useMutation(trpc.settings.checkLlamaServer.mutationOptions())
+  const checkComfyUi = useMutation(trpc.settings.checkComfyUi.mutationOptions())
+  const pickWorkflowsFolder = useMutation(trpc.settings.pickWorkflowsFolder.mutationOptions())
+  const pickLibraryFolder = useMutation(trpc.settings.pickLibraryFolder.mutationOptions())
   // What unload answers with is newer than what the last check saw, so it wins below.
   const unload = useMutation(trpc.settings.unloadModel.mutationOptions())
   const save = useMutation(
@@ -47,22 +54,32 @@ export function SettingsDialog({ onClose }: SettingsDialogProps): React.JSX.Elem
         <DialogHeader>
           <DialogTitle>App settings</DialogTitle>
           <DialogDescription>
-            Where the app writes prompts, and which model it asks for. These apply to every project.
+            Where llama-server and ComfyUI are, which model the app asks llama-server for, where
+            workflows come from and where the library is. These apply to every project.
           </DialogDescription>
         </DialogHeader>
         {settings.data ? (
           <SettingsForm
             llamaServerUrl={settings.data.llamaServerUrl}
             llamaModel={settings.data.llamaModel}
+            comfyUiUrl={settings.data.comfyUiUrl}
+            workflowsFolder={settings.data.workflowsFolder}
+            libraryFolder={settings.data.libraryFolder}
             models={models}
             checkState={check.data?.state ?? saved.data?.state ?? null}
             isChecking={check.isPending || saved.isLoading}
+            comfyUiStatus={checkComfyUi.data ?? savedComfyUi.data ?? null}
+            isCheckingComfyUi={checkComfyUi.isPending || savedComfyUi.isLoading}
+            comfyUiErrorMessage={checkComfyUi.error?.message ?? null}
             isSaving={save.isPending}
             isUnloading={unload.isPending}
             errorMessage={
               save.error?.message ?? check.error?.message ?? unload.error?.message ?? null
             }
             onCheck={(url) => check.mutate({ url })}
+            onCheckComfyUi={(url) => checkComfyUi.mutate({ url })}
+            onPickWorkflowsFolder={() => pickWorkflowsFolder.mutateAsync()}
+            onPickLibraryFolder={() => pickLibraryFolder.mutateAsync()}
             onUnload={(modelId) => unload.mutate({ url: settings.data.llamaServerUrl, modelId })}
             onSave={(fields) => save.mutate(fields)}
             onCancel={onClose}

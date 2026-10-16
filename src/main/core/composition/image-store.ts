@@ -2,7 +2,7 @@ import { randomBytes } from "node:crypto"
 import { copyFileSync, existsSync, mkdirSync, rmSync } from "node:fs"
 import { extname, join } from "node:path"
 import { asc, eq } from "drizzle-orm"
-import { schema, type ProjectDatabase } from "../db"
+import { schema, type ProjectDatabase, type ProjectDb } from "../db"
 import { CompositionError } from "./errors"
 
 /** What can be attached, and what each is served as. */
@@ -30,7 +30,7 @@ export interface AssetImage {
 
 /** Copies a picture into the project and hangs it on a library thing. */
 export function importImage(
-  db: ProjectDatabase,
+  db: ProjectDb,
   input: { directory: string; assetId: number; sourcePath: string }
 ): AssetImage {
   const mediaType = IMAGE_MEDIA_TYPES[extname(input.sourcePath).toLowerCase()]
@@ -48,24 +48,47 @@ export function importImage(
   const fileName = `${input.assetId}-${randomBytes(8).toString("hex")}${extname(input.sourcePath).toLowerCase()}`
   const directory = projectImagesPath(input.directory)
   mkdirSync(directory, { recursive: true })
-  copyFileSync(input.sourcePath, join(directory, fileName))
+  try {
+    copyFileSync(input.sourcePath, join(directory, fileName))
+    const [row] = db
+      .insert(schema.assetImages)
+      .values({
+        assetId: input.assetId,
+        fileName,
+        mediaType,
+        position: listImages(db, input.assetId).length,
+        createdAt: new Date(),
+      })
+      .returning()
+      .all()
+    return toImage(row)
+  } catch (error) {
+    removeFile(input.directory, fileName)
+    throw error
+  }
+}
 
-  const [row] = db
-    .insert(schema.assetImages)
-    .values({
-      assetId: input.assetId,
-      fileName,
-      mediaType,
-      position: listImages(db, input.assetId).length,
-      createdAt: new Date(),
+/** Copies several pictures onto one library thing, all or none: a failure leaves no row and no file. */
+export function importImages(
+  db: ProjectDb,
+  input: { directory: string; assetId: number; sourcePaths: string[] }
+): AssetImage[] {
+  const imported: AssetImage[] = []
+  try {
+    return db.transaction((tx) => {
+      for (const sourcePath of input.sourcePaths) {
+        imported.push(importImage(tx, { ...input, sourcePath }))
+      }
+      return imported
     })
-    .returning()
-    .all()
-  return toImage(row)
+  } catch (error) {
+    for (const image of imported) removeFile(input.directory, image.fileName)
+    throw error
+  }
 }
 
 /** The pictures of one library thing, in the order they were added. */
-export function listImages(db: ProjectDatabase, assetId: number): AssetImage[] {
+export function listImages(db: ProjectDb, assetId: number): AssetImage[] {
   return db
     .select()
     .from(schema.assetImages)
