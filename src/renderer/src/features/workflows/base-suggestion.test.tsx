@@ -5,7 +5,7 @@ import { BaseSuggestionLine } from "./base-suggestion"
 
 const suggestion = { workflowId: 2, name: "h3-r2v-base", matchingSlots: 7 }
 
-const line = "h3-r2v-base maps 7 of the same slots. Copy its tiers and notes?"
+const line = "h3-r2v-base maps 7 of the same slots. Copy its mapping?"
 
 function renderLine(answers: StubAnswers): void {
   render(

@@ -25,8 +25,7 @@ export function BaseSuggestionLine({
     <div className="flex flex-col gap-1 rounded border p-3">
       <div className="flex flex-wrap items-center gap-3">
         <p className="min-w-0 flex-1 text-sm">
-          {suggestion.name} maps {suggestion.matchingSlots} of the same slots. Copy its tiers and
-          notes?
+          {suggestion.name} maps {suggestion.matchingSlots} of the same slots. Copy its mapping?
         </p>
         <span className="flex shrink-0 gap-1">
           <Button
