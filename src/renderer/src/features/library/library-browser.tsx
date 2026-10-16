@@ -16,6 +16,8 @@ interface LibraryBrowserProps {
   onOpenSettings: () => void
   onAddToProject: (entry: LibraryEntry) => void
   onOpenAsClip: (file: LibraryFile) => void
+  /** Opens a picture in the app the system gives pictures. */
+  onOpenFile: (file: LibraryFile) => void
 }
 
 /**
@@ -29,6 +31,7 @@ export function LibraryBrowser({
   onOpenSettings,
   onAddToProject,
   onOpenAsClip,
+  onOpenFile,
 }: LibraryBrowserProps): React.JSX.Element {
   const [chosenKind, setChosenKind] = useState<string | null>(null)
   const [chosenEntry, setChosenEntry] = useState<string | null>(null)
@@ -119,6 +122,7 @@ export function LibraryBrowser({
           isWorking={isWorking}
           onAddToProject={() => onAddToProject(entry)}
           onOpenAsClip={onOpenAsClip}
+          onOpenFile={onOpenFile}
         />
       ) : (
         <p className="text-sm text-muted-foreground">
@@ -198,14 +202,19 @@ interface EntryViewProps {
   isWorking: boolean
   onAddToProject: () => void
   onOpenAsClip: (file: LibraryFile) => void
+  onOpenFile: (file: LibraryFile) => void
 }
 
-/** One entry: its notes, its pictures as a grid, and its other files as rows. */
+/**
+ * One entry: its notes, its pictures as a grid that opens each one outside the app, and its other
+ * files as rows, with a player for sound and video.
+ */
 function EntryView({
   entry,
   isWorking,
   onAddToProject,
   onOpenAsClip,
+  onOpenFile,
 }: EntryViewProps): React.JSX.Element {
   const pictures = entry.files.filter((file) => file.media === "image")
   const others = entry.files.filter((file) => file.media !== "image")
@@ -234,11 +243,18 @@ function EntryView({
         <ul className="grid grid-cols-[repeat(auto-fill,minmax(12rem,1fr))] gap-3">
           {pictures.map((file) => (
             <li key={file.path} className="flex flex-col gap-1">
-              <img
-                src={libraryFileUrl(file.relativePath, 320)}
-                alt={file.name}
-                className="aspect-square w-full rounded border object-cover"
-              />
+              <button
+                type="button"
+                aria-label={`Open ${file.name}`}
+                className="cursor-pointer rounded focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                onClick={() => onOpenFile(file)}
+              >
+                <img
+                  src={libraryFileUrl(file.relativePath, 320)}
+                  alt={file.name}
+                  className="aspect-square w-full rounded border object-cover"
+                />
+              </button>
               <span className="truncate text-xs text-muted-foreground">{file.name}</span>
             </li>
           ))}
@@ -248,21 +264,41 @@ function EntryView({
       {others.length > 0 && (
         <ul className="flex flex-col">
           {others.map((file) => (
-            <li key={file.path} className="flex items-center gap-3 border-b py-1.5 last:border-b-0">
-              <span className="min-w-0 flex-1 truncate text-sm">{file.name}</span>
-              <span className="shrink-0 text-xs text-muted-foreground">
-                {MEDIA_LABELS[file.media]}
-              </span>
-              {file.media === "text" && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={isWorking}
-                  aria-label={`Open ${file.name} as a clip`}
-                  onClick={() => onOpenAsClip(file)}
-                >
-                  Open as clip
-                </Button>
+            <li key={file.path} className="flex flex-col gap-2 border-b py-1.5 last:border-b-0">
+              <div className="flex items-center gap-3">
+                <span className="min-w-0 flex-1 truncate text-sm">{file.name}</span>
+                <span className="shrink-0 text-xs text-muted-foreground">
+                  {MEDIA_LABELS[file.media]}
+                </span>
+                {file.media === "audio" && (
+                  <audio
+                    controls
+                    preload="none"
+                    src={libraryFileUrl(file.relativePath)}
+                    aria-label={`Play ${file.name}`}
+                    className="h-8 shrink-0"
+                  />
+                )}
+                {file.media === "text" && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={isWorking}
+                    aria-label={`Open ${file.name} as a clip`}
+                    onClick={() => onOpenAsClip(file)}
+                  >
+                    Open as clip
+                  </Button>
+                )}
+              </div>
+              {file.media === "video" && (
+                <video
+                  controls
+                  preload="metadata"
+                  src={libraryFileUrl(file.relativePath)}
+                  aria-label={`Play ${file.name}`}
+                  className="w-full max-w-2xl rounded border"
+                />
               )}
             </li>
           ))}

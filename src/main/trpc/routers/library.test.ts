@@ -4,6 +4,7 @@ import {
   mkdtempSync,
   readdirSync,
   readFileSync,
+  realpathSync,
   rmSync,
   writeFileSync,
 } from "node:fs"
@@ -24,6 +25,7 @@ describe("library router", () => {
   let session: ProjectSession
   let settings: AppSettingsStore
   let picked: string[]
+  let opened: string[]
   let caller: ReturnType<typeof appRouter.createCaller>
 
   beforeEach(() => {
@@ -38,6 +40,7 @@ describe("library router", () => {
     settings = new AppSettingsStore(join(dir, "settings.json"))
     settings.setLibraryFolder(library)
     picked = []
+    opened = []
     const ctx: Context = {
       versions: { app: "0.0.0", electron: "0", chrome: "0", node: "0" },
       projects: session,
@@ -49,7 +52,9 @@ describe("library router", () => {
         pickFiles: async () => picked,
         saveFile: async () => null,
       },
-      openPath: async () => {},
+      openPath: async (path) => {
+        opened.push(path)
+      },
       promptClient: () => {
         throw new Error("the library router does not generate prompts")
       },
@@ -120,6 +125,20 @@ describe("library router", () => {
         relativePath: join("characters", "Daniel", "daniel-cafe.png"),
       })
     ).rejects.toThrow(expect.objectContaining({ code: "BAD_REQUEST" }))
+  })
+
+  it("opens a picture of the library, and nothing outside it or that is not a picture", async () => {
+    writeFileSync(join(dir, "secret.png"), "secret")
+
+    await caller.library.openFile({ relativePath: join("characters", "Daniel", "daniel-cafe.png") })
+    await expect(
+      caller.library.openFile({ relativePath: join("..", "secret.png") })
+    ).rejects.toThrow(expect.objectContaining({ code: "NOT_FOUND" }))
+    await expect(
+      caller.library.openFile({ relativePath: join("prompts", "one-liner.txt") })
+    ).rejects.toThrow(expect.objectContaining({ code: "BAD_REQUEST" }))
+
+    expect(opened).toEqual([realpathSync(join(library, "characters", "Daniel", "daniel-cafe.png"))])
   })
 
   it("makes a saved subject from an entry, with its pictures copied into the project", async () => {

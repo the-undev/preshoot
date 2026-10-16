@@ -62,6 +62,7 @@ const LIBRARY_CODES = {
   missing: "PRECONDITION_FAILED",
   "not-found": "NOT_FOUND",
   "not-text": "BAD_REQUEST",
+  "not-image": "BAD_REQUEST",
   exists: "CONFLICT",
   "bad-name": "BAD_REQUEST",
 } as const

@@ -1,6 +1,6 @@
 /** Why the library could not be read from or written to. */
 export type LibraryErrorCode =
-  "unset" | "missing" | "not-found" | "not-text" | "exists" | "bad-name"
+  "unset" | "missing" | "not-found" | "not-text" | "not-image" | "exists" | "bad-name"
 
 /** A refusal the renderer can show, raised when reading entries or writing one. */
 export class LibraryError extends Error {
@@ -30,6 +30,11 @@ export class LibraryError extends Error {
   /** The file asked for is not one the app reads as text. */
   static notText(what: string): LibraryError {
     return new LibraryError("not-text", `${what} is not a text file.`)
+  }
+
+  /** The file asked for is not a picture, so it is not opened. */
+  static notImage(what: string): LibraryError {
+    return new LibraryError("not-image", `${what} is not a picture.`)
   }
 
   /** An entry of that name is already there, and nothing is overwritten. */

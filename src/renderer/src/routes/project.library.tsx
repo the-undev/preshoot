@@ -49,6 +49,7 @@ function Library(): React.JSX.Element {
           setAdding(entry)
         }}
         onOpenAsClip={(file) => library.openAsClip(file, () => void navigate({ to: "/project" }))}
+        onOpenFile={library.openFile}
       />
 
       {adding && (

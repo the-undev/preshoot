@@ -17,6 +17,8 @@ export interface LibraryPanel {
     onAdded: (name: string) => void
   ): void
   openAsClip(file: LibraryFile, onOpened: () => void): void
+  /** Opens a picture in the app the system gives pictures. */
+  openFile(file: LibraryFile): void
   isWorking: boolean
   addError: string | null
   errorMessage: string | null
@@ -34,6 +36,8 @@ export function useLibrary(): LibraryPanel {
       onSuccess: () => queryClient.invalidateQueries({ queryKey: trpc.assets.pathKey() }),
     })
   )
+
+  const openFile = useMutation(trpc.library.openFile.mutationOptions())
 
   // The text is read, then goes through the same paste a prompt typed in does, then gets a tab.
   const open = useMutation({
@@ -57,9 +61,10 @@ export function useLibrary(): LibraryPanel {
     addToProject: (entryPath, fields, onAdded) =>
       add.mutate({ entryPath, ...fields }, { onSuccess: (subject) => onAdded(subject.name) }),
     openAsClip: (file, onOpened) => open.mutate(file, { onSuccess: onOpened }),
+    openFile: (file) => openFile.mutate({ relativePath: file.relativePath }),
     isWorking: add.isPending || open.isPending,
     // The message from main already says what the user can do about it.
     addError: add.error?.message ?? null,
-    errorMessage: open.error?.message ?? folder.error?.message ?? null,
+    errorMessage: open.error?.message ?? openFile.error?.message ?? folder.error?.message ?? null,
   }
 }

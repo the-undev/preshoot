@@ -8,11 +8,13 @@ function renderBrowser(over: Partial<React.ComponentProps<typeof LibraryBrowser>
   onOpenSettings: ReturnType<typeof vi.fn>
   onAddToProject: ReturnType<typeof vi.fn>
   onOpenAsClip: ReturnType<typeof vi.fn>
+  onOpenFile: ReturnType<typeof vi.fn>
 } {
   const onRefresh = vi.fn()
   const onOpenSettings = vi.fn()
   const onAddToProject = vi.fn()
   const onOpenAsClip = vi.fn()
+  const onOpenFile = vi.fn()
   render(
     <LibraryBrowser
       folder={listedLibrary}
@@ -21,10 +23,11 @@ function renderBrowser(over: Partial<React.ComponentProps<typeof LibraryBrowser>
       onOpenSettings={onOpenSettings}
       onAddToProject={onAddToProject}
       onOpenAsClip={onOpenAsClip}
+      onOpenFile={onOpenFile}
       {...over}
     />
   )
-  return { onRefresh, onOpenSettings, onAddToProject, onOpenAsClip }
+  return { onRefresh, onOpenSettings, onAddToProject, onOpenAsClip, onOpenFile }
 }
 
 describe("LibraryBrowser", () => {
@@ -80,7 +83,43 @@ describe("LibraryBrowser", () => {
       "daniel.safetensorsRefMod",
       "sheet.psdOther",
       "voice.wavAudio",
+      "walk.mp4Video",
     ])
+  })
+
+  it("plays an entry's sounds and videos where they sit in the library", () => {
+    renderBrowser()
+
+    fireEvent.click(screen.getByRole("button", { name: "Daniel" }))
+
+    const sound = screen.getByLabelText("Play voice.wav")
+    expect(sound.tagName).toBe("AUDIO")
+    expect(sound).toHaveAttribute("controls")
+    expect(sound).toHaveAttribute("preload", "none")
+    expect(sound).toHaveAttribute(
+      "src",
+      `library://file/${encodeURIComponent("characters/Daniel/voice.wav")}`
+    )
+    const video = screen.getByLabelText("Play walk.mp4")
+    expect(video.tagName).toBe("VIDEO")
+    expect(video).toHaveAttribute("controls")
+    expect(video).toHaveAttribute("preload", "metadata")
+    expect(video).toHaveAttribute(
+      "src",
+      `library://file/${encodeURIComponent("characters/Daniel/walk.mp4")}`
+    )
+    expect(screen.queryByLabelText("Play sheet.psd")).not.toBeInTheDocument()
+  })
+
+  it("opens a picture outside the app when it is clicked", () => {
+    const { onOpenFile } = renderBrowser()
+
+    fireEvent.click(screen.getByRole("button", { name: "Daniel" }))
+    fireEvent.click(screen.getByRole("button", { name: "Open daniel-cafe.png" }))
+
+    expect(onOpenFile).toHaveBeenCalledWith(
+      expect.objectContaining({ relativePath: "characters/Daniel/daniel-cafe.png" })
+    )
   })
 
   it("says when an entry has no notes", () => {

@@ -38,6 +38,12 @@ export const listedLibrary: LibraryFolder = {
               relativePath: "characters/Daniel/voice.wav",
               media: "audio",
             },
+            {
+              name: "walk.mp4",
+              path: "/l/characters/Daniel/walk.mp4",
+              relativePath: "characters/Daniel/walk.mp4",
+              media: "video",
+            },
           ],
         },
       ],

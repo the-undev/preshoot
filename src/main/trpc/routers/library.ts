@@ -30,6 +30,20 @@ export const libraryRouter = router({
       }
     }),
 
+  /** Opens one picture of the library in the app the system gives pictures. */
+  openFile: publicProcedure
+    .input(z.object({ relativePath: z.string().min(1) }))
+    .mutation(async ({ ctx, input }) => {
+      try {
+        const path = resolveLibraryFile(ctx.settings.libraryFolder(), input.relativePath)
+        if (path === null) throw LibraryError.notFound(input.relativePath)
+        if (mediaOf(path) !== "image") throw LibraryError.notImage(input.relativePath)
+        await ctx.openPath(path)
+      } catch (error) {
+        asClientError(error)
+      }
+    }),
+
   /**
    * Makes a saved subject in the open project from a library entry, named after it, with its
    * pictures copied in, all at once or not at all. The entry is read again first, so only what is
