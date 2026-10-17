@@ -55,9 +55,15 @@ type NodeQuirk = (values: unknown) => Record<string, unknown> | null
 
 /** Node types whose widgets cannot be read from their spec. A new quirk is a row here. */
 export const NODE_QUIRKS: Readonly<Partial<Record<string, NodeQuirk>>> = {
-  // Saves [state, text, loras]; the state object belongs to the editor.
-  "Lora Loader (LoraManager)": (values) =>
-    Array.isArray(values) && values.length === 3 ? { text: values[1], loras: values[2] } : null,
+  // Saves [state, text, loras], read by type: the state object belongs to the editor and may be
+  // missing. Older versions of the class have no loras input and take them inside the text.
+  "Lora Loader (LoraManager)": (values) => {
+    if (!Array.isArray(values)) return null
+    const text = values.find((value) => typeof value === "string")
+    if (text === undefined) return null
+    const loras = values.find((value) => Array.isArray(value)) ?? []
+    return { text, loras }
+  },
 }
 
 const graphInputSchema = z.looseObject({

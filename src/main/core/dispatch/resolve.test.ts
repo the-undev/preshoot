@@ -217,7 +217,7 @@ describe("resolvePrompt", () => {
 
   it("refuses a quirk node saved in a shape it does not know", () => {
     const graph = editedFixture("h3-r2v-base", (node) => {
-      if (node.id === 2) node.widgets_values = ["", []]
+      if (node.id === 2) node.widgets_values = [{}, 5]
     })
 
     expect(() => resolvePrompt(graph, objectInfo, [], now)).toThrow(
@@ -240,26 +240,50 @@ describe("resolvePrompt", () => {
     )
   })
 
-  describe("a quirk node whose class no longer lists loras", () => {
-    const driftedInfo = objectInfoFixture()
-    delete (driftedInfo["Lora Loader (LoraManager)"].input as { required: Record<string, unknown> })
-      .required.loras
+  describe("the older LoraManager class, which has no loras input", () => {
+    const olderInfo = objectInfoFixture()
+    olderInfo["Lora Loader (LoraManager)"].input = {
+      required: {
+        model: ["MODEL"],
+        text: [
+          "AUTOCOMPLETE_TEXT_LORAS",
+          {
+            placeholder: "Search LoRAs to add...",
+            tooltip: "Format: <lora:lora_name:strength> separated by spaces or punctuation",
+          },
+        ],
+      },
+      optional: {},
+    }
+
+    function withSavedValues(widgetsValues: unknown[]): string {
+      return editedFixture("h3-r2v-base", (node) => {
+        if (node.id === 2) node.widgets_values = widgetsValues
+      })
+    }
 
     it("leaves out an empty loras list", () => {
-      const prompt = resolvePrompt(fixtureText("h3-r2v-base"), driftedInfo, [], now)
+      const graph = withSavedValues([{}, "<lora:foo:0.8>", []])
 
-      expect(prompt["2"]).toEqual({
+      expect(resolvePrompt(graph, olderInfo, [], now)["2"]).toEqual({
         class_type: "Lora Loader (LoraManager)",
-        inputs: { text: "", model: ["1", 0] },
+        inputs: { text: "<lora:foo:0.8>", model: ["1", 0] },
+      })
+    })
+
+    it("reads the values by type when the state entry is missing", () => {
+      const graph = withSavedValues(["<lora:foo:0.8>", []])
+
+      expect(resolvePrompt(graph, olderInfo, [], now)["2"].inputs).toEqual({
+        text: "<lora:foo:0.8>",
+        model: ["1", 0],
       })
     })
 
     it("refuses a loras list that holds entries", () => {
-      const graph = editedFixture("h3-r2v-base", (node) => {
-        if (node.id === 2) node.widgets_values = [{}, "", [{ name: "a", strength: 1 }]]
-      })
+      const graph = withSavedValues([{}, "", [{ name: "a", strength: 1 }]])
 
-      expect(() => resolvePrompt(graph, driftedInfo, [], now)).toThrow(
+      expect(() => resolvePrompt(graph, olderInfo, [], now)).toThrow(
         /Lora Loader \(LoraManager\) \(node 2\) has an input loras its class does not list\. The class lists: model, text\./
       )
     })

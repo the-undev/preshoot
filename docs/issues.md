@@ -19,7 +19,7 @@ says so.
   open. The squash dropped the migrations that would carry it forward, so
   the folder has to be made again.
 
-- The inputs of the LoraManager class vary between instances and node versions: one live instance lacked `loras` while another listed it. The quirk now tolerates an absent input only when its value is empty. The spec of the failing instance is still to be captured.
+- The LoraManager class has two known variants: an older one with only `model` and `text`, where loras are written in the text as `<lora:name:strength>`, and a newer one with a separate `loras` input. The quirk reads the saved values by type and tolerates an absent input only when its value is empty.
 
 ## Limitations
 
