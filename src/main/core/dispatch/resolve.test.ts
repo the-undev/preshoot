@@ -236,7 +236,7 @@ describe("resolvePrompt", () => {
       })
 
     expect(() => resolvePrompt(JSON.stringify(graph), objectInfo, [], now)).toThrow(
-      /BasicGuider \(node 27\) has an input bogus its class does not list/
+      /BasicGuider \(node 27\) has an input bogus its class does not list\. The class lists: model, conditioning\./
     )
   })
 

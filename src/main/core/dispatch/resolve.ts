@@ -245,6 +245,14 @@ function quirkWidgets(node: GraphNode, quirk: NodeQuirk): [string, unknown][] {
   return Object.entries(inputs)
 }
 
+/** The refusal for an input the node's class does not list, naming the inputs it does. */
+function unlistedInput(node: GraphNode, entries: SpecEntry[], name: string): DispatchError {
+  return DispatchError.unresolvable(
+    `${label(node)} has an input ${name} its class does not list. ` +
+      `The class lists: ${entries.map((entry) => entry.name).join(", ")}.`
+  )
+}
+
 /** Pairs a node's saved widget values with the widget inputs its spec lists, in order. */
 function readWidgets(node: GraphNode, entries: SpecEntry[]): [string, unknown][] {
   const saved = node.widgets_values ?? []
@@ -304,9 +312,7 @@ function checkNames(node: GraphNode, entries: SpecEntry[], inputs: Record<string
     const entry = byName.get(head)
     const known = rest.length === 0 ? entry !== undefined : COMPOUND_TYPES.has(String(entry?.type))
     if (!known) {
-      throw DispatchError.unresolvable(
-        `${label(node)} has an input ${name} its class does not list.`
-      )
+      throw unlistedInput(node, entries, name)
     }
   }
 }
