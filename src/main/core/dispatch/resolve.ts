@@ -219,7 +219,7 @@ function widgetInputs(
   patch: NodePatch | null
 ): Record<string, unknown> {
   const quirk = NODE_QUIRKS[node.type]
-  const widgets = quirk ? quirkWidgets(node, quirk) : readWidgets(node, entries)
+  const widgets = quirk ? quirkWidgets(node, quirk, entries) : readWidgets(node, entries)
   if (patch?.value != null) {
     if (quirk) {
       throw DispatchError.unresolvable(
@@ -236,13 +236,30 @@ function widgetInputs(
   return Object.fromEntries(widgets)
 }
 
-/** The inputs a quirk reads out of a node, refusing values that are not in the shape it knows. */
-function quirkWidgets(node: GraphNode, quirk: NodeQuirk): [string, unknown][] {
+/**
+ * The inputs a quirk reads out of a node, refusing values that are not in the shape it knows.
+ * An input the class does not list is left out when its value is empty and refused otherwise.
+ */
+function quirkWidgets(
+  node: GraphNode,
+  quirk: NodeQuirk,
+  entries: SpecEntry[]
+): [string, unknown][] {
   const inputs = quirk(node.widgets_values)
   if (!inputs) {
     throw DispatchError.unresolvable(`${label(node)} saves its widget values in an unknown shape.`)
   }
-  return Object.entries(inputs)
+  const listed = new Set(entries.map((entry) => entry.name))
+  return Object.entries(inputs).filter(([name, value]) => {
+    if (listed.has(name)) return true
+    if (isEmptyValue(value)) return false
+    throw unlistedInput(node, entries, name)
+  })
+}
+
+/** Whether a saved value says nothing: an empty string, an empty array or null. */
+function isEmptyValue(value: unknown): boolean {
+  return value == null || value === "" || (Array.isArray(value) && value.length === 0)
 }
 
 /** The refusal for an input the node's class does not list, naming the inputs it does. */

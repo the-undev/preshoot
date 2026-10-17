@@ -240,6 +240,31 @@ describe("resolvePrompt", () => {
     )
   })
 
+  describe("a quirk node whose class no longer lists loras", () => {
+    const driftedInfo = objectInfoFixture()
+    delete (driftedInfo["Lora Loader (LoraManager)"].input as { required: Record<string, unknown> })
+      .required.loras
+
+    it("leaves out an empty loras list", () => {
+      const prompt = resolvePrompt(fixtureText("h3-r2v-base"), driftedInfo, [], now)
+
+      expect(prompt["2"]).toEqual({
+        class_type: "Lora Loader (LoraManager)",
+        inputs: { text: "", model: ["1", 0] },
+      })
+    })
+
+    it("refuses a loras list that holds entries", () => {
+      const graph = editedFixture("h3-r2v-base", (node) => {
+        if (node.id === 2) node.widgets_values = [{}, "", [{ name: "a", strength: 1 }]]
+      })
+
+      expect(() => resolvePrompt(graph, driftedInfo, [], now)).toThrow(
+        /Lora Loader \(LoraManager\) \(node 2\) has an input loras its class does not list\. The class lists: model, text\./
+      )
+    })
+  })
+
   it("puts bound values in place of the saved ones", () => {
     const prompt = resolveFixture("h3-r2v-base", [
       { nodeId: 14, on: true, value: "A man walks in." },

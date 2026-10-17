@@ -19,6 +19,8 @@ says so.
   open. The squash dropped the migrations that would carry it forward, so
   the folder has to be made again.
 
+- The inputs of the LoraManager class vary between instances and node versions: one live instance lacked `loras` while another listed it. The quirk now tolerates an absent input only when its value is empty. The spec of the failing instance is still to be captured.
+
 ## Limitations
 
 - Only one project is open at a time, for the app rather than per window. A
